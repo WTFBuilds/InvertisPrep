@@ -1,19 +1,22 @@
-import express from 'express';
+import { Router } from 'express';
 import {
-  getAllDepartments,
-  getDepartmentById,
+  getDepartments,
+  createDepartment,
+  updateDepartment,
+  deleteDepartment,
   getBranchesByDepartment,
 } from '../controllers/departmentController.js';
+import { authenticateJWT, isAdmin } from '../middleware/auth.js';
 
-const router = express.Router();
+const router = Router();
 
-// GET /api/departments - Get all departments
-router.get('/', getAllDepartments);
-
-// GET /api/departments/:id - Get single department
-router.get('/:id', getDepartmentById);
-
-// GET /api/departments/:departmentId/branches - Get branches by department
+// Public routes
+router.get('/', getDepartments);
 router.get('/:departmentId/branches', getBranchesByDepartment);
+
+// Admin routes
+router.post('/', authenticateJWT, isAdmin, createDepartment);
+router.put('/:id', authenticateJWT, isAdmin, updateDepartment);
+router.delete('/:id', authenticateJWT, isAdmin, deleteDepartment);
 
 export default router;

@@ -7,7 +7,6 @@ const userSchema = new Schema<IUser>(
       type: String,
       sparse: true,
       unique: true,
-      index: true,
     },
     email: {
       type: String,
@@ -15,10 +14,10 @@ const userSchema = new Schema<IUser>(
       unique: true,
       lowercase: true,
       trim: true,
-      index: true,
     },
     password: {
       type: String,
+      select: false,
     },
     name: {
       type: String,
@@ -32,7 +31,6 @@ const userSchema = new Schema<IUser>(
       type: String,
       enum: ['student', 'admin', 'super-admin'] as UserRole[],
       default: 'student',
-      index: true,
     },
     lastLogin: {
       type: Date,
@@ -41,7 +39,6 @@ const userSchema = new Schema<IUser>(
     isActive: {
       type: Boolean,
       default: true,
-      index: true,
     },
   },
   {
@@ -50,8 +47,6 @@ const userSchema = new Schema<IUser>(
 );
 
 // Indexes
-userSchema.index({ googleId: 1 });
-userSchema.index({ email: 1 });
 userSchema.index({ role: 1, isActive: 1 });
 
 export const User = mongoose.model<IUser>('User', userSchema);

@@ -1,0 +1,499 @@
+================================================================================
+                    INVERTISPREP - PYQ SYSTEM ARCHITECTURE
+                          Complete Implementation Plan
+================================================================================
+
+PROJECT OVERVIEW
+================================================================================
+InvertisPrep is a Previous Year Question (PYQ) paper management system for 
+Invertis University. Students can browse and download PYQ papers filtered by 
+department, branch, semester, session, and exam type. Admins can upload papers 
+through a secure admin panel.
+
+CORE CONCEPT: FLAT STORAGE + METADATA FILTERING
+================================================================================
+Instead of maintaining complex nested folder structures in Cloudinary, we use:
+
+✅ FLAT CLOUDINARY STORAGE: All PDFs stored in single folder → invertis/pyq/
+✅ RICH MONGODB METADATA: Complete filtering data stored in database
+✅ SMART QUERYING: Filter papers by querying MongoDB, not folder structure
+✅ DIRECT DOWNLOADS: Cloudinary URLs stored in each document for instant access
+
+WHY THIS APPROACH?
+- Simple to maintain (no nested folders to manage)
+- Flexible querying (any combination of filters)
+- Fast performance (MongoDB indexes)
+- Scalable (easy to add new metadata fields)
+
+TECH STACK
+================================================================================
+BACKEND:
+- Node.js + Express.js with TypeScript
+- MongoDB Atlas (database)
+- Cloudinary (PDF file storage)
+- JWT + bcryptjs (authentication)
+- Multer (file upload handling)
+
+FRONTEND:
+- Next.js 15 with React 19
+- Tailwind CSS 4.0
+- TypeScript
+- shadcn/ui components
+
+AUTHENTICATION
+================================================================================
+EMAIL/PASSWORD AUTHENTICATION:
+- Admin login with email and password (no Google OAuth)
+- Passwords hashed with bcryptjs (10 rounds)
+- JWT tokens for session management
+- Three user roles: student, admin, super-admin
+
+ADMIN CREDENTIALS (to be seeded):
+┌─────────────────────────────────┬──────────────┬──────────────┐
+│ Email                           │ Password     │ Role         │
+├─────────────────────────────────┼──────────────┼──────────────┤
+│ admin@invertis.edu.in          │ admin123     │ admin        │
+│ superadmin@invertis.edu.in     │ super123     │ super-admin  │
+│ test@invertis.edu.in           │ test123      │ student      │
+└─────────────────────────────────┴──────────────┴──────────────┘
+
+DATABASE SCHEMA
+================================================================================
+
+1. USER COLLECTION
+------------------
+{
+  _id: ObjectId,
+  googleId: String (optional, for future OAuth),
+  email: String (unique, required),
+  password: String (hashed, select: false),
+  name: String,
+  role: Enum['student', 'admin', 'super-admin'],
+  lastLogin: Date,
+  isActive: Boolean,
+  createdAt: Date,
+  updatedAt: Date
+}
+
+2. DEPARTMENT COLLECTION
+------------------------
+{
+  _id: ObjectId,
+  id: String (unique, e.g., 'btech', 'bca'),
+  name: String (e.g., 'B.Tech'),
+  displayName: String (e.g., 'Bachelor of Technology'),
+  icon: String (emoji, e.g., '💻'),
+  description: String,
+  isActive: Boolean,
+  createdAt: Date,
+  updatedAt: Date
+}
+
+DEPARTMENTS TO SEED:
+- B.Tech (💻) - Engineering programs
+- BCA (🖥️) - Computer Applications
+- MBA (💼) - Business Administration (Masters)
+- BBA (📊) - Business Administration (Bachelors)
+
+3. BRANCH COLLECTION
+--------------------
+{
+  _id: ObjectId,
+  id: String (e.g., 'cse', 'it', 'ece'),
+  name: String (e.g., 'Computer Science Engineering'),
+  departmentId: String (reference to Department),
+  semesters: Array<Number> (e.g., [1, 2, 3, 4, 5, 6, 7, 8]),
+  isActive: Boolean,
+  createdAt: Date,
+  updatedAt: Date
+}
+
+BRANCHES TO SEED:
+B.Tech:
+  - CSE (Computer Science Engineering) - 8 semesters
+  - IT (Information Technology) - 8 semesters
+  - ECE (Electronics & Communication) - 8 semesters
+  - ME (Mechanical Engineering) - 8 semesters
+  - CE (Civil Engineering) - 8 semesters
+  - EE (Electrical Engineering) - 8 semesters
+
+BCA:
+  - BCA General - 6 semesters
+
+MBA:
+  - MBA General - 4 semesters
+  - MBA Finance - 4 semesters
+  - MBA Marketing - 4 semesters
+  - MBA HR - 4 semesters
+
+BBA:
+  - BBA General - 6 semesters
+
+4. SESSION COLLECTION
+---------------------
+{
+  _id: ObjectId,
+  id: String (e.g., '2024-25'),
+  name: String (e.g., '2024-2025'),
+  startYear: Number (e.g., 2024),
+  endYear: Number (e.g., 2025),
+  isActive: Boolean,
+  createdAt: Date,
+  updatedAt: Date
+}
+
+SESSIONS TO SEED:
+- 2021-2022
+- 2022-2023
+- 2023-2024
+- 2024-2025 (active)
+- 2025-2026 (active)
+
+5. PYQPAPER COLLECTION (MAIN METADATA STORE)
+---------------------------------------------
+{
+  _id: ObjectId,
+  
+  // Paper Info
+  title: String (e.g., "Data Structures Mid-Term 2024"),
+  subjectName: String (e.g., "Data Structures"),
+  subjectCode: String (e.g., "CSE301"),
+  
+  // Filtering Metadata
+  departmentId: String (reference to Department),
+  branchId: String (reference to Branch),
+  sessionId: String (reference to Session),
+  semester: Number (1-8),
+  examType: Enum['mid-term', 'end-term', 'sessional'],
+  year: Number (e.g., 2024),
+  
+  // Cloudinary File Info (KEY FIELDS)
+  cloudinaryUrl: String (direct download URL),
+  cloudinaryPublicId: String (for deletion if needed),
+  fileName: String (original uploaded filename),
+  fileSize: Number (bytes),
+  
+  // Metadata
+  uploadedBy: ObjectId (reference to User),
+  views: Number (default: 0),
+  downloads: Number (default: 0),
+  verified: Boolean (default: false, for moderation),
+  isActive: Boolean (default: true),
+  
+  createdAt: Date,
+  updatedAt: Date
+}
+
+INDEXES:
+- Compound: { departmentId, branchId, semester, sessionId }
+- Single: { downloads } (for popular papers)
+- Single: { verified, isActive }
+
+CLOUDINARY CONFIGURATION
+================================================================================
+FOLDER STRUCTURE: invertis/pyq/ (FLAT - all PDFs in one folder)
+
+FILE NAMING: {subjectCode}_{examType}_{timestamp}.pdf
+Example: CSE301_mid-term_1732154820000.pdf
+
+METADATA STORED IN CLOUDINARY:
+- tags: [subjectCode, examType]
+- context: department, branch, semester (optional)
+
+BACKEND API ENDPOINTS
+================================================================================
+
+AUTHENTICATION ROUTES
+---------------------
+POST   /api/auth/login         - Email/password login (returns JWT)
+POST   /api/auth/logout        - Logout user
+GET    /api/auth/me            - Get current user info
+
+PUBLIC ROUTES (No Auth Required)
+---------------------------------
+GET    /api/departments        - List all active departments
+GET    /api/departments/:id/branches - Get branches for a department
+GET    /api/sessions           - List all sessions
+GET    /api/pyq                - Get filtered PYQ papers (with query params)
+
+ADMIN ROUTES (Auth Required - Admin/Super-Admin)
+-------------------------------------------------
+POST   /api/pyq/upload         - Upload new PYQ paper (multipart/form-data)
+PUT    /api/pyq/:id            - Update paper metadata
+DELETE /api/pyq/:id            - Delete paper (soft delete)
+PATCH  /api/pyq/:id/verify     - Verify paper (super-admin only)
+
+TRACKING ROUTES
+---------------
+POST   /api/pyq/:id/download   - Increment download counter
+POST   /api/pyq/:id/view       - Increment view counter
+
+UPLOAD WORKFLOW (ADMIN)
+================================================================================
+
+1. ADMIN FILLS UPLOAD FORM
+---------------------------
+Fields:
+- Department (dropdown)
+- Branch (dropdown, filtered by department)
+- Session (dropdown)
+- Semester (dropdown, 1-8 based on branch)
+- Subject Name (text input, e.g., "Data Structures")
+- Subject Code (text input, e.g., "CSE301")
+- Exam Type (dropdown: Mid-Term, End-Term, Sessional)
+- Year (number input, e.g., 2024)
+- PDF File (file upload)
+
+2. BACKEND PROCESSING
+---------------------
+a) Receive multipart/form-data with PDF file
+b) Validate all required fields
+c) Upload PDF to Cloudinary (invertis/pyq/ folder)
+   - Get back: secure_url, public_id, bytes
+d) Create PYQPaper document in MongoDB with:
+   - All form metadata
+   - cloudinaryUrl: secure_url
+   - cloudinaryPublicId: public_id
+   - fileName: original filename
+   - fileSize: bytes
+   - uploadedBy: admin's userId
+   - verified: false (needs approval)
+e) Return success response with paper details
+
+3. CLOUDINARY SERVICE CODE
+---------------------------
+async function uploadPDF(file, metadata) {
+  const result = await cloudinary.uploader.upload(file.path, {
+    folder: 'invertis/pyq',
+    resource_type: 'raw',
+    format: 'pdf',
+    public_id: `${metadata.subjectCode}_${metadata.examType}_${Date.now()}`,
+    tags: [metadata.subjectCode, metadata.examType],
+  });
+
+  return {
+    cloudinaryUrl: result.secure_url,
+    cloudinaryPublicId: result.public_id,
+    fileSize: result.bytes,
+  };
+}
+
+FILTER/BROWSE WORKFLOW (STUDENT)
+================================================================================
+
+1. USER JOURNEY
+---------------
+a) Student visits /pyq page
+b) Sees cards for all departments (B.Tech, BCA, MBA, BBA)
+c) Clicks on department (e.g., B.Tech)
+d) Redirected to /pyq/btech
+e) Sees filter options:
+   - Branch (CSE, IT, ECE, etc.)
+   - Session (2024-25, 2023-24, etc.)
+   - Semester (1-8)
+   - Exam Type (Mid-Term, End-Term, Sessional)
+f) Selects filters and clicks "Search"
+g) Backend queries MongoDB with filters
+h) Papers displayed with download buttons
+
+2. BACKEND FILTER LOGIC
+------------------------
+GET /api/pyq?departmentId=btech&branchId=cse&semester=3&sessionId=2024-25
+
+Controller:
+async function getPapers(req, res) {
+  const { departmentId, branchId, sessionId, semester, examType } = req.query;
+  
+  // Build dynamic filter
+  const filter = { verified: true, isActive: true };
+  if (departmentId) filter.departmentId = departmentId;
+  if (branchId) filter.branchId = branchId;
+  if (sessionId) filter.sessionId = sessionId;
+  if (semester) filter.semester = parseInt(semester);
+  if (examType) filter.examType = examType;
+  
+  // Query MongoDB with filters and populate references
+  const papers = await PYQPaper.find(filter)
+    .populate('departmentId', 'name displayName')
+    .populate('branchId', 'name')
+    .populate('sessionId', 'name')
+    .sort({ year: -1, downloads: -1 })
+    .limit(100);
+  
+  res.json({ success: true, count: papers.length, papers });
+}
+
+3. FRONTEND DISPLAY
+-------------------
+Each paper card shows:
+- Subject Name + Code
+- Semester, Session, Exam Type
+- Download count
+- "Download PDF" button (links to cloudinaryUrl)
+- On click, increment download counter
+
+SEEDING SCRIPT
+================================================================================
+Command: npm run seed:all
+
+Seeds in order:
+1. Admin users (3 users with hashed passwords)
+2. Departments (4 departments)
+3. Branches (13 branches across departments)
+4. Sessions (5 sessions)
+
+Output: Pretty table showing all seeded data with credentials
+
+IMPLEMENTATION PHASES
+================================================================================
+
+PHASE 1: DATABASE & SEEDING ✅
+-------------------------------
+✅ Update PYQPaper model (add cloudinaryUrl, fileName, year, verified)
+✅ Fix User model (remove duplicate indexes)
+✅ Review Department, Branch, Session models
+✅ Create seedAll.ts script
+✅ Add npm run seed:all command
+⏳ Run seeding (pending MongoDB connection fix)
+
+PHASE 2: BACKEND SERVICES
+--------------------------
+□ Update Cloudinary service (flat folder upload)
+□ Create PYQ upload controller
+□ Create PYQ filter controller
+□ Add download/view tracking endpoints
+□ Set up multer middleware for file uploads
+□ Create PYQ routes with proper auth middleware
+
+PHASE 3: BACKEND TESTING
+-------------------------
+□ Test seed script
+□ Test upload endpoint (with Postman)
+□ Test filter endpoint (various query combinations)
+□ Test download tracking
+□ Test admin authentication
+
+PHASE 4: FRONTEND - ADMIN PANEL
+--------------------------------
+□ Update admin login page (email/password form)
+□ Create admin upload form with all fields
+□ Add department/branch/session dropdowns
+□ Handle file selection
+□ Submit to upload endpoint
+□ Show success/error messages
+□ Create papers management page (list uploaded papers)
+
+PHASE 5: FRONTEND - STUDENT BROWSING
+-------------------------------------
+□ Create /pyq landing page (department cards)
+□ Create /pyq/[departmentId] page
+□ Add filter UI (branch, session, semester, examType)
+□ Fetch and display filtered papers
+□ Create PaperCard component
+□ Handle download button click
+□ Track downloads
+
+PHASE 6: TESTING & POLISH
+--------------------------
+□ End-to-end testing (upload → browse → download)
+□ Add loading states
+□ Add error handling
+□ Optimize queries with indexes
+□ Add pagination for large result sets
+□ Deploy to production
+
+API EXAMPLES
+================================================================================
+
+1. UPLOAD PAPER (Admin)
+------------------------
+POST /api/pyq/upload
+Headers: Authorization: Bearer <jwt_token>
+Content-Type: multipart/form-data
+
+Body:
+- pdf: (file)
+- departmentId: "btech"
+- branchId: "cse"
+- sessionId: "2024-25"
+- semester: 3
+- subjectName: "Data Structures"
+- subjectCode: "CSE301"
+- examType: "mid-term"
+- year: 2024
+
+Response:
+{
+  "success": true,
+  "paper": {
+    "_id": "...",
+    "title": "Data Structures Mid-Term 2024",
+    "cloudinaryUrl": "https://res.cloudinary.com/ditrri7em/raw/upload/v123/invertis/pyq/CSE301_mid-term_1732154820000.pdf",
+    "fileName": "DSA_Midterm.pdf",
+    "fileSize": 2048576,
+    ...
+  }
+}
+
+2. GET FILTERED PAPERS (Public)
+--------------------------------
+GET /api/pyq?departmentId=btech&branchId=cse&semester=3&examType=mid-term
+
+Response:
+{
+  "success": true,
+  "count": 5,
+  "papers": [
+    {
+      "_id": "...",
+      "title": "Data Structures Mid-Term 2024",
+      "subjectName": "Data Structures",
+      "subjectCode": "CSE301",
+      "semester": 3,
+      "examType": "mid-term",
+      "year": 2024,
+      "cloudinaryUrl": "https://...",
+      "downloads": 42,
+      "departmentId": { "name": "B.Tech", "displayName": "Bachelor of Technology" },
+      "branchId": { "name": "Computer Science Engineering" },
+      "sessionId": { "name": "2024-2025" }
+    },
+    ...
+  ]
+}
+
+3. TRACK DOWNLOAD
+------------------
+POST /api/pyq/:paperId/download
+
+Response:
+{
+  "success": true,
+  "downloads": 43
+}
+
+KEY BENEFITS OF THIS ARCHITECTURE
+================================================================================
+✅ SIMPLICITY: One flat folder, no complex nesting
+✅ FLEXIBILITY: Query any filter combination easily
+✅ PERFORMANCE: Fast MongoDB queries with proper indexes
+✅ SCALABILITY: Easy to add new fields or departments
+✅ MAINTAINABILITY: Clear separation of storage vs metadata
+✅ ANALYTICS: Track downloads, views, popular papers
+✅ SECURITY: Admin-only uploads, JWT authentication
+✅ MODERATION: Verification system before papers go live
+
+NEXT STEPS
+================================================================================
+1. Fix MongoDB connection (get fresh connection string from Atlas)
+2. Run npm run seed:all successfully
+3. Implement Cloudinary service update
+4. Create upload controller
+5. Test upload flow
+6. Implement filter controller
+7. Test filtering
+8. Move to frontend implementation
+
+================================================================================
+                              END OF PLAN
+================================================================================

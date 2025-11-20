@@ -60,15 +60,18 @@ const pyqPaperSchema = new Schema<IPYQPaper>(
       type: String,
       required: true,
     },
-    cloudinaryFolder: {
+    fileName: {
       type: String,
-      index: true,
+      required: true,
+      trim: true,
     },
     fileSize: {
       type: Number,
     },
-    pageCount: {
+    year: {
       type: Number,
+      required: true,
+      index: true,
     },
     
     // Metadata
@@ -86,13 +89,10 @@ const pyqPaperSchema = new Schema<IPYQPaper>(
       default: 0,
       index: true,
     },
-    tags: {
-      type: [String],
-      default: [],
-    },
-    searchText: {
-      type: String,
-      index: 'text',
+    verified: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
     isActive: {
       type: Boolean,
@@ -115,24 +115,6 @@ pyqPaperSchema.index({
 
 pyqPaperSchema.index({ createdAt: -1 }); // Recent uploads
 pyqPaperSchema.index({ downloads: -1 }); // Popular papers
-pyqPaperSchema.index({ isActive: 1, departmentId: 1 });
-
-// Pre-save hook to generate searchText
-pyqPaperSchema.pre('save', function(next) {
-  this.searchText = [
-    this.title,
-    this.subjectName,
-    this.subjectCode,
-    this.departmentId,
-    this.branchId,
-    this.examType,
-    ...this.tags,
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-  
-  next();
-});
+pyqPaperSchema.index({ verified: 1, isActive: 1 });
 
 export const PYQPaper = mongoose.model<IPYQPaper>('PYQPaper', pyqPaperSchema);

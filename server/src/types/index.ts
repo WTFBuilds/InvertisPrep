@@ -73,15 +73,15 @@ export interface IPYQPaper extends Document {
   // File info
   cloudinaryUrl: string;
   cloudinaryPublicId: string;
+  fileName: string;
   fileSize?: number;
-  pageCount?: number;
+  year: number;
   
   // Metadata
   uploadedBy: Types.ObjectId;
   views: number;
   downloads: number;
-  tags: string[];
-  searchText: string;
+  verified: boolean;
   isActive: boolean;
   
   createdAt: Date;
@@ -91,11 +91,9 @@ export interface IPYQPaper extends Document {
 // ===== Request/Response Types =====
 
 // Auth
-export interface GoogleAuthPayload {
-  googleId: string;
+export interface LoginDTO {
   email: string;
-  name: string;
-  picture?: string;
+  password: string;
 }
 
 export interface JWTPayload {
@@ -105,6 +103,7 @@ export interface JWTPayload {
 }
 
 export interface AuthResponse {
+  success: boolean;
   token: string;
   user: {
     id: string;
@@ -115,135 +114,32 @@ export interface AuthResponse {
   };
 }
 
-// Department
-export interface CreateDepartmentDTO {
-  id: string;
-  name: string;
-  displayName: string;
-  icon?: string;
-  description: string;
-}
-
-export interface UpdateDepartmentDTO {
-  name?: string;
-  displayName?: string;
-  icon?: string;
-  description?: string;
-  isActive?: boolean;
-}
-
-// Branch
-export interface CreateBranchDTO {
-  id: string;
-  name: string;
-  displayName?: string;
-  departmentId: string;
-  semesters: number[];
-  description?: string;
-}
-
-export interface UpdateBranchDTO {
-  name?: string;
-  displayName?: string;
-  semesters?: number[];
-  description?: string;
-  isActive?: boolean;
-}
-
-// Session
-export interface CreateSessionDTO {
-  id: string;
-  startYear: number;
-  endYear: number;
-  description?: string;
-}
-
-export interface UpdateSessionDTO {
-  startYear?: number;
-  endYear?: number;
-  description?: string;
-  isActive?: boolean;
-}
-
-// PYQ Paper
-export interface UploadPaperDTO {
-  title?: string;
-  subjectCode?: string;
-  subjectName: string;
+// PYQ Upload
+export interface UploadPYQDTO {
   departmentId: string;
   branchId: string;
-  semester: number;
   sessionId: string;
-  examType: ExamType;
-  tags?: string[];
-}
-
-export interface UpdatePaperDTO {
-  title?: string;
+  semester: number;
+  subjectName: string;
   subjectCode?: string;
-  subjectName?: string;
-  examType?: ExamType;
-  tags?: string[];
-  isActive?: boolean;
+  examType: ExamType;
+  year: number;
 }
 
-export interface SearchPapersQuery {
+// PYQ Filter
+export interface PYQFilterQuery {
   departmentId?: string;
   branchId?: string;
-  semester?: number;
   sessionId?: string;
-  search?: string;
-  page?: number;
-  limit?: number;
-}
-
-export interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  pages: number;
-}
-
-export interface SearchPapersResponse {
-  papers: IPYQPaper[];
-  pagination: PaginationMeta;
-}
-
-// Statistics
-export interface AdminStatistics {
-  totalPapers: number;
-  totalDownloads: number;
-  totalUsers: number;
-  totalDepartments: number;
-  totalBranches: number;
-  popularPapers: Array<{
-    _id: Types.ObjectId;
-    title: string;
-    subjectName: string;
-    downloads: number;
-    views: number;
-  }>;
-  recentUploads: Array<{
-    _id: Types.ObjectId;
-    title: string;
-    subjectName: string;
-    createdAt: Date;
-    uploadedBy: {
-      name: string;
-    };
-  }>;
+  semester?: string;
+  examType?: ExamType;
+  subjectCode?: string;
 }
 
 // API Response
-export interface ApiResponse<T = any> {
+export interface APIResponse<T = any> {
   success: boolean;
   message?: string;
   data?: T;
   error?: string;
-  errors?: string[];
-}
-
-// Express Request with user
-export interface AuthRequest extends Express.Request {
-  user?: IUser;
 }

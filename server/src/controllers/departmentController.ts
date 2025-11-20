@@ -1,79 +1,107 @@
 import { Request, Response } from 'express';
-import { Department, Branch } from '../models/index.js';
-import { asyncHandler } from '../middleware/errorHandler.js';
+import { Department } from '../models/Department.js';
+import { Branch } from '../models/Branch.js';
 
-/**
- * @route   GET /api/departments
- * @desc    Get all active departments
- * @access  Public
- */
-export const getAllDepartments = asyncHandler(
-  async (_req: Request, res: Response) => {
-    const departments = await Department.find({ isActive: true })
-      .select('-__v')
-      .sort({ name: 1 });
-
-    res.json({ 
-      success: true,
-      departments 
-    });
+// Get all departments (public)
+export const getDepartments = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const departments = await Department.find({ isActive: true }).sort({ name: 1 });
+    res.json({ success: true, data: departments });
+  } catch (error) {
+    console.error('Get departments error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
-);
+};
 
-/**
- * @route   GET /api/departments/:id
- * @desc    Get single department by ID
- * @access  Public
- */
-export const getDepartmentById = asyncHandler(
-  async (req: Request, res: Response) => {
+// Create department (admin only)
+export const createDepartment = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id, name, displayName, icon, description } = req.body;
+
+    if (!id || !name || !displayName || !description) {
+      res.status(400).json({ success: false, message: 'Missing required fields' });
+      return;
+    }
+
+    const exists = await Department.findOne({ id });
+    if (exists) {
+      res.status(400).json({ success: false, message: 'Department with this ID already exists' });
+      return;
+    }
+
+    const department = await Department.create({
+      id,
+      name,
+      displayName,
+      icon: icon || '🎓',
+      description,
+      isActive: true,
+    });
+
+    res.status(201).json({ success: true, data: department });
+  } catch (error) {
+    console.error('Create department error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Update department (admin only)
+export const updateDepartment = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    const department = await Department.findOneAndUpdate(
+      { id },
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
+
+    if (!department) {
+      res.status(404).json({ success: false, message: 'Department not found' });
+      return;
+    }
+
+    res.json({ success: true, data: department });
+  } catch (error) {
+    console.error('Update department error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Delete department (admin only)
+export const deleteDepartment = async (req: Request, res: Response): Promise<void> => {
+  try {
     const { id } = req.params;
 
-    const department = await Department.findOne({ id, isActive: true })
-      .select('-__v');
+    // Soft delete
+    const department = await Department.findOneAndUpdate(
+      { id },
+      { $set: { isActive: false } },
+      { new: true }
+    );
 
     if (!department) {
-      res.status(404).json({ error: 'Department not found' });
+      res.status(404).json({ success: false, message: 'Department not found' });
       return;
     }
 
-    res.json({ 
-      success: true,
-      department 
-    });
+    res.json({ success: true, message: 'Department deleted successfully' });
+  } catch (error) {
+    console.error('Delete department error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
-);
+};
 
-/**
- * @route   GET /api/departments/:departmentId/branches
- * @desc    Get all branches for a department
- * @access  Public
- */
-export const getBranchesByDepartment = asyncHandler(
-  async (req: Request, res: Response) => {
+// Get branches by department (public)
+export const getBranchesByDepartment = async (req: Request, res: Response): Promise<void> => {
+  try {
     const { departmentId } = req.params;
 
-    // Verify department exists
-    const department = await Department.findOne({
-      id: departmentId,
-      isActive: true,
-    });
-
-    if (!department) {
-      res.status(404).json({ error: 'Department not found' });
-      return;
-    }
-
-    const branches = await Branch.find({
-      departmentId,
-      isActive: true,
-    })
-      .select('-__v')
-      .sort({ name: 1 });
-
-    res.json({ 
-      success: true,
-      branches 
-    });
+    const branches = await Branch.find({ departmentId, isActive: true }).sort({ name: 1 });
+    res.json({ success: true, data: branches });
+  } catch (error) {
+    console.error('Get branches error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
-);
+};

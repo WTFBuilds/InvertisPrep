@@ -1,118 +1,194 @@
 import { Request, Response } from 'express';
-import { PYQPaper } from '../models/index.js';
-import { asyncHandler } from '../middleware/errorHandler.js';
-import { SearchPapersQuery } from '../types/index.js';
+import { PYQPaper } from '../models/PYQPaper.js';
+import { uploadPDF, deletePDF } from '../services/cloudinaryService.js';
+import { UploadPYQDTO, PYQFilterQuery } from '../types/index.js';
 
-/**
- * @route   GET /api/pyq/search
- * @desc    Search PYQ papers with filters
- * @access  Public
- */
-export const searchPapers = asyncHandler(
-  async (req: Request, res: Response) => {
+// Upload PYQ (admin only)
+export const uploadPYQ = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ success: false, message: 'PDF file is required' });
+      return;
+    }
+
     const {
       departmentId,
       branchId,
-      semester,
       sessionId,
-      search,
-      page = 1,
-      limit = 20,
-    } = req.query as SearchPapersQuery;
+      semester,
+      subjectName,
+      subjectCode,
+      examType,
+      year,
+    }: UploadPYQDTO = req.body;
 
-    // Build query
-    const query: any = { isActive: true };
-
-    if (departmentId) query.departmentId = departmentId;
-    if (branchId) query.branchId = branchId;
-    if (semester) query.semester = parseInt(semester.toString());
-    if (sessionId) query.sessionId = sessionId;
-
-    // Text search
-    if (search) {
-      query.$text = { $search: search };
-    }
-
-    // Pagination
-    const skip = (Number(page) - 1) * Number(limit);
-
-    // Execute query
-    const [papers, total] = await Promise.all([
-      PYQPaper.find(query)
-        .select('-searchText -__v')
-        .populate('uploadedBy', 'name')
-        .sort(search ? { score: { $meta: 'textScore' } } : { createdAt: -1 })
-        .skip(skip)
-        .limit(Number(limit)),
-      PYQPaper.countDocuments(query),
-    ]);
-
-    res.json({
-      success: true,
-      papers,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        pages: Math.ceil(total / Number(limit)),
-      },
-    });
-  }
-);
-
-/**
- * @route   GET /api/pyq/:id
- * @desc    Get single paper by ID
- * @access  Public
- */
-export const getPaperById = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { id } = req.params;
-
-    const paper = await PYQPaper.findById(id)
-      .select('-searchText -__v')
-      .populate('uploadedBy', 'name');
-
-    if (!paper || !paper.isActive) {
-      res.status(404).json({ error: 'Paper not found' });
+    // Validate required fields
+    if (!departmentId || !branchId || !sessionId || !semester || !subjectName || !examType || !year) {
+      res.status(400).json({ success: false, message: 'Missing required fields' });
       return;
     }
 
-    // Increment views
-    paper.views += 1;
-    await paper.save();
-
-    res.json({ 
-      success: true,
-      paper 
+    // Upload to Cloudinary
+    const { cloudinaryUrl, cloudinaryPublicId, fileSize } = await uploadPDF(req.file.path, {
+      subjectCode,
+      examType,
     });
-  }
-);
 
-/**
- * @route   POST /api/pyq/:id/download
- * @desc    Track download and return download URL
- * @access  Public
- */
-export const trackDownload = asyncHandler(
-  async (req: Request, res: Response) => {
+    // Create title
+    const title = `${subjectName} ${examType} ${year}`;
+
+    // Create PYQ document
+    const pyq = await PYQPaper.create({
+      title,
+      subjectName,
+      subjectCode: subjectCode || undefined,
+      departmentId,
+      branchId,
+      sessionId,
+      semester: parseInt(semester.toString()),
+      examType,
+      year: parseInt(year.toString()),
+      cloudinaryUrl,
+      cloudinaryPublicId,
+      fileName: req.file.originalname,
+      fileSize,
+      uploadedBy: req.user!.id,
+      verified: false,
+      isActive: true,
+    });
+
+    res.status(201).json({ success: true, data: pyq });
+  } catch (error) {
+    console.error('Upload PYQ error:', error);
+    res.status(500).json({ success: false, message: 'Server error during upload' });
+  }
+};
+
+// Get filtered PYQs (public)
+export const getPYQs = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { departmentId, branchId, sessionId, semester, examType, subjectCode }: PYQFilterQuery = req.query;
+
+    // Build dynamic filter
+    const filter: any = { verified: true, isActive: true };
+    if (departmentId) filter.departmentId = departmentId;
+    if (branchId) filter.branchId = branchId;
+    if (sessionId) filter.sessionId = sessionId;
+    if (semester) filter.semester = parseInt(semester);
+    if (examType) filter.examType = examType;
+    if (subjectCode) filter.subjectCode = new RegExp(subjectCode, 'i');
+
+    const pyqs = await PYQPaper.find(filter)
+      .populate('departmentId', 'name displayName icon')
+      .populate('branchId', 'name')
+      .populate('sessionId', 'name startYear endYear')
+      .sort({ year: -1, downloads: -1 })
+      .limit(100);
+
+    res.json({ success: true, count: pyqs.length, data: pyqs });
+  } catch (error) {
+    console.error('Get PYQs error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Get all PYQs (admin only)
+export const getAllPYQs = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const papers = await PYQPaper.find()
+      .populate('departmentId', 'name displayName')
+      .populate('branchId', 'name')
+      .populate('sessionId', 'name')
+      .populate('uploadedBy', 'name email')
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    res.json({ success: true, count: papers.length, data: papers });
+  } catch (error) {
+    console.error('Get all PYQs error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Track download
+export const trackDownload = async (req: Request, res: Response): Promise<void> => {
+  try {
     const { id } = req.params;
 
-    const paper = await PYQPaper.findById(id);
+    const pyq = await PYQPaper.findByIdAndUpdate(id, { $inc: { downloads: 1 } }, { new: true });
 
-    if (!paper || !paper.isActive) {
-      res.status(404).json({ error: 'Paper not found' });
+    if (!pyq) {
+      res.status(404).json({ success: false, message: 'PYQ not found' });
       return;
     }
 
-    // Increment download counter
-    paper.downloads += 1;
-    await paper.save();
-
-    res.json({
-      success: true,
-      downloadUrl: paper.cloudinaryUrl,
-      fileName: `${paper.subjectName}_${paper.examType}_${paper.sessionId}.pdf`,
-    });
+    res.json({ success: true, downloads: pyq.downloads });
+  } catch (error) {
+    console.error('Track download error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
-);
+};
+
+// Track view
+export const trackView = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const pyq = await PYQPaper.findByIdAndUpdate(id, { $inc: { views: 1 } }, { new: true });
+
+    if (!pyq) {
+      res.status(404).json({ success: false, message: 'PYQ not found' });
+      return;
+    }
+
+    res.json({ success: true, views: pyq.views });
+  } catch (error) {
+    console.error('Track view error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Verify PYQ (super admin only)
+export const verifyPYQ = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const pyq = await PYQPaper.findByIdAndUpdate(id, { $set: { verified: true } }, { new: true });
+
+    if (!pyq) {
+      res.status(404).json({ success: false, message: 'PYQ not found' });
+      return;
+    }
+
+    res.json({ success: true, data: pyq });
+  } catch (error) {
+    console.error('Verify PYQ error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Delete PYQ (admin only)
+export const deletePYQ = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const pyq = await PYQPaper.findById(id);
+
+    if (!pyq) {
+      res.status(404).json({ success: false, message: 'PYQ not found' });
+      return;
+    }
+
+    // Delete from Cloudinary
+    await deletePDF(pyq.cloudinaryPublicId);
+
+    // Soft delete from database
+    pyq.isActive = false;
+    await pyq.save();
+
+    res.json({ success: true, message: 'PYQ deleted successfully' });
+  } catch (error) {
+    console.error('Delete PYQ error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};

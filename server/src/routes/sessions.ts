@@ -1,15 +1,20 @@
-import express from 'express';
+import { Router } from 'express';
 import {
-  getAllSessions,
-  getSessionById,
+  getSessions,
+  createSession,
+  updateSession,
+  deleteSession,
 } from '../controllers/sessionController.js';
+import { authenticateJWT, isAdmin } from '../middleware/auth.js';
 
-const router = express.Router();
+const router = Router();
 
-// GET /api/sessions - Get all sessions
-router.get('/', getAllSessions);
+// Public routes
+router.get('/', getSessions);
 
-// GET /api/sessions/:id - Get single session
-router.get('/:id', getSessionById);
+// Admin routes
+router.post('/', authenticateJWT, isAdmin, createSession);
+router.put('/:id', authenticateJWT, isAdmin, updateSession);
+router.delete('/:id', authenticateJWT, isAdmin, deleteSession);
 
 export default router;

@@ -1,19 +1,29 @@
-import express from 'express';
+import { Router } from 'express';
 import {
-  searchPapers,
-  getPaperById,
+  uploadPYQ,
+  getPYQs,
+  getAllPYQs,
   trackDownload,
+  trackView,
+  verifyPYQ,
+  deletePYQ,
 } from '../controllers/pyqController.js';
+import { authenticateJWT, isAdmin, isSuperAdmin } from '../middleware/auth.js';
+import { upload } from '../middleware/upload.js';
 
-const router = express.Router();
+const router = Router();
 
-// GET /api/pyq/search - Search papers with filters
-router.get('/search', searchPapers);
-
-// GET /api/pyq/:id - Get single paper
-router.get('/:id', getPaperById);
-
-// POST /api/pyq/:id/download - Track download
+// Public routes
+router.get('/', getPYQs);
 router.post('/:id/download', trackDownload);
+router.post('/:id/view', trackView);
+
+// Admin routes
+router.post('/upload', authenticateJWT, isAdmin, upload.single('pdf'), uploadPYQ);
+router.get('/all', authenticateJWT, isAdmin, getAllPYQs);
+router.delete('/:id', authenticateJWT, isAdmin, deletePYQ);
+
+// Super admin routes
+router.patch('/:id/verify', authenticateJWT, isSuperAdmin, verifyPYQ);
 
 export default router;
