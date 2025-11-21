@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { pyqApi, departmentApi } from '@/lib/api';
 import type { PYQPaper, Department, Branch, Session } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import Link from 'next/link';
 
 export default function DepartmentPYQPage() {
   const params = useParams();
+  const router = useRouter();
   const departmentId = params.departmentId as string;
 
   const [department, setDepartment] = useState<Department | null>(null);
@@ -80,11 +81,22 @@ export default function DepartmentPYQPage() {
   }, [selectedBranch, selectedSemester, selectedExamType, searchSubject, papers]);
 
   const handleDownload = async (paper: PYQPaper) => {
+    // Check if user is logged in
+    const token = localStorage.getItem('token');
+    if (!token) {
+      const shouldRedirect = confirm('Please sign in with Google to download PYQ papers. Redirect to login page?');
+      if (shouldRedirect) {
+        router.push('/login');
+      }
+      return;
+    }
+
     try {
       await pyqApi.trackDownload(paper._id);
       window.open(paper.cloudinaryUrl, '_blank');
     } catch (err: unknown) {
       console.error('Failed to track download');
+      alert('Download failed. Please try again.');
     }
   };
 

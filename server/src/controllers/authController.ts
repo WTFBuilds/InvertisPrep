@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
 import { LoginDTO, JWTPayload } from '../types/index.js';
+import { verifyGoogleToken } from '../services/googleAuthService.js';
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -88,6 +89,73 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
   } catch (error) {
     console.error('Get current user error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const googleLogin = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      res.status(400).json({ success: false, message: 'Google token is required' });
+      return;
+    }
+
+    // Verify the Google token
+    const googleUser = await verifyGoogleToken(token);
+
+    if (!googleUser.email_verified) {
+      res.status(400).json({ success: false, message: 'Email not verified with Google' });
+      return;
+    }
+
+    // Check if user exists
+    let user = await User.findOne({ email: googleUser.email });
+
+    // If user doesn't exist, create a new student account
+    if (!user) {
+      user = await User.create({
+        email: googleUser.email,
+        name: googleUser.name,
+        picture: googleUser.picture,
+        role: 'student', // Default role for Google OAuth users
+        isActive: true,
+        lastLogin: new Date(),
+      });
+    } else {
+      // Update last login and picture if changed
+      user.lastLogin = new Date();
+      if (googleUser.picture) {
+        user.picture = googleUser.picture;
+      }
+      await user.save();
+    }
+
+    // Generate JWT
+    const payload: JWTPayload = {
+      id: user._id.toString(),
+      email: user.email,
+      role: user.role,
+    };
+
+    const jwtToken = jwt.sign(payload, process.env.JWT_SECRET!, {
+      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    } as jwt.SignOptions);
+
+    res.json({
+      success: true,
+      token: jwtToken,
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        picture: user.picture,
+      },
+    });
+  } catch (error) {
+    console.error('Google login error:', error);
+    res.status(500).json({ success: false, message: 'Server error during Google login' });
   }
 };
 

@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           router.push('/');
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error);
       throw new Error(error.response?.data?.message || 'Login failed');
     }

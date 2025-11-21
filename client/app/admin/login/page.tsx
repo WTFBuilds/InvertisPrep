@@ -22,8 +22,9 @@ export default function AdminLoginPage() {
 
     try {
       await login({ email, password });
-    } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+    } catch (err: unknown) {
+      const error = err as Error;
+      setError(error.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
