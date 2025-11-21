@@ -9,7 +9,7 @@ interface UploadResult {
 
 export const uploadPDF = async (
   filePath: string,
-  metadata: {
+  _metadata: {
     subjectCode?: string;
     examType: string;
   }
