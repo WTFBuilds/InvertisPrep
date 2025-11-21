@@ -21,7 +21,7 @@ dotenv.config();
 
 // Initialize Express app
 const app: Express = express();
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 5000;
 
 // Connect to database
 connectDB();
@@ -37,7 +37,11 @@ if (!fs.existsSync('uploads')) {
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: [
+    'http://localhost:3000',
+    'http://172.23.6.34:3000',
+    process.env.CLIENT_URL || 'http://localhost:3000'
+  ],
   credentials: true,
 }));
 app.use(morgan('dev'));
@@ -62,10 +66,11 @@ app.use(notFound);
 app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 Server running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 API: http://localhost:${PORT}`);
+  console.log(`🌐 Local: http://localhost:${PORT}`);
+  console.log(`🌐 Network: http://172.23.6.34:${PORT}`);
   console.log(`💚 Health: http://localhost:${PORT}/health\n`);
 });
 
