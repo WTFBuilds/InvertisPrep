@@ -30,19 +30,20 @@ export default function Footer() {
   const footerLinks = {
     "Quick Links": [
       { name: "Home", path: "/" },
+      { name: "Browse PYQ", path: "/pyq" },
       { name: "About", path: "/about" },
-      { name: "PYQ", path: "/pyq" },
-      { name: "Admin", path: "/admin/login" },
     ],
     "Resources": [
       { name: "Study Materials", path: "/pyq" },
       { name: "Previous Year Papers", path: "/pyq" },
-      { name: "Admin Panel", path: "/admin/login" },
     ],
     "Support": [
-      { name: "Contact Us", path: "/admin/login" },
+      { name: "Help & Support", path: "/support" },
       { name: "Privacy Policy", path: "/privacy-policy" },
       { name: "Terms of Service", path: "/terms-of-service" },
+    ],
+    "Admin": [
+      { name: "Admin Login", path: "/admin/login" },
     ],
   };
 

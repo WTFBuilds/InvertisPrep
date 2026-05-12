@@ -37,7 +37,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             localStorage.setItem('user', JSON.stringify(response.data));
           }
         } catch (error) {
-          console.error('Failed to load user:', error);
           localStorage.removeItem('token');
           localStorage.removeItem('user');
         }
@@ -65,7 +64,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch (error: unknown) {
-      console.error('Login error:', error);
       const err = error as { response?: { data?: { message?: string } } };
       throw new Error(err.response?.data?.message || 'Login failed');
     }
@@ -75,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await authApi.logout();
     } catch (error) {
-      console.error('Logout error:', error);
+      // Silent error handling
     } finally {
       setUser(null);
       localStorage.removeItem('token');

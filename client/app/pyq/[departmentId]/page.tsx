@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { pyqApi, departmentApi } from '@/lib/api';
+import { pyqApi, departmentApi, sessionApi } from '@/lib/api';
 import type { PYQPaper, Department, Branch, Session } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,7 @@ export default function DepartmentPYQPage() {
 
   const [department, setDepartment] = useState<Department | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [papers, setPapers] = useState<PYQPaper[]>([]);
   const [filteredPapers, setFilteredPapers] = useState<PYQPaper[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +24,7 @@ export default function DepartmentPYQPage() {
 
   // Filter states
   const [selectedBranch, setSelectedBranch] = useState<string>('');
+  const [selectedSession, setSelectedSession] = useState<string>('');
   const [selectedSemester, setSelectedSemester] = useState<string>('');
   const [selectedExamType, setSelectedExamType] = useState<string>('');
   const [searchSubject, setSearchSubject] = useState('');
@@ -30,16 +32,18 @@ export default function DepartmentPYQPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [deptRes, branchesRes, papersRes] = await Promise.all([
+        const [deptRes, branchesRes, papersRes, sessionsRes] = await Promise.all([
           departmentApi.getAll(),
           departmentApi.getBranches(departmentId),
           pyqApi.getFiltered({ departmentId }),
+          sessionApi.getAll(),
         ]);
 
         const dept = (deptRes.data || []).find((d: Department) => d._id === departmentId);
         setDepartment(dept || null);
         setBranches(branchesRes.data || []);
         setPapers(papersRes.data || []);
+        setSessions(sessionsRes.data || []);
         setFilteredPapers(papersRes.data || []);
       } catch (err: unknown) {
         setError('Failed to load data');
@@ -61,6 +65,13 @@ export default function DepartmentPYQPage() {
       });
     }
 
+    if (selectedSession) {
+      filtered = filtered.filter((p) => {
+        const sessionId = typeof p.sessionId === 'string' ? p.sessionId : p.sessionId._id;
+        return sessionId === selectedSession;
+      });
+    }
+
     if (selectedSemester) {
       filtered = filtered.filter((p) => p.semester === parseInt(selectedSemester));
     }
@@ -78,7 +89,7 @@ export default function DepartmentPYQPage() {
     }
 
     setFilteredPapers(filtered);
-  }, [selectedBranch, selectedSemester, selectedExamType, searchSubject, papers]);
+  }, [selectedBranch, selectedSession, selectedSemester, selectedExamType, searchSubject, papers]);
 
   const handleDownload = async (paper: PYQPaper) => {
     // Check if user is logged in
@@ -95,7 +106,6 @@ export default function DepartmentPYQPage() {
       await pyqApi.trackDownload(paper._id);
       window.open(paper.cloudinaryUrl, '_blank');
     } catch (err: unknown) {
-      console.error('Failed to track download');
       alert('Download failed. Please try again.');
     }
   };
@@ -104,7 +114,7 @@ export default function DepartmentPYQPage() {
     try {
       await pyqApi.trackView(paper._id);
     } catch (err: unknown) {
-      console.error('Failed to track view');
+      // Silent error handling for view tracking
     }
   };
 
@@ -123,6 +133,7 @@ export default function DepartmentPYQPage() {
 
   const clearFilters = () => {
     setSelectedBranch('');
+    setSelectedSession('');
     setSelectedSemester('');
     setSelectedExamType('');
     setSearchSubject('');
@@ -169,7 +180,7 @@ export default function DepartmentPYQPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid md:grid-cols-4 gap-4 mb-4">
+                <div className="grid md:grid-cols-5 gap-4 mb-4">
                   <div>
                     <label className="text-sm font-medium mb-2 block">Branch</label>
                     <select
@@ -181,6 +192,22 @@ export default function DepartmentPYQPage() {
                       {branches.map((branch) => (
                         <option key={branch._id} value={branch._id}>
                           {branch.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Session</label>
+                    <select
+                      value={selectedSession}
+                      onChange={(e) => setSelectedSession(e.target.value)}
+                      className="w-full border rounded-md p-2"
+                    >
+                      <option value="">All Sessions</option>
+                      {sessions.map((session) => (
+                        <option key={session._id} value={session._id}>
+                          {session.name}
                         </option>
                       ))}
                     </select>

@@ -1,34 +1,23 @@
 {
   "name": "invertisprep-server",
   "version": "1.0.0",
-  "description": "InvertisPrep Backend API with TypeScript",
-  "main": "dist/server.js",
+  "description": "InvertisPrep Backend API with JavaScript",
+  "main": "src/server.js",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js",
-    "seed": "tsx src/utils/seedSuperAdmin.ts",
-    "lint": "eslint src --ext .ts",
-    "type-check": "tsc --noEmit"
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "seed": "node src/utils/seedSuperAdmin.js"
   },
   "keywords": [
     "invertisprep",
     "pyq",
     "api",
-    "typescript"
+    "javascript"
   ],
   "author": "AhqafCoder",
   "license": "ISC",
   "dependencies": {
-    "@types/bcryptjs": "^2.4.6",
-    "@types/cookie-parser": "^1.4.10",
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.5",
-    "@types/jsonwebtoken": "^9.0.10",
-    "@types/morgan": "^1.9.10",
-    "@types/multer": "^2.0.0",
-    "@types/node": "^24.10.1",
     "axios": "^1.13.2",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.8.0",
@@ -41,8 +30,6 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.20.0",
     "morgan": "^1.10.1",
-    "multer": "^2.0.2",
-    "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
+    "multer": "^2.0.2"
   }
 }

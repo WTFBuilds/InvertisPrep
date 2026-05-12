@@ -76,12 +76,6 @@ export default function AdminLoginPage() {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
-
-            <div className="mt-4 p-3 bg-blue-50 rounded-md">
-              <p className="text-sm text-blue-800 font-medium mb-1">Demo Credentials:</p>
-              <p className="text-xs text-blue-600">Email: superadmin@invertis.edu.in</p>
-              <p className="text-xs text-blue-600">Password: super123</p>
-            </div>
           </form>
         </CardContent>
       </Card>

@@ -47,11 +47,19 @@ export default function DepartmentsPage() {
     setSuccess('');
 
     try {
+      const submitData = {
+        id: formData.id,
+        name: formData.name,
+        displayName: formData.displayName,
+        icon: formData.icon || undefined,
+        description: formData.description,
+      };
+
       if (editingId) {
-        await departmentApi.update(editingId, formData);
+        await departmentApi.update(editingId, submitData);
         setSuccess('Department updated successfully');
       } else {
-        await departmentApi.create(formData);
+        await departmentApi.create(submitData);
         setSuccess('Department created successfully');
       }
       
@@ -60,7 +68,18 @@ export default function DepartmentsPage() {
       setEditingId(null);
       fetchDepartments();
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to save department';
+      let errorMessage = 'Failed to save department';
+      
+      if (err instanceof Error) {
+        // Check if it's an axios error with response data
+        const axiosError = err as any;
+        if (axiosError.response?.data?.message) {
+          errorMessage = axiosError.response.data.message;
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
       setError(errorMessage);
     }
   };
@@ -170,24 +189,24 @@ export default function DepartmentsPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="icon">Icon (Emoji) *</Label>
+                    <Label htmlFor="icon">Icon (Emoji)</Label>
                     <Input
                       id="icon"
                       value={formData.icon}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, icon: e.target.value })}
                       placeholder="e.g., 🎓"
-                      required
                     />
                   </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description">Description *</Label>
                   <Input
                     id="description"
                     value={formData.description}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Optional description"
+                    placeholder="Enter department description"
+                    required
                   />
                 </div>
 

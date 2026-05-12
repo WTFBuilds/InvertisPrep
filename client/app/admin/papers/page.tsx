@@ -36,7 +36,14 @@ export default function PapersPage() {
       setSuccess('Paper verified successfully');
       fetchPapers();
     } catch (err: unknown) {
-      setError('Failed to verify paper');
+      let errorMessage = 'Failed to verify paper';
+      const axiosError = err as any;
+      if (axiosError.response?.data?.message) {
+        errorMessage = axiosError.response.data.message;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
     }
   };
 
@@ -131,7 +138,7 @@ export default function PapersPage() {
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
-                      {!paper.isVerified && (
+                      {!paper.verified && (
                         <Button size="sm" variant="default" onClick={() => handleVerify(paper._id)}>
                           ✓ Verify
                         </Button>
@@ -170,7 +177,7 @@ export default function PapersPage() {
                     <div>
                       <p className="text-muted-foreground">Status</p>
                       <p className="font-medium">
-                        {paper.isVerified ? (
+                        {paper.verified ? (
                           <span className="text-green-600">✓ Verified</span>
                         ) : (
                           <span className="text-yellow-600">⚠ Pending Verification</span>

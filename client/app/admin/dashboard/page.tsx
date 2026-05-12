@@ -1,7 +1,9 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
+import { departmentApi, branchApi, sessionApi, pyqApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
@@ -13,11 +15,42 @@ import {
   Upload,
   FileText,
   LogOut,
-  Shield,
 } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const { user, logout, isSuperAdmin } = useAuth();
+  const { user, logout } = useAuth();
+  const [stats, setStats] = useState({
+    departments: 0,
+    branches: 0,
+    sessions: 0,
+    papers: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [depts, branches, sessions, papers] = await Promise.all([
+          departmentApi.getAll().catch(() => ({ data: [] })),
+          branchApi.getAll().catch(() => ({ data: [] })),
+          sessionApi.getAll().catch(() => ({ data: [] })),
+          pyqApi.getAll().catch(() => ({ data: [] })),
+        ]);
+
+        setStats({
+          departments: depts.data?.length || 0,
+          branches: branches.data?.length || 0,
+          sessions: sessions.data?.length || 0,
+          papers: papers.data?.length || 0,
+        });
+      } catch (error) {
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   const managementCards = [
     {
@@ -67,7 +100,7 @@ export default function AdminDashboard() {
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">InvertisPrep Admin</h1>
                 <p className="text-sm text-gray-600">
-                  Welcome, {user?.name} {isSuperAdmin && <Shield className="inline h-4 w-4 text-yellow-500" />}
+                  Welcome, {user?.name}
                 </p>
               </div>
               <div className="flex gap-4">
@@ -121,25 +154,25 @@ export default function AdminDashboard() {
             <Card>
               <CardHeader className="pb-2">
                 <CardDescription>Total Departments</CardDescription>
-                <CardTitle className="text-3xl">0</CardTitle>
+                <CardTitle className="text-3xl">{loading ? '-' : stats.departments}</CardTitle>
               </CardHeader>
             </Card>
             <Card>
               <CardHeader className="pb-2">
                 <CardDescription>Total Branches</CardDescription>
-                <CardTitle className="text-3xl">0</CardTitle>
+                <CardTitle className="text-3xl">{loading ? '-' : stats.branches}</CardTitle>
               </CardHeader>
             </Card>
             <Card>
               <CardHeader className="pb-2">
                 <CardDescription>Total Sessions</CardDescription>
-                <CardTitle className="text-3xl">0</CardTitle>
+                <CardTitle className="text-3xl">{loading ? '-' : stats.sessions}</CardTitle>
               </CardHeader>
             </Card>
             <Card>
               <CardHeader className="pb-2">
                 <CardDescription>Total Papers</CardDescription>
-                <CardTitle className="text-3xl">0</CardTitle>
+                <CardTitle className="text-3xl">{loading ? '-' : stats.papers}</CardTitle>
               </CardHeader>
             </Card>
           </div>

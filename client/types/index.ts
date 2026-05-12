@@ -104,7 +104,6 @@ export interface PYQPaper {
   viewCount: number;
   downloadCount: number;
   verified: boolean;
-  isVerified: boolean;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

@@ -25,8 +25,7 @@ import {
   Home, 
   BookOpen, 
   ExternalLink,
-  Medal,
-  Shield
+  Medal
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
@@ -52,7 +51,7 @@ export default function Navbar() {
     try {
       await logout();
     } catch (error) {
-      console.error('Failed to log out', error);
+      // Silent error handling
     }
   };
 
@@ -67,7 +66,6 @@ export default function Navbar() {
   const navLinks = [
     { name: 'Home', path: '/', icon: <Home className="h-4 w-4 mr-2" /> },
     { name: 'Browse PYQ', path: '/pyq', icon: <BookOpen className="h-4 w-4 mr-2" /> },
-    { name: 'Admin', path: '/admin/login', icon: <Shield className="h-4 w-4 mr-2" /> },
   ];
 
   // Format user name for display
@@ -179,9 +177,6 @@ export default function Navbar() {
                           <div className="w-full space-y-2">
                             <Link href="/login" className="w-full" onClick={() => setOpen(false)}>
                               <Button className="w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">Sign In with Google</Button>
-                            </Link>
-                            <Link href="/admin/login" className="w-full" onClick={() => setOpen(false)}>
-                              <Button variant="outline" className="w-full">Admin Login</Button>
                             </Link>
                           </div>
                         </div>
@@ -345,11 +340,6 @@ export default function Navbar() {
                 <Link href="/login">
                   <Button className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white hover:opacity-90 shadow-md">
                     Sign In
-                  </Button>
-                </Link>
-                <Link href="/admin/login">
-                  <Button variant="ghost" className="text-gray-700 hover:text-purple-600 hover:bg-purple-50">
-                    Admin
                   </Button>
                 </Link>
               </div>
