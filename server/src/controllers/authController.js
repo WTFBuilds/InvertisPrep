@@ -97,33 +97,72 @@ export const googleLogin = async (req, res) => {
     }
 
     // Verify the Google token
-    const googleUser = await verifyGoogleToken(token);
+    let googleUser;
+    try {
+      googleUser = await verifyGoogleToken(token);
+    } catch (tokenError) {
+      res.status(401).json({ 
+        success: false, 
+        message: 'Invalid or expired Google token',
+        details: tokenError instanceof Error ? tokenError.message : 'Token verification failed'
+      });
+      return;
+    }
+
+    if (!googleUser || !googleUser.email) {
+      res.status(400).json({ success: false, message: 'Invalid Google user data' });
+      return;
+    }
 
     if (!googleUser.email_verified) {
       res.status(400).json({ success: false, message: 'Email not verified with Google' });
       return;
     }
 
-    // Check if user exists
-    let user = await User.findOne({ email: googleUser.email });
+    // Check if user exists and handle concurrency with proper error handling
+    let user;
+    try {
+      user = await User.findOne({ email: googleUser.email });
 
-    // If user doesn't exist, create a new student account
-    if (!user) {
-      user = await User.create({
-        email: googleUser.email,
-        name: googleUser.name,
-        picture: googleUser.picture,
-        role: 'student', // Default role for Google OAuth users
-        isActive: true,
-        lastLogin: new Date(),
-      });
-    } else {
-      // Update last login and picture if changed
-      user.lastLogin = new Date();
-      if (googleUser.picture) {
-        user.picture = googleUser.picture;
+      // If user doesn't exist, create a new student account
+      if (!user) {
+        user = await User.create({
+          email: googleUser.email,
+          name: googleUser.name || 'User',
+          picture: googleUser.picture || null,
+          role: 'student', // Default role for Google OAuth users
+          isActive: true,
+          lastLogin: new Date(),
+        });
+      } else if (!user.isActive) {
+        res.status(403).json({ success: false, message: 'Your account has been disabled' });
+        return;
+      } else {
+        // Update last login and picture if changed
+        user.lastLogin = new Date();
+        if (googleUser.picture) {
+          user.picture = googleUser.picture;
+        }
+        await user.save();
       }
-      await user.save();
+    } catch (dbError) {
+      if (dbError.code === 11000) {
+        // Duplicate key error - race condition where user was created between find and create
+        user = await User.findOne({ email: googleUser.email });
+        if (user) {
+          user.lastLogin = new Date();
+          await user.save();
+        } else {
+          throw dbError;
+        }
+      } else {
+        throw dbError;
+      }
+    }
+
+    if (!user) {
+      res.status(500).json({ success: false, message: 'Failed to create or retrieve user' });
+      return;
     }
 
     // Generate JWT
@@ -149,8 +188,12 @@ export const googleLogin = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Google login error:', error);
-    res.status(500).json({ success: false, message: 'Server error during Google login' });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error during Google login',
+      details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+    });
   }
 };
 

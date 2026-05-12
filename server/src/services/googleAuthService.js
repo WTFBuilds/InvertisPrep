@@ -7,6 +7,10 @@ const client = new OAuth2Client(
 );
 
 export const verifyGoogleToken = async (token) => {
+  if (!token || typeof token !== 'string') {
+    throw new Error('Token must be a non-empty string');
+  }
+
   const ticket = await client.verifyIdToken({
     idToken: token,
     audience: process.env.GOOGLE_CLIENT_ID,
@@ -17,10 +21,14 @@ export const verifyGoogleToken = async (token) => {
     throw new Error('Invalid token payload');
   }
 
+  if (!payload.email) {
+    throw new Error('Token does not contain email');
+  }
+
   return {
     email: payload.email,
-    name: payload.name,
-    picture: payload.picture,
+    name: payload.name || '',
+    picture: payload.picture || null,
     email_verified: payload.email_verified || false,
   };
 };

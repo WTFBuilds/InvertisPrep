@@ -14,6 +14,30 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const fetchSessionWithRetry = async (maxRetries = 5, delayMs = 500): Promise<any> => {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const session = await fetch('/api/auth/session').then(res => res.json());
+        
+        if (session?.idToken) {
+          return session;
+        }
+
+        // If we haven't received the token yet, wait before retrying
+        if (i < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          delayMs = Math.min(delayMs * 1.5, 2000); // Exponential backoff, max 2s
+        }
+      } catch (err) {
+        if (i === maxRetries - 1) throw err;
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        delayMs = Math.min(delayMs * 1.5, 2000);
+      }
+    }
+
+    throw new Error('Failed to retrieve session after multiple attempts');
+  };
+
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
@@ -26,36 +50,46 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError('Failed to sign in with Google');
+        setError(`Google sign-in failed: ${result.error}`);
         setLoading(false);
         return;
       }
 
-      // Get the session to extract the ID token
+      if (!result?.ok) {
+        setError('Google sign-in was cancelled');
+        setLoading(false);
+        return;
+      }
+
+      // Get the session with retry logic to handle race condition
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const session: any = await fetch('/api/auth/session').then(res => res.json());
+      const session: any = await fetchSessionWithRetry();
       
-      if (session?.idToken) {
-        // Send the ID token to our backend
-        const response = await api.post('/auth/google-login', {
-          token: session.idToken
-        });
+      if (!session?.idToken) {
+        setError('Failed to retrieve authentication token from Google');
+        setLoading(false);
+        return;
+      }
 
-        if (response.data.success && response.data.token) {
-          // Store our JWT token
-          localStorage.setItem('token', response.data.token);
-          localStorage.setItem('user', JSON.stringify(response.data.user));
+      // Send the ID token to our backend
+      const response = await api.post('/auth/google-login', {
+        token: session.idToken
+      });
 
-          // Redirect to PYQ page
-          router.push('/pyq');
-        } else {
-          setError('Failed to authenticate with server');
-          setLoading(false);
-        }
+      if (response.data?.success && response.data?.token) {
+        // Store our JWT token
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+
+        // Redirect to PYQ page
+        router.push('/pyq');
+      } else {
+        setError(response.data?.message || 'Failed to authenticate with server');
+        setLoading(false);
       }
     } catch (err) {
-      console.error('Login error:', err);
-      setError('An error occurred during login');
+      const errorMsg = err instanceof Error ? err.message : 'An error occurred during login';
+      setError(errorMsg);
       setLoading(false);
     }
   };

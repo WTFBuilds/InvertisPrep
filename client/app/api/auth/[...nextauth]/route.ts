@@ -6,10 +6,15 @@ const handler = NextAuth({
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      allowDangerousEmailAccountLinking: true, // Allow linking if email matches
     }),
   ],
   callbacks: {
-    async signIn() {
+    async signIn({ user, account }) {
+      // Ensure Google OAuth was used
+      if (account?.provider !== 'google') {
+        return false;
+      }
       return true;
     },
     async jwt({ token, account }) {
@@ -28,6 +33,14 @@ const handler = NextAuth({
   },
   pages: {
     signIn: '/login',
+    error: '/login',
+  },
+  session: {
+    strategy: 'jwt',
+    maxAge: 7 * 24 * 60 * 60, // 7 days
+  },
+  jwt: {
+    maxAge: 7 * 24 * 60 * 60, // 7 days
   },
 });
 
