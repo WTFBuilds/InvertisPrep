@@ -32,7 +32,7 @@ export default function Hero() {
       <div className="mx-auto max-w-7xl px-2 sm:px-6 relative z-10 py-6 md:py-0">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-8">
           <div className="max-w-xl mx-auto text-center lg:text-left pt-10 sm:pt-0">
-            <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-white font-['Montserrat']">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight">
               <span className={`inline-block transition-all duration-700 delay-100 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-16 opacity-0'}`}>
                 Your Gateway to
               </span>
@@ -42,20 +42,20 @@ export default function Hero() {
               </span>
             </h1>
 
-            <p className={`mt-4 md:mt-6 text-sm sm:text-base md:text-lg leading-6 md:leading-7 text-indigo-100 font-['Poppins'] transition-all duration-700 delay-500 ${isVisible ? 'opacity-100' : 'opacity-0'} max-w-lg mx-auto lg:mx-0`}>
+            <p className={`mt-6 md:mt-8 text-sm sm:text-base md:text-lg leading-7 md:leading-8 text-indigo-100 transition-all duration-700 delay-500 ${isVisible ? 'opacity-100' : 'opacity-0'} max-w-lg mx-auto lg:mx-0`}>
               Access previous year papers, study materials, and compete in real-time quizzes. All in one place, designed specifically for Invertis University students.
             </p>
 
-            <div className={`mt-6 md:mt-8 flex flex-col sm:flex-row gap-3 md:gap-4 justify-center lg:justify-start transition-all duration-700 delay-700 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+            <div className={`mt-8 md:mt-10 flex flex-col sm:flex-row gap-3 md:gap-4 justify-center lg:justify-start transition-all duration-700 delay-700 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
               <Link
-                href={user ? "/pyq" : "/admin/login"}
-                className="rounded-md bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2.5 md:px-6 md:py-3 text-center text-sm font-semibold text-white shadow-lg hover:shadow-indigo-500/30 hover:from-indigo-500 hover:to-purple-500 transition-all duration-300 transform hover:-translate-y-1 font-['Poppins']"
+                href="/pyq"
+                className="rounded-md bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-3 md:px-6 md:py-2.5 text-center text-sm font-bold text-white shadow-lg hover:shadow-indigo-500/30 hover:from-indigo-500 hover:to-purple-500 transition-all duration-300 transform hover:-translate-y-1"
               >
                 Get Started
               </Link>
               <Link
                 href="/pyq"
-                className="text-sm font-semibold leading-6 text-white flex items-center justify-center font-['Poppins'] bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg px-5 py-2.5 md:px-6 md:py-3 rounded-md"
+                className="text-sm font-bold leading-6 text-white flex items-center justify-center bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg px-6 py-3 md:px-6 md:py-2.5 rounded-md"
               >
                 Learn more <span aria-hidden="true" className="ml-2 group-hover:translate-x-1 transition-transform duration-300">→</span>
               </Link>
@@ -71,9 +71,9 @@ export default function Hero() {
                 <div className="p-1.5 md:p-2 rounded-lg bg-gradient-to-r from-indigo-200 to-pink-200 text-indigo-600">
                   <Medal className="h-5 w-5 md:h-6 md:w-6" />
                 </div>
-                <h3 className="text-base md:text-lg font-semibold leading-7 text-white font-['Montserrat']">Leaderboard</h3>
+                <h3 className="text-base md:text-lg font-bold leading-7 text-white">Leaderboard</h3>
               </div>
-              <p className="text-xs md:text-sm text-gray-100 font-['Poppins'] ml-10 md:ml-14 mb-2">
+              <p className="text-xs md:text-sm text-gray-100 ml-10 md:ml-14 mb-2">
                 Compete, rank up, and show off your academic prowess!
               </p>
             </div>
@@ -84,9 +84,9 @@ export default function Hero() {
                   <div className="p-1.5 md:p-2 rounded-lg bg-indigo-100 text-indigo-600">
                     <BookOpen className="h-5 w-5 md:h-6 md:w-6" />
                   </div>
-                  <h3 className="text-base md:text-lg font-semibold leading-7 text-white font-['Montserrat']">Resources</h3>
+                  <h3 className="text-base md:text-lg font-bold leading-7 text-white">Resources</h3>
                 </div>
-                <p className="text-xs md:text-sm text-gray-200 font-['Poppins'] ml-10 md:ml-14">
+                <p className="text-xs md:text-sm text-gray-200 ml-10 md:ml-14">
                   Access comprehensive learning resources and study materials.
                 </p>
               </Link>
@@ -98,9 +98,9 @@ export default function Hero() {
                   <div className="p-1.5 md:p-2 rounded-lg bg-indigo-100 text-indigo-600">
                     <Trophy className="h-5 w-5 md:h-6 md:w-6" />
                   </div>
-                  <h3 className="text-base md:text-lg font-semibold leading-7 text-white font-['Montserrat']">Quiz Battles</h3>
+                  <h3 className="text-base md:text-lg font-bold leading-7 text-white">Quiz Battles</h3>
                 </div>
-                <p className="text-xs md:text-sm text-gray-200 font-['Poppins'] ml-10 md:ml-14">
+                <p className="text-xs md:text-sm text-gray-200 ml-10 md:ml-14">
                   Compete with peers in real-time quiz battles.
                 </p>
               </Link>
@@ -112,9 +112,9 @@ export default function Hero() {
                   <div className="p-1.5 md:p-2 rounded-lg bg-indigo-100 text-indigo-600">
                     <FileText className="h-5 w-5 md:h-6 md:w-6" />
                   </div>
-                  <h3 className="text-base md:text-lg font-semibold leading-7 text-white font-['Montserrat']">PYQ Solutions</h3>
+                  <h3 className="text-base md:text-lg font-bold leading-7 text-white">PYQ Solutions</h3>
                 </div>
-                <p className="text-xs md:text-sm text-gray-200 font-['Poppins'] ml-10 md:ml-14">
+                <p className="text-xs md:text-sm text-gray-200 ml-10 md:ml-14">
                   Access previous year question papers with detailed solutions.
                 </p>
               </Link>
