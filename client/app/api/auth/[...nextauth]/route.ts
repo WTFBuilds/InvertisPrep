@@ -1,22 +1,21 @@
-import NextAuth from "next-auth";
+import NextAuth, { type NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
-const handler = NextAuth({
+if (!process.env.GOOGLE_CLIENT_ID) {
+  throw new Error('GOOGLE_CLIENT_ID environment variable is not set');
+}
+if (!process.env.GOOGLE_CLIENT_SECRET) {
+  throw new Error('GOOGLE_CLIENT_SECRET environment variable is not set');
+}
+
+const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      allowDangerousEmailAccountLinking: true, // Allow linking if email matches
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     }),
   ],
   callbacks: {
-    async signIn({ user, account }) {
-      // Ensure Google OAuth was used
-      if (account?.provider !== 'google') {
-        return false;
-      }
-      return true;
-    },
     async jwt({ token, account }) {
       if (account?.id_token) {
         token.idToken = account.id_token;
@@ -42,6 +41,8 @@ const handler = NextAuth({
   jwt: {
     maxAge: 7 * 24 * 60 * 60, // 7 days
   },
-});
+  debug: process.env.NODE_ENV === 'development',
+};
 
+const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };

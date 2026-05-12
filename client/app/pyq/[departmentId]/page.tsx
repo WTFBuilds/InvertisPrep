@@ -92,16 +92,6 @@ export default function DepartmentPYQPage() {
   }, [selectedBranch, selectedSession, selectedSemester, selectedExamType, searchSubject, papers]);
 
   const handleDownload = async (paper: PYQPaper) => {
-    // Check if user is logged in
-    const token = localStorage.getItem('token');
-    if (!token) {
-      const shouldRedirect = confirm('Please sign in with Google to download PYQ papers. Redirect to login page?');
-      if (shouldRedirect) {
-        router.push('/login');
-      }
-      return;
-    }
-
     try {
       await pyqApi.trackDownload(paper._id);
       window.open(paper.cloudinaryUrl, '_blank');

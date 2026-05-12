@@ -49,14 +49,26 @@ export default function LoginPage() {
         callbackUrl: '/pyq'
       });
 
-      if (result?.error) {
-        setError(`Google sign-in failed: ${result.error}`);
+      // Debug logging
+      console.log('Google signIn result:', result);
+
+      // Handle undefined result (usually means NextAuth not properly configured)
+      if (result === undefined || result === null) {
+        console.error('signIn returned undefined - NextAuth not properly initialized');
+        setError('Google authentication service not properly configured. Please refresh the page and try again.');
         setLoading(false);
         return;
       }
 
-      if (!result?.ok) {
-        setError('Google sign-in was cancelled');
+      if (!result.ok) {
+        console.error('Google sign-in failed with status:', result.status, 'error:', result.error);
+        if (result.error === 'OAuthSignin' || result.error === 'OAuthCallback') {
+          setError('Google OAuth configuration error. Check console for details.');
+        } else if (result.error === 'OAuthCreateAccount') {
+          setError('Failed to create account with Google. Please try again.');
+        } else {
+          setError(`Sign-in failed: ${result.error || 'Unknown error'}`);
+        }
         setLoading(false);
         return;
       }
@@ -65,6 +77,8 @@ export default function LoginPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const session: any = await fetchSessionWithRetry();
       
+      console.log('Session retrieved:', { hasIdToken: !!session?.idToken });
+
       if (!session?.idToken) {
         setError('Failed to retrieve authentication token from Google');
         setLoading(false);
@@ -75,6 +89,8 @@ export default function LoginPage() {
       const response = await api.post('/auth/google-login', {
         token: session.idToken
       });
+
+      console.log('Backend response:', { success: response.data?.success });
 
       if (response.data?.success && response.data?.token) {
         // Store our JWT token
@@ -88,6 +104,7 @@ export default function LoginPage() {
         setLoading(false);
       }
     } catch (err) {
+      console.error('Login error:', err);
       const errorMsg = err instanceof Error ? err.message : 'An error occurred during login';
       setError(errorMsg);
       setLoading(false);
