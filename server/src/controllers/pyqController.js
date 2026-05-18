@@ -100,9 +100,12 @@ export const getAllPYQs = async (req, res) => {
 
     const skip = (pageNum - 1) * pageSize;
 
+    // Filter to only show active papers
+    const filter = { isActive: true };
+
     const [total, papers] = await Promise.all([
-      PYQPaper.countDocuments(),
-      PYQPaper.find()
+      PYQPaper.countDocuments(filter),
+      PYQPaper.find(filter)
         .populate('departmentId', 'name displayName')
         .populate('branchId', 'name')
         .populate('sessionId', 'name')
@@ -194,8 +197,10 @@ export const deletePYQ = async (req, res) => {
       return;
     }
 
-    // Delete from Cloudinary
-    await deletePDF(pyq.cloudinaryPublicId);
+    // Delete from Cloudinary (with error handling inside the service)
+    if (pyq.cloudinaryPublicId) {
+      await deletePDF(pyq.cloudinaryPublicId);
+    }
 
     // Soft delete from database
     pyq.isActive = false;
@@ -204,6 +209,44 @@ export const deletePYQ = async (req, res) => {
     res.json({ success: true, message: 'PYQ deleted successfully' });
   } catch (error) {
     console.error('Delete PYQ error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Failed to delete paper' });
+  }
+};
+
+// Update PYQ metadata (admin only)
+export const updatePYQ = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { subjectName, subjectCode, year, examType, semester } = req.body;
+
+    const pyq = await PYQPaper.findById(id);
+
+    if (!pyq) {
+      res.status(404).json({ success: false, message: 'PYQ not found' });
+      return;
+    }
+
+    // Update allowed fields
+    if (subjectName) pyq.subjectName = subjectName;
+    if (subjectCode) pyq.subjectCode = subjectCode;
+    if (year) pyq.year = parseInt(year);
+    if (examType) pyq.examType = examType;
+    if (semester) pyq.semester = parseInt(semester);
+
+    // Update title based on new data
+    pyq.title = `${pyq.subjectName} ${pyq.examType} ${pyq.year}`;
+
+    await pyq.save();
+
+    const updated = await PYQPaper.findById(id)
+      .populate('departmentId', 'name displayName')
+      .populate('branchId', 'name')
+      .populate('sessionId', 'name')
+      .populate('uploadedBy', 'name email');
+
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    console.error('Update PYQ error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update paper' });
   }
 };

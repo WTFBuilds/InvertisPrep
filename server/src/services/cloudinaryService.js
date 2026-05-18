@@ -26,5 +26,16 @@ export const uploadPDF = async (filePath, _metadata) => {
 };
 
 export const deletePDF = async (publicId) => {
-  await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+  try {
+    if (!publicId) {
+      console.warn('No public ID provided for deletion');
+      return;
+    }
+    const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+    console.log('Cloudinary deletion result:', result);
+  } catch (error) {
+    console.error('Error deleting PDF from Cloudinary:', error);
+    // Don't throw - log the error but continue with database deletion
+    // This allows the database record to be soft-deleted even if Cloudinary deletion fails
+  }
 };

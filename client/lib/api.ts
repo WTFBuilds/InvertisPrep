@@ -176,6 +176,11 @@ export const pyqApi = {
     return data;
   },
 
+  update: async (id: string, updates: Partial<PYQPaper>): Promise<APIResponse<PYQPaper>> => {
+    const { data } = await apiClient.put<APIResponse<PYQPaper>>(`/pyq/${id}`, updates);
+    return data;
+  },
+
   delete: async (id: string): Promise<APIResponse> => {
     const { data } = await apiClient.delete<APIResponse>(`/pyq/${id}`);
     return data;
