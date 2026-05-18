@@ -158,8 +158,8 @@ export const pyqApi = {
     return data;
   },
 
-  getAll: async (): Promise<APIResponse<PYQPaper[]>> => {
-    const { data } = await apiClient.get<APIResponse<PYQPaper[]>>('/pyq/all');
+  getAll: async (params?: Record<string, any>): Promise<APIResponse<PYQPaper[]>> => {
+    const { data } = await apiClient.get<APIResponse<PYQPaper[]>>('/pyq/all', { params });
     return data;
   },
 

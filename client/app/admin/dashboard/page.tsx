@@ -34,14 +34,15 @@ export default function AdminDashboard() {
           departmentApi.getAll().catch(() => ({ data: [] })),
           branchApi.getAll().catch(() => ({ data: [] })),
           sessionApi.getAll().catch(() => ({ data: [] })),
-          pyqApi.getAll().catch(() => ({ data: [] })),
+          pyqApi.getAll().catch(() => ({ data: [], total: 0 })),
         ]);
 
         setStats({
           departments: depts.data?.length || 0,
           branches: branches.data?.length || 0,
           sessions: sessions.data?.length || 0,
-          papers: papers.data?.length || 0,
+          // API returns paged results; use the `total` field when available
+          papers: typeof (papers as any).total === 'number' ? (papers as any).total : papers.data?.length || 0,
         });
       } catch (error) {
       } finally {

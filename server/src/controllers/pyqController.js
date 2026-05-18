@@ -91,17 +91,28 @@ export const getPYQs = async (req, res) => {
 };
 
 // Get all PYQs (admin only)
-export const getAllPYQs = async (_req, res) => {
+export const getAllPYQs = async (req, res) => {
   try {
-    const papers = await PYQPaper.find()
-      .populate('departmentId', 'name displayName')
-      .populate('branchId', 'name')
-      .populate('sessionId', 'name')
-      .populate('uploadedBy', 'name email')
-      .sort({ createdAt: -1 })
-      .limit(100);
+    const { page = '1', limit = '100' } = req.query;
+    const pageNum = Math.max(parseInt(page.toString(), 10) || 1, 1);
+    // allow client to request a larger page size but cap it to avoid excessive load
+    const pageSize = Math.min(Math.max(parseInt(limit.toString(), 10) || 100, 1), 1000);
 
-    res.json({ success: true, count: papers.length, data: papers });
+    const skip = (pageNum - 1) * pageSize;
+
+    const [total, papers] = await Promise.all([
+      PYQPaper.countDocuments(),
+      PYQPaper.find()
+        .populate('departmentId', 'name displayName')
+        .populate('branchId', 'name')
+        .populate('sessionId', 'name')
+        .populate('uploadedBy', 'name email')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(pageSize),
+    ]);
+
+    res.json({ success: true, count: papers.length, total, page: pageNum, pageSize, data: papers });
   } catch (error) {
     console.error('Get all PYQs error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
