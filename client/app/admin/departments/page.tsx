@@ -18,6 +18,8 @@ export default function DepartmentsPage() {
   const [success, setSuccess] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [formData, setFormData] = useState<CreateDepartmentDTO>({
     id: '',
     name: '',
@@ -30,6 +32,7 @@ export default function DepartmentsPage() {
     try {
       const response = await departmentApi.getAll();
       setDepartments(response.data || []);
+      setCurrentPage(1);
     } catch (err: unknown) {
       setError('Failed to load departments');
     } finally {
@@ -112,6 +115,22 @@ export default function DepartmentsPage() {
     setFormData({ id: '', name: '', displayName: '', icon: '', description: '' });
     setShowForm(false);
     setEditingId(null);
+  };
+
+  // Pagination calculations
+  const totalPages = Math.ceil(departments.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedDepartments = departments.slice(startIndex, endIndex);
+
+  const goToPage = (page: number) => {
+    const pageNum = Math.max(1, Math.min(page, totalPages || 1));
+    setCurrentPage(pageNum);
+  };
+
+  const handleItemsPerPageChange = (newLimit: number) => {
+    setItemsPerPage(newLimit);
+    setCurrentPage(1); // Reset to first page when changing items per page
   };
 
   return (
@@ -221,6 +240,60 @@ export default function DepartmentsPage() {
           </Card>
         )}
 
+        {!showForm && departments.length > 0 && (
+          <div className="mb-6 flex items-center justify-between p-4 border rounded-md bg-gray-50">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Items per page:</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                className="border rounded-md p-1 text-sm"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={15}>15</option>
+                <option value={20}>20</option>
+              </select>
+            </div>
+
+            <div className="text-sm text-muted-foreground">
+              Showing {startIndex + 1} to {Math.min(endIndex, departments.length)} of {departments.length} departments
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                ← Previous
+              </Button>
+              <div className="flex items-center gap-2">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? 'default' : 'outline'}
+                    size="sm"
+                    className="min-w-10"
+                    onClick={() => goToPage(page)}
+                  >
+                    {page}
+                  </Button>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Next →
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="grid gap-4">
           {loading ? (
             <p>Loading departments...</p>
@@ -231,7 +304,7 @@ export default function DepartmentsPage() {
               </CardContent>
             </Card>
           ) : (
-            departments.map((dept) => (
+            paginatedDepartments.map((dept) => (
               <Card key={dept._id}>
                 <CardContent className="p-6">
                   <div className="flex justify-between items-start">

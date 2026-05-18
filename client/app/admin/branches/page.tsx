@@ -19,6 +19,8 @@ export default function BranchesPage() {
   const [success, setSuccess] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [formData, setFormData] = useState<CreateBranchDTO>({
     id: '',
     name: '',
@@ -34,6 +36,7 @@ export default function BranchesPage() {
       ]);
       setBranches(branchesRes.data || []);
       setDepartments(departmentsRes.data || []);
+      setCurrentPage(1); // Reset to first page when data is fetched
     } catch (err: unknown) {
       setError('Failed to load data');
     } finally {
@@ -118,6 +121,29 @@ export default function BranchesPage() {
       return dept?.displayName || 'Unknown';
     }
     return (branch.departmentId as Department).displayName;
+  };
+
+  // Pagination calculations
+  const totalPages = Math.ceil(branches.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedBranches = branches.slice(startIndex, endIndex);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleItemsPerPageChange = (newLimit: number) => {
+    setItemsPerPage(newLimit);
+    setCurrentPage(1); // Reset to first page when changing items per page
   };
 
   return (
@@ -232,6 +258,60 @@ export default function BranchesPage() {
           </Card>
         )}
 
+        {!showForm && branches.length > 0 && (
+          <div className="mb-6 flex items-center justify-between p-4 border rounded-md bg-gray-50">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Items per page:</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                className="border rounded-md p-1 text-sm"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={15}>15</option>
+                <option value={20}>20</option>
+              </select>
+            </div>
+
+            <div className="text-sm text-muted-foreground">
+              Showing {startIndex + 1} to {Math.min(endIndex, branches.length)} of {branches.length} branches
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrevPage}
+                disabled={currentPage === 1}
+              >
+                ← Previous
+              </Button>
+              <div className="flex items-center gap-2">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? 'default' : 'outline'}
+                    size="sm"
+                    className="min-w-10"
+                    onClick={() => setCurrentPage(page)}
+                  >
+                    {page}
+                  </Button>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+              >
+                Next →
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="grid gap-4">
           {loading ? (
             <p>Loading branches...</p>
@@ -242,34 +322,36 @@ export default function BranchesPage() {
               </CardContent>
             </Card>
           ) : (
-            branches.map((branch) => (
-              <Card key={branch._id}>
-                <CardContent className="p-6">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-xl font-semibold">{branch.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        ID: {branch.id} | Department: {getDepartmentName(branch)}
-                      </p>
-                      <p className="text-sm mt-2">
-                        <span className="font-medium">Semesters:</span> {branch.semesters.join(', ')}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {branch.isActive ? '✓ Active' : '✗ Inactive'}
-                      </p>
+            <>
+              {paginatedBranches.map((branch) => (
+                <Card key={branch._id}>
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="text-xl font-semibold">{branch.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          ID: {branch.id} | Department: {getDepartmentName(branch)}
+                        </p>
+                        <p className="text-sm mt-2">
+                          <span className="font-medium">Semesters:</span> {branch.semesters.join(', ')}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {branch.isActive ? '✓ Active' : '✗ Inactive'}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => handleEdit(branch)}>
+                          Edit
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleDelete(branch._id)}>
+                          Delete
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => handleEdit(branch)}>
-                        Edit
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDelete(branch._id)}>
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </CardContent>
+                </Card>
+              ))}
+            </>
           )}
         </div>
       </div>
