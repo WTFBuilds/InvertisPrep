@@ -57,7 +57,7 @@ export default function Footer() {
           <div className="space-y-4">
             <Link href="/" className="flex items-center">
               <span className="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">
-                INVERTISPREP
+                INVERTISPREP <span className="text-sm">v2</span>
               </span>
             </Link>
             <p className="text-sm text-gray-400">

@@ -187,4 +187,30 @@ export const pyqApi = {
   },
 };
 
+export const syllabusApi = {
+  upload: async (formData: FormData): Promise<APIResponse<any>> => {
+    const { data } = await apiClient.post<APIResponse<any>>('/syllabus/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return data;
+  },
+
+  getAll: async (): Promise<APIResponse<any[]>> => {
+    const { data } = await apiClient.get<APIResponse<any[]>>('/syllabus/all');
+    return data;
+  },
+
+  getFiltered: async (filters?: Record<string, any>): Promise<APIResponse<any[]>> => {
+    const { data } = await apiClient.get<APIResponse<any[]>>('/syllabus', { params: filters });
+    return data;
+  },
+
+  delete: async (id: string): Promise<APIResponse> => {
+    const { data } = await apiClient.delete<APIResponse>(`/syllabus/${id}`);
+    return data;
+  },
+};
+
 export default apiClient;

@@ -65,7 +65,10 @@ export default function Navbar() {
 
   const navLinks = [
     { name: 'Home', path: '/', icon: <Home className="h-4 w-4 mr-2" /> },
-    { name: 'Browse PYQ', path: '/pyq', icon: <BookOpen className="h-4 w-4 mr-2" /> },
+    { name: 'Syllabus', path: '/resources/syllabus', icon: <BookOpen className="h-4 w-4 mr-2" /> },
+    { name: 'PYQ', path: '/pyq', icon: <BookOpen className="h-4 w-4 mr-2" /> },
+    { name: 'Quizzo', path: '/quizz0', icon: <BookOpen className="h-4 w-4 mr-2" /> },
+    { name: 'Contact', path: '/contact', icon: <BookOpen className="h-4 w-4 mr-2" /> },
   ];
 
   // Format user name for display
@@ -82,7 +85,7 @@ export default function Navbar() {
           <div className="flex-shrink-0 flex items-center">
             <Link href="/" className="flex items-center">
               <span className="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" style={{ fontFamily: 'Inter, sans-serif' }}>
-                INVERTISPREP
+                INVERTISPREP <span className="text-sm">v2</span>
               </span>
             </Link>
           </div>
@@ -124,7 +127,17 @@ export default function Navbar() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem asChild>
-                        <Link href="/" className="w-full">About</Link>
+                        <Link href="/our-team" className="w-full">Our Team</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/about" className="w-full">About</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/our-mentors" className="w-full">Our Mentors</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/report-bug" className="w-full">Report Bug</Link>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem asChild>

@@ -15,6 +15,7 @@ import departmentRoutes from './routes/departments.js';
 import branchRoutes from './routes/branches.js';
 import sessionRoutes from './routes/sessions.js';
 import pyqRoutes from './routes/pyq.js';
+import syllabusRoutes from './routes/syllabus.js';
 
 // Load environment variables
 dotenv.config();
@@ -77,6 +78,7 @@ app.use('/api/departments', departmentRoutes);
 app.use('/api/branches', branchRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/pyq', pyqRoutes);
+app.use('/api/syllabus', syllabusRoutes);
 
 // Error handling
 app.use(notFound);

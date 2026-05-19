@@ -89,6 +89,13 @@ export default function AdminDashboard() {
       href: '/admin/papers',
       color: 'bg-red-500',
     },
+    {
+      title: 'Syllabus',
+      description: 'Upload and manage syllabus PDFs',
+      icon: BookOpen,
+      href: '/admin/syllabus',
+      color: 'bg-indigo-500',
+    },
   ];
 
   return (
