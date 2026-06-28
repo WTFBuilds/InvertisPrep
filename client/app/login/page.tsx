@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { useState, useEffect } from 'react';
+import { signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -14,95 +14,62 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const fetchSessionWithRetry = async (maxRetries = 5, delayMs = 500): Promise<any> => {
-    for (let i = 0; i < maxRetries; i++) {
+  // Handle checking for NextAuth session on mount (to handle OAuth callback redirect)
+  useEffect(() => {
+    const handleGoogleCallback = async () => {
       try {
-        const session = await fetch('/api/auth/session').then(res => res.json());
-        
-        if (session?.idToken) {
-          return session;
-        }
+        const res = await fetch('/api/auth/session');
+        const session = await res.json();
 
-        // If we haven't received the token yet, wait before retrying
-        if (i < maxRetries - 1) {
-          await new Promise(resolve => setTimeout(resolve, delayMs));
-          delayMs = Math.min(delayMs * 1.5, 2000); // Exponential backoff, max 2s
+        if (session?.idToken) {
+          setLoading(true);
+          setError('');
+
+          console.log('Detected Google session, exchanging with backend...');
+
+          // Send the ID token to our backend
+          const response = await api.post('/auth/google-login', {
+            token: session.idToken
+          });
+
+          console.log('Backend exchange response:', response.data);
+
+          if (response.data?.success && response.data?.token) {
+            // Store our JWT token and user info
+            localStorage.setItem('token', response.data.token);
+            localStorage.setItem('user', JSON.stringify(response.data.user));
+
+            // Call NextAuth signout to clear the NextAuth session so it doesn't linger
+            await signOut({ redirect: false });
+
+            // Redirect to PYQ page
+            router.push('/pyq');
+          } else {
+            setError(response.data?.message || 'Failed to authenticate with server');
+            setLoading(false);
+          }
         }
       } catch (err) {
-        if (i === maxRetries - 1) throw err;
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-        delayMs = Math.min(delayMs * 1.5, 2000);
+        console.error('Error processing Google sign-in session:', err);
+        setError('An error occurred while finishing Google sign-in.');
+        setLoading(false);
       }
-    }
+    };
 
-    throw new Error('Failed to retrieve session after multiple attempts');
-  };
+    handleGoogleCallback();
+  }, [router]);
 
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
       setError('');
 
-      // Trigger Google OAuth flow
-      const result = await signIn('google', { 
-        redirect: false,
-        callbackUrl: '/pyq'
+      // Trigger Google OAuth flow with callbackUrl pointing to /login
+      // This will perform a redirect to Google, and after auth Google redirects
+      // back to NextAuth which redirects back to /login.
+      await signIn('google', { 
+        callbackUrl: '/login'
       });
-
-      // Debug logging
-      console.log('Google signIn result:', result);
-
-      // Handle undefined result (usually means NextAuth not properly configured)
-      if (result === undefined || result === null) {
-        console.error('signIn returned undefined - NextAuth not properly initialized');
-        setError('Google authentication service not properly configured. Please refresh the page and try again.');
-        setLoading(false);
-        return;
-      }
-
-      if (!result.ok) {
-        console.error('Google sign-in failed with status:', result.status, 'error:', result.error);
-        if (result.error === 'OAuthSignin' || result.error === 'OAuthCallback') {
-          setError('Google OAuth configuration error. Check console for details.');
-        } else if (result.error === 'OAuthCreateAccount') {
-          setError('Failed to create account with Google. Please try again.');
-        } else {
-          setError(`Sign-in failed: ${result.error || 'Unknown error'}`);
-        }
-        setLoading(false);
-        return;
-      }
-
-      // Get the session with retry logic to handle race condition
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const session: any = await fetchSessionWithRetry();
-      
-      console.log('Session retrieved:', { hasIdToken: !!session?.idToken });
-
-      if (!session?.idToken) {
-        setError('Failed to retrieve authentication token from Google');
-        setLoading(false);
-        return;
-      }
-
-      // Send the ID token to our backend
-      const response = await api.post('/auth/google-login', {
-        token: session.idToken
-      });
-
-      console.log('Backend response:', { success: response.data?.success });
-
-      if (response.data?.success && response.data?.token) {
-        // Store our JWT token
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-
-        // Redirect to PYQ page
-        router.push('/pyq');
-      } else {
-        setError(response.data?.message || 'Failed to authenticate with server');
-        setLoading(false);
-      }
     } catch (err) {
       console.error('Login error:', err);
       const errorMsg = err instanceof Error ? err.message : 'An error occurred during login';

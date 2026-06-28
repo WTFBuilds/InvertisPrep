@@ -127,6 +127,7 @@ export const googleLogin = async (req, res) => {
       // If user doesn't exist, create a new student account
       if (!user) {
         user = await User.create({
+          googleId: googleUser.sub,
           email: googleUser.email,
           name: googleUser.name || 'User',
           picture: googleUser.picture || null,
@@ -138,10 +139,13 @@ export const googleLogin = async (req, res) => {
         res.status(403).json({ success: false, message: 'Your account has been disabled' });
         return;
       } else {
-        // Update last login and picture if changed
+        // Update last login, picture, and googleId if not set
         user.lastLogin = new Date();
         if (googleUser.picture) {
           user.picture = googleUser.picture;
+        }
+        if (!user.googleId && googleUser.sub) {
+          user.googleId = googleUser.sub;
         }
         await user.save();
       }
@@ -151,6 +155,9 @@ export const googleLogin = async (req, res) => {
         user = await User.findOne({ email: googleUser.email });
         if (user) {
           user.lastLogin = new Date();
+          if (!user.googleId && googleUser.sub) {
+            user.googleId = googleUser.sub;
+          }
           await user.save();
         } else {
           throw dbError;

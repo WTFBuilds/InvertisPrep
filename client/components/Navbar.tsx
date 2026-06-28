@@ -17,7 +17,7 @@ import {
   NavigationMenuList,
   navigationMenuTriggerStyle,
 } from '@/components/ui/navigation-menu';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { 
   Menu, 
   ChevronDown, 
@@ -25,7 +25,11 @@ import {
   Home, 
   BookOpen, 
   ExternalLink,
-  Medal
+  Medal,
+  User,
+  LayoutDashboard,
+  TrendingUp,
+  Wallet
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
@@ -56,9 +60,12 @@ export default function Navbar() {
   };
 
   const getInitials = (name: string) => {
+    if (!name) return 'U';
     return name
-      .split(' ')
+      .trim()
+      .split(/\s+/)
       .map((n) => n[0])
+      .slice(0, 2)
       .join('')
       .toUpperCase();
   };
@@ -173,13 +180,17 @@ export default function Navbar() {
                       {user ? (
                         <div className="flex flex-col items-center">
                           <Avatar className="h-16 w-16 mb-3 ring-2 ring-white shadow-md">
+                            {user.picture && (
+                              <AvatarImage src={user.picture} alt={user.name || 'User'} className="object-cover" />
+                            )}
                             <AvatarFallback className="bg-gradient-to-br from-indigo-400 to-purple-400 text-white text-lg">
-                              {user.email ? getInitials(user.email) : 'U'}
+                              {user.name ? getInitials(user.name) : (user.email ? getInitials(user.email) : 'U')}
                             </AvatarFallback>
                           </Avatar>
                           <div className="text-center">
-                            <p className="font-bold text-lg text-gray-800">{user.email}</p>
-                            <p className="text-sm text-gray-500">{user.role}</p>
+                            <p className="font-bold text-lg text-gray-800 leading-tight">{user.name || formatDisplayName()}</p>
+                            <p className="text-xs text-gray-500 truncate max-w-[200px] mb-1">{user.email}</p>
+                            <p className="inline-block text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">{user.role}</p>
                           </div>
                         </div>
                       ) : (
@@ -223,6 +234,50 @@ export default function Navbar() {
                             SOON
                           </span>
                         </button>
+                        
+                        {/* Student / User Links (when logged in) */}
+                        {user && (
+                          <>
+                            <Separator className="my-2" />
+                            <p className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                              My Account
+                            </p>
+                            <div className="space-y-1">
+                              <Link
+                                href="/profile"
+                                className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+                                onClick={() => setOpen(false)}
+                              >
+                                <User className="h-4 w-4 mr-2 text-gray-500" />
+                                Profile
+                              </Link>
+                              <Link
+                                href={user.role === 'admin' || user.role === 'super-admin' ? '/admin/dashboard' : '/dashboard'}
+                                className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+                                onClick={() => setOpen(false)}
+                              >
+                                <LayoutDashboard className="h-4 w-4 mr-2 text-gray-500" />
+                                Dashboard
+                              </Link>
+                              <Link
+                                href="/academic-progress"
+                                className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+                                onClick={() => setOpen(false)}
+                              >
+                                <TrendingUp className="h-4 w-4 mr-2 text-gray-500" />
+                                Academic Progress
+                              </Link>
+                              <Link
+                                href="/qc-wallet"
+                                className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+                                onClick={() => setOpen(false)}
+                              >
+                                <Wallet className="h-4 w-4 mr-2 text-gray-500" />
+                                QC Wallet
+                              </Link>
+                            </div>
+                          </>
+                        )}
                         
                         {/* Admin Menu Links (when logged in as admin) */}
                         {user && (user.role === 'admin' || user.role === 'super-admin') && (
@@ -302,53 +357,117 @@ export default function Navbar() {
 
           {/* Styled User Box (Desktop) */}
           <div className="hidden sm:flex sm:items-center">
-            {user ? (
+            {isMounted && user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button 
                     variant="ghost" 
                     className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-50 to-purple-50 border border-purple-100 shadow-sm hover:shadow-md transition-all"
                   >
-                    <Avatar className="h-7 w-7">
+                    <Avatar className="h-7 w-7 ring-1 ring-purple-200">
+                      {user.picture && (
+                        <AvatarImage src={user.picture} alt={user.name || 'User'} className="object-cover" />
+                      )}
                       <AvatarFallback className="bg-gradient-to-br from-indigo-400 to-purple-400 text-white text-xs">
-                        {user.email ? getInitials(user.email) : 'U'}
+                        {user.name ? getInitials(user.name) : (user.email ? getInitials(user.email) : 'U')}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="font-medium text-gray-700">{formatDisplayName()}</span>
+                    <span className="font-medium text-gray-700">{user.name ? user.name.split(' ')[0] : formatDisplayName()}</span>
                     <ChevronDown className="h-4 w-4 text-gray-400" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end">
-                  <DropdownMenuItem className="font-medium">
-                    {user.email}
-                  </DropdownMenuItem>
+                  <div className="flex items-center space-x-2 p-2">
+                    <Avatar className="h-9 w-9 ring-1 ring-purple-200">
+                      {user.picture && (
+                        <AvatarImage src={user.picture} alt={user.name || 'User'} className="object-cover" />
+                      )}
+                      <AvatarFallback className="bg-gradient-to-br from-indigo-400 to-purple-400 text-white text-xs">
+                        {user.name ? getInitials(user.name) : (user.email ? getInitials(user.email) : 'U')}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col space-y-0.5">
+                      <span className="font-semibold text-sm text-gray-800 leading-tight">{user.name || formatDisplayName()}</span>
+                      <span className="text-xs text-gray-500 truncate max-w-[150px]">{user.email}</span>
+                    </div>
+                  </div>
                   <DropdownMenuSeparator />
+
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile" className="w-full flex items-center">
+                      <User className="h-4 w-4 mr-2 text-gray-500" />
+                      Profile
+                    </Link>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem asChild>
+                    <Link 
+                      href={user.role === 'admin' || user.role === 'super-admin' ? '/admin/dashboard' : '/dashboard'} 
+                      className="w-full flex items-center"
+                    >
+                      <LayoutDashboard className="h-4 w-4 mr-2 text-gray-500" />
+                      Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem asChild>
+                    <Link href="/academic-progress" className="w-full flex items-center">
+                      <TrendingUp className="h-4 w-4 mr-2 text-gray-500" />
+                      Academic Progress
+                    </Link>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem asChild>
+                    <Link href="/qc-wallet" className="w-full flex items-center">
+                      <Wallet className="h-4 w-4 mr-2 text-gray-500" />
+                      QC Wallet
+                    </Link>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+
                   {(user.role === 'admin' || user.role === 'super-admin') && (
                     <>
                       <DropdownMenuItem asChild>
-                        <Link href="/admin/departments" className="w-full">Departments</Link>
+                        <Link href="/admin/departments" className="w-full flex items-center">
+                          <BookOpen className="h-4 w-4 mr-2 text-gray-500" />
+                          Departments
+                        </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href="/admin/branches" className="w-full">Branches</Link>
+                        <Link href="/admin/branches" className="w-full flex items-center">
+                          <BookOpen className="h-4 w-4 mr-2 text-gray-500" />
+                          Branches
+                        </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href="/admin/sessions" className="w-full">Sessions</Link>
+                        <Link href="/admin/sessions" className="w-full flex items-center">
+                          <ExternalLink className="h-4 w-4 mr-2 text-gray-500" />
+                          Sessions
+                        </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href="/admin/upload" className="w-full">Upload PYQ</Link>
+                        <Link href="/admin/upload" className="w-full flex items-center">
+                          <ExternalLink className="h-4 w-4 mr-2 text-gray-500" />
+                          Upload PYQ
+                        </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href="/admin/papers" className="w-full">Manage Papers</Link>
+                        <Link href="/admin/papers" className="w-full flex items-center">
+                          <ExternalLink className="h-4 w-4 mr-2 text-gray-500" />
+                          Manage Papers
+                        </Link>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                     </>
                   )}
-                  <DropdownMenuItem onClick={handleLogout}>
+                  <DropdownMenuItem onClick={handleLogout} className="text-red-600 hover:bg-red-50 focus:text-red-600">
+                    <LogOut className="h-4 w-4 mr-2" />
                     Log out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
+            ) : isMounted ? (
               <div className="flex items-center space-x-4">
                 <Link href="/login">
                   <Button className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white hover:opacity-90 shadow-md">
@@ -356,7 +475,7 @@ export default function Navbar() {
                   </Button>
                 </Link>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
