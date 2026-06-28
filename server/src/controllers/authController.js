@@ -103,8 +103,7 @@ export const googleLogin = async (req, res) => {
     } catch (tokenError) {
       res.status(401).json({ 
         success: false, 
-        message: 'Invalid or expired Google token',
-        details: tokenError instanceof Error ? tokenError.message : 'Token verification failed'
+        message: 'Invalid or expired Google token'
       });
       return;
     }

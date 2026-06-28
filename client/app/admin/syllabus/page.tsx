@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { FileText, Upload, Trash2, Eye, Download } from 'lucide-react';
 import Link from 'next/link';
+import { syllabusApi } from '@/lib/api';
 
 interface Syllabus {
   _id: string;
@@ -52,12 +53,7 @@ export default function SyllabusManagementPage() {
   const fetchSyllabus = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/syllabus/all', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-      const data = await response.json();
+      const data = await syllabusApi.getAll();
       setSyllabus(data.data || []);
     } catch (err) {
       setError('Failed to load syllabus');
@@ -105,15 +101,8 @@ export default function SyllabusManagementPage() {
       uploadFormData.append('department', 'Syllabus');
       uploadFormData.append('year', new Date().getFullYear().toString());
 
-      const response = await fetch('/api/syllabus/upload', {
-        method: 'POST',
-        body: uploadFormData,
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
+      const data = await syllabusApi.upload(uploadFormData);
 
-      const data = await response.json();
       if (data.success) {
         setSuccess('Syllabus uploaded successfully');
         setFormData({ name: '', department: '', year: '' });
@@ -134,14 +123,8 @@ export default function SyllabusManagementPage() {
     if (!confirm('Are you sure you want to delete this syllabus?')) return;
 
     try {
-      const response = await fetch(`/api/syllabus/${id}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
+      const data = await syllabusApi.delete(id);
 
-      const data = await response.json();
       if (data.success) {
         setSuccess('Syllabus deleted successfully');
         fetchSyllabus();

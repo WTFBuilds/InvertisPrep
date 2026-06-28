@@ -25,14 +25,10 @@ export default function LoginPage() {
           setLoading(true);
           setError('');
 
-          console.log('Detected Google session, exchanging with backend...');
-
           // Send the ID token to our backend
           const response = await api.post('/auth/google-login', {
             token: session.idToken
           });
-
-          console.log('Backend exchange response:', response.data);
 
           if (response.data?.success && response.data?.token) {
             // Store our JWT token and user info
@@ -50,7 +46,6 @@ export default function LoginPage() {
           }
         }
       } catch (err) {
-        console.error('Error processing Google sign-in session:', err);
         setError('An error occurred while finishing Google sign-in.');
         setLoading(false);
       }
@@ -65,13 +60,10 @@ export default function LoginPage() {
       setError('');
 
       // Trigger Google OAuth flow with callbackUrl pointing to /login
-      // This will perform a redirect to Google, and after auth Google redirects
-      // back to NextAuth which redirects back to /login.
       await signIn('google', { 
         callbackUrl: '/login'
       });
     } catch (err) {
-      console.error('Login error:', err);
       const errorMsg = err instanceof Error ? err.message : 'An error occurred during login';
       setError(errorMsg);
       setLoading(false);

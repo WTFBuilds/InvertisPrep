@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Download, Eye, FileText, Search, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
+import { syllabusApi } from '@/lib/api';
 
 interface Syllabus {
   _id: string;
@@ -30,11 +31,11 @@ export default function SyllabusPage() {
     const fetchSyllabus = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/syllabus');
-        if (!response.ok) throw new Error('Failed to fetch syllabus');
-        const data = await response.json();
-        setSyllabus(data.data || []);
-        setFilteredSyllabus(data.data || []);
+        const response = await syllabusApi.getFiltered();
+        if (!response.success) throw new Error(response.message || 'Failed to fetch syllabus');
+        const items = response.data || [];
+        setSyllabus(items);
+        setFilteredSyllabus(items);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load syllabus');
       } finally {
