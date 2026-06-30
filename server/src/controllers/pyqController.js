@@ -1,5 +1,6 @@
 import { PYQPaper } from '../models/PYQPaper.js';
 import { uploadPDF, deletePDF } from '../services/cloudinaryService.js';
+import fs from 'fs/promises';
 
 // Upload PYQ (admin only)
 export const uploadPYQ = async (req, res) => {
@@ -80,6 +81,7 @@ export const getPYQs = async (req, res) => {
       .populate('departmentId', 'name displayName icon')
       .populate('branchId', 'name')
       .populate('sessionId', 'name startYear endYear')
+      .populate('uploadedBy', 'name email picture')
       .sort({ year: -1, downloads: -1 })
       .limit(100);
 
@@ -109,7 +111,7 @@ export const getAllPYQs = async (req, res) => {
         .populate('departmentId', 'name displayName')
         .populate('branchId', 'name')
         .populate('sessionId', 'name')
-        .populate('uploadedBy', 'name email')
+        .populate('uploadedBy', 'name email picture')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(pageSize),
@@ -242,11 +244,102 @@ export const updatePYQ = async (req, res) => {
       .populate('departmentId', 'name displayName')
       .populate('branchId', 'name')
       .populate('sessionId', 'name')
-      .populate('uploadedBy', 'name email');
+      .populate('uploadedBy', 'name email picture');
 
     res.json({ success: true, data: updated });
   } catch (error) {
     console.error('Update PYQ error:', error);
     res.status(500).json({ success: false, message: 'Failed to update paper' });
+  }
+};
+
+// Public upload PYQ (Any authenticated student user, limit 10 per day)
+export const uploadPYQPublic = async (req, res) => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ success: false, message: 'PDF file is required' });
+      return;
+    }
+
+    // Rate Limit: 10 uploads per day per user
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const uploadCount = await PYQPaper.countDocuments({
+      uploadedBy: req.user.id,
+      createdAt: { $gte: startOfDay },
+    });
+
+    if (uploadCount >= 10) {
+      try {
+        await fs.unlink(req.file.path);
+      } catch (err) {
+        console.error('Error deleting local file after rate limit hit:', err);
+      }
+      res.status(429).json({
+        success: false,
+        message: 'Daily upload limit reached. You can upload up to 10 PYQs per day.',
+      });
+      return;
+    }
+
+    const {
+      departmentId,
+      branchId,
+      sessionId,
+      semester,
+      subjectName,
+      subjectCode,
+      examType,
+      year,
+    } = req.body;
+
+    // Validate required fields
+    if (!departmentId || !branchId || !sessionId || !semester || !subjectName || !examType || !year) {
+      try {
+        await fs.unlink(req.file.path);
+      } catch {}
+      res.status(400).json({ success: false, message: 'Missing required fields' });
+      return;
+    }
+
+    // Upload to Cloudinary
+    const { cloudinaryUrl, cloudinaryPublicId, fileSize } = await uploadPDF(req.file.path, {
+      subjectCode,
+      examType,
+    });
+
+    // Create title
+    const title = `${subjectName} ${examType} ${year}`;
+
+    // Create PYQ document (verified defaults to false, so it awaits admin verification)
+    const pyq = await PYQPaper.create({
+      title,
+      subjectName,
+      subjectCode: subjectCode || undefined,
+      departmentId,
+      branchId,
+      sessionId,
+      semester: parseInt(semester.toString()),
+      examType,
+      year: parseInt(year.toString()),
+      cloudinaryUrl,
+      cloudinaryPublicId,
+      fileName: req.file.originalname,
+      fileSize,
+      uploadedBy: req.user.id,
+      verified: false,
+      isActive: true,
+    });
+
+    res.status(201).json({ success: true, data: pyq });
+  } catch (error) {
+    console.error('Public Upload PYQ error:', error);
+    // Cleanup local file on error if not already cleaned up
+    if (req.file) {
+      try {
+        await fs.unlink(req.file.path);
+      } catch {}
+    }
+    res.status(500).json({ success: false, message: 'Server error during upload' });
   }
 };

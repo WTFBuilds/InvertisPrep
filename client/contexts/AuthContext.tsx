@@ -10,6 +10,7 @@ interface AuthContextType {
   loading: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (updatedUser: User) => void;
   isAdmin: boolean;
   isSuperAdmin: boolean;
 }
@@ -32,9 +33,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(JSON.parse(storedUser));
           // Optionally verify token with backend
           const response = await authApi.getCurrentUser();
-          if (response.success && response.data) {
-            setUser(response.data);
-            localStorage.setItem('user', JSON.stringify(response.data));
+          if (response.success && response.user) {
+            setUser(response.user);
+            localStorage.setItem('user', JSON.stringify(response.user));
           }
         } catch (error) {
           localStorage.removeItem('token');
@@ -82,6 +83,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateUser = (updatedUser: User) => {
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  };
+
   const isAdmin = user?.role === 'admin' || user?.role === 'super-admin';
   const isSuperAdmin = user?.role === 'super-admin';
 
@@ -92,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         login,
         logout,
+        updateUser,
         isAdmin,
         isSuperAdmin,
       }}

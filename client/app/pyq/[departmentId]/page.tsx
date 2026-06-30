@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import Link from 'next/link';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 export default function DepartmentPYQPage() {
   const params = useParams();
@@ -119,6 +120,26 @@ export default function DepartmentPYQPage() {
   const getSessionName = (paper: PYQPaper) => {
     if (typeof paper.sessionId === 'string') return 'N/A';
     return (paper.sessionId as Session).name;
+  };
+
+  const getUploadedByName = (paper: PYQPaper) => {
+    if (!paper.uploadedBy) return 'System';
+    if (typeof paper.uploadedBy === 'string') return 'User';
+    return paper.uploadedBy.name || 'User';
+  };
+
+  const getUploadedByPicture = (paper: PYQPaper) => {
+    if (paper.uploadedBy && typeof paper.uploadedBy !== 'string') {
+      return (paper.uploadedBy as any).picture;
+    }
+    return undefined;
+  };
+
+  const getUploadedById = (paper: PYQPaper) => {
+    if (paper.uploadedBy && typeof paper.uploadedBy !== 'string') {
+      return (paper.uploadedBy as any).id || (paper.uploadedBy as any)._id;
+    }
+    return undefined;
   };
 
   const clearFilters = () => {
@@ -281,7 +302,7 @@ export default function DepartmentPYQPage() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                         <div>
                           <p className="text-muted-foreground">Branch</p>
                           <p className="font-medium">{getBranchName(paper)}</p>
@@ -295,8 +316,40 @@ export default function DepartmentPYQPage() {
                           <p className="font-medium">{getSessionName(paper)}</p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground">Downloads</p>
-                          <p className="font-medium">{paper.downloads || 0}</p>
+                          <p className="text-muted-foreground">Downloads / Views</p>
+                          <p className="font-medium">
+                            {paper.downloads || 0} / {paper.views || 0}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Uploaded By</p>
+                          {getUploadedById(paper) ? (
+                            <Link 
+                              href={`/profile/${getUploadedById(paper)}`}
+                              className="flex items-center gap-1.5 font-semibold text-indigo-600 hover:text-indigo-800 transition-colors mt-0.5"
+                            >
+                              <Avatar className="h-5 w-5 border border-indigo-100 flex-shrink-0">
+                                {getUploadedByPicture(paper) ? (
+                                  <AvatarImage src={getUploadedByPicture(paper)} alt={getUploadedByName(paper)} />
+                                ) : null}
+                                <AvatarFallback className="bg-indigo-100 text-indigo-700 text-[9px] font-bold">
+                                  {getUploadedByName(paper).charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="truncate max-w-[100px]" title={getUploadedByName(paper)}>
+                                {getUploadedByName(paper)}
+                              </span>
+                            </Link>
+                          ) : (
+                            <div className="flex items-center gap-1.5 font-medium text-gray-500 mt-0.5">
+                              <Avatar className="h-5 w-5 border border-gray-100 flex-shrink-0">
+                                <AvatarFallback className="bg-gray-100 text-gray-600 text-[9px] font-bold">
+                                  S
+                                </AvatarFallback>
+                              </Avatar>
+                              <span>{getUploadedByName(paper)}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                       {paper.verified && (

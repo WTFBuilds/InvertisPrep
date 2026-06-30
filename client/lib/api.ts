@@ -12,6 +12,8 @@ import type {
   PYQPaper,
   PYQFilterQuery,
   APIResponse,
+  UserResponse,
+  PublicUserProfile,
 } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -56,8 +58,13 @@ export const authApi = {
     return data;
   },
 
-  getCurrentUser: async (): Promise<APIResponse<User>> => {
-    const { data } = await apiClient.get<APIResponse<User>>('/auth/me');
+  getCurrentUser: async (): Promise<UserResponse> => {
+    const { data } = await apiClient.get<UserResponse>('/auth/me');
+    return data;
+  },
+
+  updateProfile: async (profileData: { name: string; studentId: string; phoneNumber: string; course: string }): Promise<UserResponse> => {
+    const { data } = await apiClient.put<UserResponse>('/auth/profile', profileData);
     return data;
   },
 
@@ -153,6 +160,15 @@ export const pyqApi = {
     return data;
   },
 
+  uploadPublic: async (formData: FormData): Promise<APIResponse<PYQPaper>> => {
+    const { data } = await apiClient.post<APIResponse<PYQPaper>>('/pyq/upload-public', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return data;
+  },
+
   getFiltered: async (filters: PYQFilterQuery): Promise<APIResponse<PYQPaper[]>> => {
     const { data } = await apiClient.get<APIResponse<PYQPaper[]>>('/pyq', { params: filters });
     return data;
@@ -209,6 +225,22 @@ export const syllabusApi = {
 
   delete: async (id: string): Promise<APIResponse> => {
     const { data } = await apiClient.delete<APIResponse>(`/syllabus/${id}`);
+    return data;
+  },
+};
+
+// User API
+export const userApi = {
+  getProfile: async (id: string): Promise<APIResponse<PublicUserProfile>> => {
+    const { data } = await apiClient.get<APIResponse<PublicUserProfile>>(`/users/${id}`);
+    return data;
+  },
+  follow: async (id: string): Promise<APIResponse<void>> => {
+    const { data } = await apiClient.post<APIResponse<void>>(`/users/${id}/follow`);
+    return data;
+  },
+  unfollow: async (id: string): Promise<APIResponse<void>> => {
+    const { data } = await apiClient.post<APIResponse<void>>(`/users/${id}/unfollow`);
     return data;
   },
 };

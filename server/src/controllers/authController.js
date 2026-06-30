@@ -50,6 +50,11 @@ export const login = async (req, res) => {
         name: user.name,
         role: user.role,
         picture: user.picture,
+        studentId: user.studentId || '',
+        phoneNumber: user.phoneNumber || '',
+        course: user.course || '',
+        followers: user.followers || [],
+        following: user.following || [],
       },
     });
   } catch (error) {
@@ -79,6 +84,11 @@ export const getCurrentUser = async (req, res) => {
         name: user.name,
         role: user.role,
         picture: user.picture,
+        studentId: user.studentId || '',
+        phoneNumber: user.phoneNumber || '',
+        course: user.course || '',
+        followers: user.followers || [],
+        following: user.following || [],
       },
     });
   } catch (error) {
@@ -191,6 +201,11 @@ export const googleLogin = async (req, res) => {
         name: user.name,
         role: user.role,
         picture: user.picture,
+        studentId: user.studentId || '',
+        phoneNumber: user.phoneNumber || '',
+        course: user.course || '',
+        followers: user.followers || [],
+        following: user.following || [],
       },
     });
   } catch (error) {
@@ -206,4 +221,44 @@ export const googleLogin = async (req, res) => {
 export const logout = (_req, res) => {
   // Logout is typically handled on the client side by removing the token
   res.json({ success: true, message: 'Logged out successfully' });
+};
+
+export const updateProfile = async (req, res) => {
+  try {
+    const { name, studentId, phoneNumber, course } = req.body;
+    const userId = req.user.id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+
+    if (name !== undefined) user.name = name;
+    if (studentId !== undefined) user.studentId = studentId;
+    if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
+    if (course !== undefined) user.course = course;
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        picture: user.picture,
+        studentId: user.studentId || '',
+        phoneNumber: user.phoneNumber || '',
+        course: user.course || '',
+        followers: user.followers || [],
+        following: user.following || [],
+      },
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ success: false, message: 'Server error during profile update' });
+  }
 };

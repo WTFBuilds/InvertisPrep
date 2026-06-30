@@ -26,6 +26,33 @@ const userSchema = new Schema(
     picture: {
       type: String,
     },
+    studentId: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    phoneNumber: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    course: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    followers: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+      }
+    ],
+    following: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+      }
+    ],
     role: {
       type: String,
       enum: ['student', 'admin', 'super-admin'],

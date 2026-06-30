@@ -7,6 +7,11 @@ export interface User {
   name: string;
   role: UserRole;
   picture?: string;
+  studentId?: string;
+  phoneNumber?: string;
+  course?: string;
+  followers?: string[];
+  following?: string[];
 }
 
 // Auth types
@@ -19,6 +24,27 @@ export interface AuthResponse {
   success: boolean;
   token: string;
   user: User;
+}
+
+export interface UserResponse {
+  success: boolean;
+  message?: string;
+  user?: User;
+}
+
+export interface PublicUserProfile {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    picture?: string;
+    role: string;
+    course: string;
+    followersCount: number;
+    followingCount: number;
+  };
+  isFollowing: boolean;
+  lastPapers: PYQPaper[];
 }
 
 // Department types

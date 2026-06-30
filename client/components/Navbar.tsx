@@ -29,7 +29,8 @@ import {
   User,
   LayoutDashboard,
   TrendingUp,
-  Wallet
+  Wallet,
+  UploadCloud
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
@@ -252,6 +253,14 @@ export default function Navbar() {
                                 Profile
                               </Link>
                               <Link
+                                href="/pyq/upload"
+                                className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+                                onClick={() => setOpen(false)}
+                              >
+                                <UploadCloud className="h-4 w-4 mr-2 text-gray-500" />
+                                Upload PYQ
+                              </Link>
+                              <Link
                                 href={user.role === 'admin' || user.role === 'super-admin' ? '/admin/dashboard' : '/dashboard'}
                                 className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors"
                                 onClick={() => setOpen(false)}
@@ -397,6 +406,13 @@ export default function Navbar() {
                     <Link href="/profile" className="w-full flex items-center">
                       <User className="h-4 w-4 mr-2 text-gray-500" />
                       Profile
+                    </Link>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem asChild>
+                    <Link href="/pyq/upload" className="w-full flex items-center">
+                      <UploadCloud className="h-4 w-4 mr-2 text-gray-500" />
+                      Upload PYQ
                     </Link>
                   </DropdownMenuItem>
 
