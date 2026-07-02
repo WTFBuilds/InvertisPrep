@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { PYQPaper } from '../models/PYQPaper.js';
 import { uploadPDF, deletePDF } from '../services/cloudinaryService.js';
 import fs from 'fs/promises';
@@ -261,25 +262,32 @@ export const uploadPYQPublic = async (req, res) => {
       return;
     }
 
-    // Rate Limit: 10 uploads per day per user
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const uploadCount = await PYQPaper.countDocuments({
-      uploadedBy: req.user.id,
-      createdAt: { $gte: startOfDay },
-    });
+    // Rate Limit: 10 uploads per day per user (only applies to students)
+    if (req.user.role !== 'admin' && req.user.role !== 'super-admin') {
+      // Calculate start of day in Indian Standard Time (IST, UTC+5:30)
+      const now = new Date();
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const startOfDayIST = new Date(now.getTime() + istOffset);
+      startOfDayIST.setUTCHours(0, 0, 0, 0);
+      const startOfDayUTC = new Date(startOfDayIST.getTime() - istOffset);
 
-    if (uploadCount >= 10) {
-      try {
-        await fs.unlink(req.file.path);
-      } catch (err) {
-        console.error('Error deleting local file after rate limit hit:', err);
-      }
-      res.status(429).json({
-        success: false,
-        message: 'Daily upload limit reached. You can upload up to 10 PYQs per day.',
+      const uploadCount = await PYQPaper.countDocuments({
+        uploadedBy: new mongoose.Types.ObjectId(req.user.id),
+        createdAt: { $gte: startOfDayUTC },
       });
-      return;
+
+      if (uploadCount >= 10) {
+        try {
+          await fs.unlink(req.file.path);
+        } catch (err) {
+          console.error('Error deleting local file after rate limit hit:', err);
+        }
+        res.status(429).json({
+          success: false,
+          message: 'Daily upload limit reached. You can upload up to 10 PYQs per day.',
+        });
+        return;
+      }
     }
 
     const {
@@ -341,5 +349,45 @@ export const uploadPYQPublic = async (req, res) => {
       } catch {}
     }
     res.status(500).json({ success: false, message: 'Server error during upload' });
+  }
+};
+
+// Get daily upload count for the authenticated user (IST-aligned)
+export const getDailyUploadCount = async (req, res) => {
+  try {
+    if (req.user.role === 'admin' || req.user.role === 'super-admin') {
+      res.json({ 
+        success: true, 
+        data: {
+          count: 0, 
+          limit: 10,
+          isExempt: true 
+        }
+      });
+      return;
+    }
+
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const startOfDayIST = new Date(now.getTime() + istOffset);
+    startOfDayIST.setUTCHours(0, 0, 0, 0);
+    const startOfDayUTC = new Date(startOfDayIST.getTime() - istOffset);
+
+    const count = await PYQPaper.countDocuments({
+      uploadedBy: new mongoose.Types.ObjectId(req.user.id),
+      createdAt: { $gte: startOfDayUTC },
+    });
+
+    res.json({ 
+      success: true, 
+      data: {
+        count, 
+        limit: 10, 
+        isExempt: false 
+      }
+    });
+  } catch (error) {
+    console.error('Get daily upload count error:', error);
+    res.status(500).json({ success: false, message: 'Server error retrieving upload count' });
   }
 };

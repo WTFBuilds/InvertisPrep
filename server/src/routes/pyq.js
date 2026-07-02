@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   uploadPYQ,
   uploadPYQPublic,
+  getDailyUploadCount,
   getPYQs,
   getAllPYQs,
   trackDownload,
@@ -17,6 +18,7 @@ const router = Router();
 
 // Specific routes (must come before parameter routes)
 router.get('/', getPYQs);
+router.get('/upload-count', authenticateJWT, getDailyUploadCount);
 router.post('/upload', authenticateJWT, isAdmin, upload.single('pdf'), uploadPYQ);
 router.post('/upload-public', authenticateJWT, upload.single('pdf'), uploadPYQPublic);
 router.get('/all', authenticateJWT, isAdmin, getAllPYQs);

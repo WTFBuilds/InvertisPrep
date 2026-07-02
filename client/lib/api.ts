@@ -169,6 +169,11 @@ export const pyqApi = {
     return data;
   },
 
+  getDailyUploadCount: async (): Promise<APIResponse<{ count: number; limit: number; isExempt: boolean }>> => {
+    const { data } = await apiClient.get<APIResponse<{ count: number; limit: number; isExempt: boolean }>>('/pyq/upload-count');
+    return data;
+  },
+
   getFiltered: async (filters: PYQFilterQuery): Promise<APIResponse<PYQPaper[]>> => {
     const { data } = await apiClient.get<APIResponse<PYQPaper[]>>('/pyq', { params: filters });
     return data;

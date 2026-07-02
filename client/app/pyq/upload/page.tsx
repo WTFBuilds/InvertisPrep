@@ -46,6 +46,20 @@ export default function StudentUploadPage() {
     year: new Date().getFullYear(),
   });
   const [file, setFile] = useState<File | null>(null);
+  const [uploadCount, setUploadCount] = useState<number | null>(null);
+  const [isExempt, setIsExempt] = useState(false);
+
+  const fetchUploadCount = async () => {
+    try {
+      const res = await pyqApi.getDailyUploadCount();
+      if (res.success && res.data) {
+        setUploadCount(res.data.count);
+        setIsExempt(res.data.isExempt);
+      }
+    } catch (err) {
+      console.error('Failed to load upload count:', err);
+    }
+  };
 
   // Auth Redirect
   useEffect(() => {
@@ -54,7 +68,7 @@ export default function StudentUploadPage() {
     }
   }, [user, loading, router]);
 
-  // Fetch initial select options
+  // Fetch initial select options and user upload count
   useEffect(() => {
     if (!user) return;
     const fetchData = async () => {
@@ -65,6 +79,7 @@ export default function StudentUploadPage() {
         ]);
         setDepartments(deptRes.data || []);
         setSessions(sessRes.data || []);
+        await fetchUploadCount();
       } catch (err: unknown) {
         setError('Failed to load department and session options.');
       } finally {
@@ -166,6 +181,7 @@ export default function StudentUploadPage() {
       
       if (res.success) {
         setSuccess('Your PYQ paper has been uploaded successfully! It is pending admin verification and will be visible publicly once approved.');
+        fetchUploadCount();
         setFormData({
           departmentId: '',
           branchId: '',
@@ -213,7 +229,10 @@ export default function StudentUploadPage() {
 
           <div className="text-sm bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-full font-semibold border border-indigo-100 flex items-center gap-1.5">
             <Info className="h-4 w-4" />
-            Daily Upload Limit: 10 papers
+            {isExempt 
+              ? 'Daily Upload Limit: Unlimited' 
+              : `Daily Uploads: ${uploadCount !== null ? uploadCount : 0}/10 papers`
+            }
           </div>
         </div>
 
