@@ -67,7 +67,12 @@ export const uploadPYQ = async (req, res) => {
 // Get filtered PYQs (public)
 export const getPYQs = async (req, res) => {
   try {
-    const { departmentId, branchId, sessionId, semester, examType, subjectCode } = req.query;
+    const { departmentId, branchId, sessionId, semester, examType, subjectCode, search } = req.query;
+
+    const escapeRegex = (string) => {
+      if (typeof string !== 'string') return '';
+      return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    };
 
     // Build dynamic filter
     const filter = { verified: true, isActive: true };
@@ -76,7 +81,18 @@ export const getPYQs = async (req, res) => {
     if (sessionId) filter.sessionId = sessionId;
     if (semester) filter.semester = parseInt(semester);
     if (examType) filter.examType = examType;
-    if (subjectCode) filter.subjectCode = new RegExp(subjectCode, 'i');
+    
+    if (subjectCode) {
+      filter.subjectCode = new RegExp(escapeRegex(subjectCode), 'i');
+    }
+
+    if (search) {
+      const escapedSearch = escapeRegex(search);
+      filter.$or = [
+        { subjectName: new RegExp(escapedSearch, 'i') },
+        { subjectCode: new RegExp(escapedSearch, 'i') }
+      ];
+    }
 
     const pyqs = await PYQPaper.find(filter)
       .populate('departmentId', 'name displayName icon')

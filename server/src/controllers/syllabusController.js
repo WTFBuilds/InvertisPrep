@@ -4,7 +4,7 @@ import { uploadPDF, deletePDF } from '../services/cloudinaryService.js';
 export const uploadSyllabus = async (req, res) => {
   try {
     const { name, department, year } = req.body;
-    const { userId } = req.user;
+    const userId = req.user.id;
 
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
@@ -15,7 +15,7 @@ export const uploadSyllabus = async (req, res) => {
     }
 
     // Upload to Cloudinary
-    const cloudinaryResult = await uploadPDF(req.file);
+    const cloudinaryResult = await uploadPDF(req.file.path);
 
     // Save to database
     const syllabus = new Syllabus({
@@ -24,8 +24,8 @@ export const uploadSyllabus = async (req, res) => {
       fileSize: req.file.size,
       department,
       year,
-      cloudinaryPublicId: cloudinaryResult.public_id,
-      cloudinaryUrl: cloudinaryResult.secure_url,
+      cloudinaryPublicId: cloudinaryResult.cloudinaryPublicId,
+      cloudinaryUrl: cloudinaryResult.cloudinaryUrl,
       uploadedBy: userId,
       isActive: true,
     });

@@ -9,8 +9,12 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/admin/login');
+    if (!loading) {
+      if (!user) {
+        router.push('/admin/login');
+      } else if (user.role !== 'admin' && user.role !== 'super-admin') {
+        router.push('/');
+      }
     }
   }, [user, loading, router]);
 
@@ -25,7 +29,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user) {
+  if (!user || (user.role !== 'admin' && user.role !== 'super-admin')) {
     return null;
   }
 

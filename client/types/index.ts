@@ -154,6 +154,7 @@ export interface PYQFilterQuery {
   semester?: number;
   examType?: ExamType;
   subjectCode?: string;
+  search?: string;
 }
 
 // API Response types
