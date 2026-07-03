@@ -164,3 +164,15 @@ export interface APIResponse<T = unknown> {
   count?: number;
   error?: string;
 }
+
+// Report types
+export interface Report {
+  _id: string;
+  paperId: PYQPaper;
+  reportedBy: User;
+  reason: 'wrong_file' | 'poor_quality' | 'wrong_metadata' | 'other';
+  description?: string;
+  status: 'pending' | 'resolved' | 'dismissed';
+  createdAt: string;
+  updatedAt: string;
+}

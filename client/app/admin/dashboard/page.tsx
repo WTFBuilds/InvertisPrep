@@ -15,6 +15,7 @@ import {
   Upload,
   FileText,
   LogOut,
+  Flag,
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -95,6 +96,13 @@ export default function AdminDashboard() {
       icon: BookOpen,
       href: '/admin/syllabus',
       color: 'bg-indigo-500',
+    },
+    {
+      title: 'Reports',
+      description: 'View and resolve user reports for incorrect uploads',
+      icon: Flag,
+      href: '/admin/reports',
+      color: 'bg-rose-500',
     },
   ];
 

@@ -17,6 +17,7 @@ import sessionRoutes from './routes/sessions.js';
 import pyqRoutes from './routes/pyq.js';
 import syllabusRoutes from './routes/syllabus.js';
 import userRoutes from './routes/users.js';
+import reportRoutes from './routes/reports.js';
 
 // Load environment variables
 dotenv.config();
@@ -81,6 +82,7 @@ app.use('/api/sessions', sessionRoutes);
 app.use('/api/pyq', pyqRoutes);
 app.use('/api/syllabus', syllabusRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Error handling
 app.use(notFound);

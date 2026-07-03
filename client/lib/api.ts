@@ -14,6 +14,7 @@ import type {
   APIResponse,
   UserResponse,
   PublicUserProfile,
+  Report,
 } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -246,6 +247,24 @@ export const userApi = {
   },
   unfollow: async (id: string): Promise<APIResponse<void>> => {
     const { data } = await apiClient.post<APIResponse<void>>(`/users/${id}/unfollow`);
+    return data;
+  },
+};
+
+// Report API
+export const reportApi = {
+  create: async (reportData: { paperId: string; reason: string; description?: string }): Promise<APIResponse<Report>> => {
+    const { data } = await apiClient.post<APIResponse<Report>>('/reports', reportData);
+    return data;
+  },
+
+  getAll: async (status?: string): Promise<APIResponse<Report[]>> => {
+    const { data } = await apiClient.get<APIResponse<Report[]>>('/reports', { params: { status } });
+    return data;
+  },
+
+  updateStatus: async (id: string, status: 'resolved' | 'dismissed'): Promise<APIResponse<Report>> => {
+    const { data } = await apiClient.patch<APIResponse<Report>>(`/reports/${id}`, { status });
     return data;
   },
 };
