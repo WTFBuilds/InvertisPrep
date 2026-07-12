@@ -45,6 +45,7 @@ app.use(helmet({
 // CORS Configuration
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:5000',
   'http://172.23.6.34:3000',
   'https://invertisprep.vercel.app',
   'https://invertisprepv2.vercel.app',
