@@ -155,11 +155,12 @@ export default function DepartmentPYQPage() {
     }
   };
 
-  const handleView = async (paper: PYQPaper) => {
+  const handleView = async (paper: PYQPaper) => { 
     try {
       await pyqApi.trackView(paper._id);
+      window.open(paper.cloudinaryUrl, '_blank');
     } catch (err: unknown) {
-      // Silent error handling for view tracking
+      alert('View failed. Please try again.');
     }
   };
 
@@ -345,23 +346,12 @@ export default function DepartmentPYQPage() {
                 {filteredPapers.map((paper) => (
                   <Card key={paper._id} onMouseEnter={() => handleView(paper)}>
                     <CardHeader>
-                      <div className="flex justify-between items-start">
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                         <div>
                           <CardTitle className="text-xl">{paper.subjectName}</CardTitle>
                           <CardDescription>
                             {paper.subjectCode} | {paper.examType.toUpperCase()} | Year {paper.year}
                           </CardDescription>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button onClick={() => handleDownload(paper)}>Download PDF</Button>
-                          <Button 
-                            variant="outline" 
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 flex items-center gap-1.5"
-                            onClick={() => handleReportClick(paper)}
-                          >
-                            <Flag className="h-4 w-4" />
-                            Report
-                          </Button>
                         </div>
                       </div>
                     </CardHeader>
@@ -415,14 +405,18 @@ export default function DepartmentPYQPage() {
                             </div>
                           )}
                         </div>
-                      </div>
-                      {paper.verified && (
-                        <div className="mt-3">
-                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                            ✓ Verified
-                          </span>
+                        <div className="size-sm flex gap-2">
+                          <Button className="h-10" onClick={() => handleView(paper)}>View</Button>
+                          <Button
+                            variant="outline" 
+                            className="h-10 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 flex items-center gap-1.5"
+                            onClick={() => handleReportClick(paper)}
+                          >
+                            <Flag className="h-4 w-4" />
+                            Report
+                          </Button>
                         </div>
-                      )}
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
