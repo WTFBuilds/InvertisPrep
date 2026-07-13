@@ -103,7 +103,6 @@ export default function SyllabusPage() {
               <thead>
                 <tr className="border-b bg-gray-50/50">
                   <th className="px-6 py-4 text-sm font-semibold text-gray-900 w-[55%]">Name</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-gray-900 w-[25%]">Upload Date</th>
                   <th className="px-6 py-4 text-sm font-semibold text-gray-900 w-[20%]">Actions</th>
                 </tr>
               </thead>
@@ -119,41 +118,26 @@ export default function SyllabusPage() {
                 ) : (
                   filteredSyllabus.map((item) => (
                     <tr key={item._id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-5">
+                      <td className="px-3 py-5">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
                             <FileText className="h-5 w-5 text-indigo-600" />
                           </div>
-                          <span className="font-medium text-gray-900 text-sm md:text-base">{item.name}</span>
+                          <span className="font-medium text-gray-900 text-xs md:text-base">{item.name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-5 text-sm text-gray-600">
-                        {formatDate(item.uploadDate)}
-                      </td>
-                      <td className="px-6 py-5">
+                      <td className="px-4 py-5">
                         <div className="flex items-center gap-2">
                           <Button 
                             variant="outline" 
-                            size="sm" 
-                            className="h-9 px-3 text-gray-700 border-gray-200"
+                            size="sm"
+                            className="h-8 px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-gray-300 hover:text-white"
                             onClick={() => window.open(item.cloudinaryUrl, '_blank')}
                           >
-                            <Eye className="h-4 w-4 mr-1.5" />
+                            <Eye className="h-4 w-4" />
                             View
                           </Button>
-                          <Button 
-                            size="sm" 
-                            className="h-9 px-3 bg-indigo-600 hover:bg-indigo-700 text-white"
-                            onClick={() => {
-                              const link = document.createElement('a');
-                              link.href = item.cloudinaryUrl;
-                              link.download = item.fileName;
-                              link.click();
-                            }}
-                          >
-                            <Download className="h-4 w-4 mr-1.5" />
-                            Download
-                          </Button>
+                          
                         </div>
                       </td>
                     </tr>
