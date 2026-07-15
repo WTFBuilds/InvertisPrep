@@ -32,10 +32,12 @@ export default function Footer() {
       { name: "Home", path: "/" },
       { name: "Browse PYQ", path: "/pyq" },
       { name: "About", path: "/about" },
+      { name: "Our Team", path: "/our-team" },
     ],
     "Resources": [
       { name: "Study Materials", path: "/pyq" },
       { name: "Previous Year Papers", path: "/pyq" },
+      { name: "Syllabus", path: "/resources/syllabus" },
     ],
     "Support": [
       { name: "Help & Support", path: "/support" },
@@ -63,20 +65,6 @@ export default function Footer() {
             <p className="text-sm text-gray-400">
               Your gateway to academic excellence at Invertis University.
             </p>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-gray-300">Subscribe to our newsletter</p>
-              <div className="flex space-x-2">
-                <Input
-                  type="email"
-                  placeholder="Enter your email"
-                  className="max-w-[200px] bg-gray-800 border-gray-700 text-gray-200 placeholder:text-gray-500"
-                />
-                <Button variant="outline" className="bg-transparent border-gray-700 text-gray-200 hover:bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-3 md:px-6 md:py-2.5 hover:text-gray-100">
-                  Subscribe
-                </Button>
-              </div>
-            </div>
           </div>
 
           {Object.entries(footerLinks).map(([title, links]) => (
@@ -104,19 +92,31 @@ export default function Footer() {
             © {new Date().getFullYear()} InvertisPrep. All rights reserved.
           </p>
 
-          <div className="text-sm text-gray-400">
-            <p className="flex items-center">
-              Made with <span className="heart-icon mx-1">❤️</span> by{" "}
-              <a
-                href="https://www.ahqafali.site"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-purple-400 hover:text-purple-300 transition-colors ml-1"
-              >
-                AhqafCoder
-              </a> & Team
-            </p>
-          </div>
+<div className="text-sm text-gray-400">
+  <p className="flex items-center">
+    Made with <span className="heart-icon mx-1">❤️</span> by{" "}
+    <a
+      href="https://www.ahqafali.dev"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-purple-400 hover:text-purple-300 transition-colors ml-1"
+    >
+      Ahqaf Ali
+    </a>
+    <div className="text-purple-400 hover:text-purple-300 transition-colors ml-3">
+      &
+    </div>
+    <a
+      href="/our-team"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-purple-400 hover:text-purple-300 transition-colors ml-3" 
+    >
+      TEAM
+    </a>
+  </p>
+</div>
+
         </div>
       </div>
 
@@ -145,21 +145,6 @@ export default function Footer() {
             </AccordionItem>
           ))}
         </Accordion>
-
-        <div className="mt-6 space-y-6">
-          <h3 className="text-sm font-semibold text-gray-200">Subscribe to our newsletter</h3>
-          <div className="flex space-x-2">
-            <Input
-              type="email"
-              placeholder="Enter your email"
-              className="flex-1 bg-gray-800 border-gray-700 text-gray-200 placeholder:text-gray-500"
-            />
-            <Button variant="outline" className="border-gray-700 text-gray-200 hover:bg-purple-600 hover:text-gray-100 bg-transparent">
-              <Mail className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
         <Separator className="my-6 bg-gray-800" />
 
         <div className="flex flex-col space-y-3">
@@ -169,13 +154,21 @@ export default function Footer() {
           <p className="text-sm text-gray-400 flex items-center justify-center flex-wrap">
             Made with <span className="heart-icon mx-1">❤️</span> by{" "}
             <a
-              href="https://www.ahqafali.site"
+              href="https://www.ahqafali.dev"
               target="_blank"
               rel="noopener noreferrer"
               className="text-purple-400 hover:text-purple-300 transition-colors ml-1"
             >
-              AhqafCoder
-            </a> & Team
+              Ahqaf Ali_
+            </a>
+            <a
+            href="/our-team"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-purple-400 hover:text-purple-300 transition-colors ml-1"
+            >
+              & TEAM
+            </a>
           </p>
         </div>
       </div>
