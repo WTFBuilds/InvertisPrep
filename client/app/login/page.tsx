@@ -71,6 +71,11 @@ export default function LoginPage() {
 
             handledCallbackRef.current = true;
 
+            // Keep the web app auth state in sync before the native app consumes the deep link.
+            localStorage.setItem('token', response.data.token);
+            localStorage.setItem('user', JSON.stringify(response.data.user));
+            updateUser(response.data.user);
+
             if (isWebViewAuthFlow && typeof window !== 'undefined') {
               const callbackUrl = new URL('invertisprep://auth/callback');
               callbackUrl.searchParams.set('token', response.data.token);
@@ -78,11 +83,6 @@ export default function LoginPage() {
               window.location.replace(callbackUrl.toString());
               return;
             }
-
-            // Store our JWT token and user info, then sync auth state
-            localStorage.setItem('token', response.data.token);
-            localStorage.setItem('user', JSON.stringify(response.data.user));
-            updateUser(response.data.user);
 
             // Redirect to PYQ page
             router.push('/pyq');
