@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -27,6 +30,7 @@ const heartBlink = `
 `;
 
 export default function Footer() {
+  const pathname = usePathname();
   const footerLinks = {
     "Quick Links": [
       { name: "Home", path: "/" },
@@ -46,6 +50,10 @@ export default function Footer() {
       { name: "Admin Login", path: "/admin/login" },
     ],
   };
+
+  if (pathname?.startsWith('/view/')) {
+    return null;
+  }
 
   return (
     <footer className="bg-gray-900 text-gray-200">

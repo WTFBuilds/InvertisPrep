@@ -1,65 +1,27 @@
-# Implementation Plan - Admin Security & Protected PDF Viewer
+# Implementation Plan - Responsive PDF Viewer
 
-This plan addresses two critical security and feature requests:
-1.  **Admin Password Management**: Enhance `seedSuperAdmin.js` to allow updating the admin password without deleting the user.
-2.  **Protected PDF Viewer**: Implement an authenticated PDF proxy with watermarking and a custom `pdf.js`-based viewer to prevent direct Cloudinary URL leaks and unauthorized downloads.
+The current PDF viewer has a fixed scale and doesn't adapt its width to smaller screens (mobile devices). This plan will implement dynamic width adjustment using a `ResizeObserver`.
 
 ## User Review Required
 
-> [!IMPORTANT]
-> The protected PDF viewer will prevent direct "Save As" in the browser, but tech-savvy users could still extract PDF bytes from the network tab unless we use more advanced techniques (like page-to-image rendering). We are starting with **Authenticated Proxy + Watermarking + Client-side Viewer** as requested.
-
-> [!WARNING]
-> Adding a watermark to every PDF on-the-fly will increase server CPU usage and response time for viewing papers.
+> [!NOTE]
+> We will use the browser's native `ResizeObserver` to track the container's width. This ensures the PDF automatically resizes when the window is resized or when rotating a mobile device.
 
 ## Proposed Changes
 
-### 1. Admin Security Enhancement
+### [PDF Viewer]
 
-#### [MODIFY] [seedSuperAdmin.js](file:///Users/ahqafcoder/Desktop/InvertisPrep/server/src/utils/seedSuperAdmin.js)
-- Update the script to check if a super admin already exists.
-- If it exists, update the password instead of deleting and recreating.
-- Support password input via command-line arguments (e.g., `npm run seed -- --password=newpass`).
-
-### 2. Protected PDF Viewer (Backend)
-
-#### [NEW] [pdfController.js](file:///Users/ahqafcoder/Desktop/InvertisPrep/server/src/controllers/pdfController.js)
-- Implement `viewPDF` controller.
-- Fetch PDF from Cloudinary using `axios` (authenticated).
-- Use `pdf-lib` to add a watermark (User's Name + Email + Timestamp) to each page.
-- Stream the watermarked PDF back to the client.
-
-#### [NEW] [pdf.js](file:///Users/ahqafcoder/Desktop/InvertisPrep/server/src/routes/pdf.js)
-- Define `GET /view/:id` route (authenticated).
-- Define `GET /syllabus/:id` route (authenticated) if needed.
-
-#### [MODIFY] [server.js](file:///Users/ahqafcoder/Desktop/InvertisPrep/server/src/server.js)
-- Register the new PDF routes.
-
-### 3. Protected PDF Viewer (Frontend)
-
-#### [NEW] [PDFViewer.tsx](file:///Users/ahqafcoder/Desktop/InvertisPrep/client/components/PDFViewer.tsx)
-- Use `react-pdf` to render the PDF.
-- Disable right-click and common print shortcuts.
-- Add a custom UI for navigation.
-
-#### [NEW] [view/[id]/page.tsx](file:///Users/ahqafcoder/Desktop/InvertisPrep/client/app/view/%5Bid%5D/page.tsx)
-- The page that hosts the `PDFViewer`.
-- Fetches the PDF blob from the server.
-
-#### [MODIFY] [api.ts](file:///Users/ahqafcoder/Desktop/InvertisPrep/client/lib/api.ts)
-- Add `pdfApi` for fetching the PDF blob.
-
-#### [MODIFY] [pyqController.js](file:///Users/ahqafcoder/Desktop/InvertisPrep/server/src/controllers/pyqController.js)
-- Redact `cloudinaryUrl` from public API responses (optional but recommended for security).
+#### [MODIFY] [PDFViewer.tsx](file:///Users/ahqafcoder/Desktop/InvertisPrep/client/components/PDFViewer.tsx)
+-   Implement a container ref to measure the available width.
+-   Use `ResizeObserver` to update `containerWidth` state.
+-   Calculate the effective page width using `containerWidth * scale`.
+-   Adjust the toolbar layout to be more compact on mobile (wrap or stack if needed, though a single row might still work if icons are smaller).
+-   Add `overflow-x-auto` to the outer container as a fallback.
 
 ## Verification Plan
 
-### Automated Tests
-- I will verify the password update script by running it and checking the DB.
-- I will verify the PDF proxy by calling the endpoint with/without authentication.
-
 ### Manual Verification
-- Login as a student and view a paper. Check if the watermark (Email/Name) is visible.
-- Verify that the direct Cloudinary URL is no longer leaked in the "Network" tab for the paper list API call.
-- Check if the "Download" button is replaced by the Viewer or if the viewer prevents easy downloads.
+-   Open the PDF viewer in Chrome/Firefox DevTools.
+-   Toggle "Device Toolbar" and test various mobile presets (iPhone SE, Pixel 7, iPad Mini).
+-   Verify that the PDF page fits within the screen width without horizontal scrolling (unless zoomed in).
+-   Verify that the toolbar remains accessible.
