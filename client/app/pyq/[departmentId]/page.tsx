@@ -149,7 +149,7 @@ export default function DepartmentPYQPage() {
   const handleDownload = async (paper: PYQPaper) => {
     try {
       await pyqApi.trackDownload(paper._id);
-      window.open(paper.cloudinaryUrl, '_blank');
+      router.push(`/view/${paper._id}?type=pyq`);
     } catch (err: unknown) {
       alert('Download failed. Please try again.');
     }
@@ -158,7 +158,7 @@ export default function DepartmentPYQPage() {
   const handleView = async (paper: PYQPaper) => { 
     try {
       await pyqApi.trackView(paper._id);
-      window.open(paper.cloudinaryUrl, '_blank');
+      router.push(`/view/${paper._id}?type=pyq`);
     } catch (err: unknown) {
       alert('View failed. Please try again.');
     }
