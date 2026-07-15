@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import Link from 'next/link';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
-import { Flag, X, Loader2 } from 'lucide-react';
+import { Flag, X, Loader2, Eye, Search, FilterX, ArrowLeft, BookOpen } from 'lucide-react';
 
 export default function DepartmentPYQPage() {
   const params = useParams();
@@ -205,21 +205,36 @@ export default function DepartmentPYQPage() {
     setSearchSubject('');
   };
 
+  const hasActiveFilters = Boolean(
+    selectedBranch || selectedSession || selectedSemester || selectedExamType || searchSubject
+  );
+
   return (
-    <div className="min-h-screen bg-muted/30">
-      <div className="container mx-auto px-4 py-12">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(79,70,229,0.08),_transparent_32%),linear-gradient(180deg,_#f8fafc_0%,_#f3f4f6_100%)]">
+      <div className="container mx-auto px-4 py-8 md:py-12">
         <div className="mb-8">
-          <Link href="/pyq">
-            <Button variant="outline" className="mb-4">
-              ← Back to Departments
+          <Link href="/pyq" className="inline-flex">
+            <Button variant="ghost" className="mb-5 -ml-2 text-slate-600 hover:bg-white/80 hover:text-slate-900">
+              <ArrowLeft className="h-4 w-4" />
+              Back to departments
             </Button>
           </Link>
+
           {department && (
-            <div className="flex items-center gap-4 mb-4">
-              <span className="text-5xl">{department.icon}</span>
-              <div>
-                <h1 className="text-4xl font-bold">{department.displayName}</h1>
-                <p className="text-muted-foreground">{department.name}</p>
+            <div className="overflow-hidden rounded-3xl border border-white/60 bg-white/80 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-md md:p-8">
+              <div className="flex items-start gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-4xl ring-1 ring-indigo-100">
+                  {department.icon}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-indigo-600">Previous year questions</p>
+                  <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900 md:text-5xl">
+                    {department.displayName}
+                  </h1>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 md:text-base">
+                    {department.name}. Browse, filter, and open PYQ papers with a cleaner layout built for quick scanning on any device.
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -232,27 +247,39 @@ export default function DepartmentPYQPage() {
         )}
 
         {loading ? (
-          <div className="text-center py-12">
-            <p className="text-lg text-muted-foreground">Loading papers...</p>
-          </div>
+          <Card className="border border-slate-200/70 bg-white/80 shadow-sm">
+            <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+                <BookOpen className="h-5 w-5 animate-pulse" />
+              </div>
+              <div>
+                <p className="text-lg font-semibold text-slate-900">Loading papers</p>
+                <p className="text-sm text-slate-500">Fetching the latest PYQ list and filters...</p>
+              </div>
+            </CardContent>
+          </Card>
         ) : (
           <>
             {/* Filters */}
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Filter Papers</CardTitle>
-                <CardDescription>
-                  Use filters to find specific papers ({filteredPapers.length} of {papers.length} papers)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-5 gap-4 mb-4">
+            <Card className="mb-6 overflow-hidden border-slate-200/70 bg-white/80 shadow-sm backdrop-blur-sm">
+              <CardHeader className="border-b border-slate-100 bg-slate-50/70">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Branch</label>
+                    <CardTitle className="text-xl text-slate-900">Filter papers</CardTitle>
+                    <CardDescription className="mt-1 text-slate-500">
+                      Narrow results by branch, session, semester, exam type, or subject.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-slate-700">Branch</label>
                     <select
                       value={selectedBranch}
                       onChange={(e) => setSelectedBranch(e.target.value)}
-                      className="w-full border rounded-md p-2"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                     >
                       <option value="">All Branches</option>
                       {branches.map((branch) => (
@@ -264,11 +291,11 @@ export default function DepartmentPYQPage() {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Session</label>
+                    <label className="mb-2 block text-sm font-medium text-slate-700">Session</label>
                     <select
                       value={selectedSession}
                       onChange={(e) => setSelectedSession(e.target.value)}
-                      className="w-full border rounded-md p-2"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                     >
                       <option value="">All Sessions</option>
                       {sessions.map((session) => (
@@ -280,11 +307,11 @@ export default function DepartmentPYQPage() {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Semester</label>
+                    <label className="mb-2 block text-sm font-medium text-slate-700">Semester</label>
                     <select
                       value={selectedSemester}
                       onChange={(e) => setSelectedSemester(e.target.value)}
-                      className="w-full border rounded-md p-2"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                     >
                       <option value="">All Semesters</option>
                       {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
@@ -296,11 +323,11 @@ export default function DepartmentPYQPage() {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Exam Type</label>
+                    <label className="mb-2 block text-sm font-medium text-slate-700">Exam Type</label>
                     <select
                       value={selectedExamType}
                       onChange={(e) => setSelectedExamType(e.target.value)}
-                      className="w-full border rounded-md p-2"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                     >
                       <option value="">All Types</option>
                       <option value="mid-term">Mid-Term</option>
@@ -310,39 +337,52 @@ export default function DepartmentPYQPage() {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Search Subject</label>
-                    <input
-                      type="text"
-                      value={searchSubject}
-                      onChange={(e) => setSearchSubject(e.target.value)}
-                      placeholder="Subject name or code"
-                      className="w-full border rounded-md p-2"
-                    />
+                    <label className="mb-2 block text-sm font-medium text-slate-700">Search Subject</label>
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
+                      <input
+                        type="text"
+                        value={searchSubject}
+                        onChange={(e) => setSearchSubject(e.target.value)}
+                        placeholder="Subject name or code"
+                        className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <Button variant="outline" onClick={clearFilters} size="sm">
-                  Clear All Filters
-                </Button>
+                <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-slate-500">
+                    {hasActiveFilters ? 'Filters are active. Clear them to see the full list.' : 'No filters applied.'}
+                  </p>
+                  <Button variant="outline" onClick={clearFilters} size="sm" className="sm:self-start">
+                    <FilterX className="h-4 w-4" />
+                    Clear filters
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
             {/* Papers List */}
             {filteredPapers.length === 0 ? (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <p className="text-lg text-muted-foreground">
-                    No papers found matching your filters.
+              <Card className="border-dashed border-slate-300 bg-white/70 shadow-sm">
+                <CardContent className="flex flex-col items-center gap-3 p-12 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+                    <Search className="h-5 w-5" />
+                  </div>
+                  <p className="text-lg font-semibold text-slate-900">No papers found</p>
+                  <p className="max-w-md text-sm text-slate-500">
+                    Try changing your filters or search term to reveal matching papers.
                   </p>
                   {papers.length > 0 && (
-                    <Button variant="outline" onClick={clearFilters} className="mt-4">
-                      Clear Filters
+                    <Button variant="outline" onClick={clearFilters} className="mt-3">
+                      Clear filters
                     </Button>
                   )}
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4">
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                 {filteredPapers.map((paper) => (
                   <Card key={paper._id} onMouseEnter={() => handleView(paper)}>
                     <CardHeader>
@@ -352,6 +392,14 @@ export default function DepartmentPYQPage() {
                           <CardDescription>
                             {paper.subjectCode} | {paper.examType.toUpperCase()} | Year {paper.year}
                           </CardDescription>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-700 ring-1 ring-indigo-100">
+                            {getBranchName(paper)}
+                          </span>
+                          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">
+                            Semester {paper.semester}
+                          </span>
                         </div>
                       </div>
                     </CardHeader>
@@ -365,24 +413,20 @@ export default function DepartmentPYQPage() {
                           <p className="text-muted-foreground">Semester</p>
                           <p className="font-medium">Semester {paper.semester}</p>
                         </div>
-                        <div>
-                          <p className="text-muted-foreground">Session</p>
-                          <p className="font-medium">{getSessionName(paper)}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Downloads / Views</p>
-                          <p className="font-medium">
+                        <div className="rounded-xl bg-slate-50 p-2.5 ring-1 ring-slate-100">
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Downloads / Views</p>
+                          <p className="mt-1 text-sm font-semibold text-slate-900">
                             {paper.downloads || 0} / {paper.views || 0}
                           </p>
                         </div>
-                        <div>
-                          <p className="text-muted-foreground">Uploaded By</p>
+                        <div className="rounded-xl bg-slate-50 p-2.5 sm:col-span-2 ring-1 ring-slate-100">
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Uploaded By</p>
                           {getUploadedById(paper) ? (
-                            <Link 
+                            <Link
                               href={`/profile/${getUploadedById(paper)}`}
-                              className="flex items-center gap-1.5 font-semibold text-indigo-600 hover:text-indigo-800 transition-colors mt-0.5"
+                              className="mt-1 flex items-center gap-2 font-semibold text-indigo-600 transition-colors hover:text-indigo-800"
                             >
-                              <Avatar className="h-5 w-5 border border-indigo-100 flex-shrink-0">
+                              <Avatar className="h-6 w-6 flex-shrink-0 border border-indigo-100">
                                 {getUploadedByPicture(paper) ? (
                                   <AvatarImage src={getUploadedByPicture(paper)} alt={getUploadedByName(paper)} />
                                 ) : null}
@@ -390,14 +434,14 @@ export default function DepartmentPYQPage() {
                                   {getUploadedByName(paper).charAt(0)}
                                 </AvatarFallback>
                               </Avatar>
-                              <span className="truncate max-w-[100px]" title={getUploadedByName(paper)}>
+                              <span className="truncate" title={getUploadedByName(paper)}>
                                 {getUploadedByName(paper)}
                               </span>
                             </Link>
                           ) : (
-                            <div className="flex items-center gap-1.5 font-medium text-gray-500 mt-0.5">
-                              <Avatar className="h-5 w-5 border border-gray-100 flex-shrink-0">
-                                <AvatarFallback className="bg-gray-100 text-gray-600 text-[9px] font-bold">
+                            <div className="mt-1 flex items-center gap-2 font-medium text-slate-600">
+                              <Avatar className="h-6 w-6 flex-shrink-0 border border-slate-200">
+                                <AvatarFallback className="bg-slate-100 text-slate-600 text-[9px] font-bold">
                                   S
                                 </AvatarFallback>
                               </Avatar>
@@ -405,16 +449,24 @@ export default function DepartmentPYQPage() {
                             </div>
                           )}
                         </div>
-                        <div className="size-sm flex gap-2">
-                          <Button className="h-10" onClick={() => handleView(paper)}>View</Button>
-                          <Button
-                            variant="outline" 
-                            className="h-10 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 flex items-center gap-1.5"
-                            onClick={() => handleReportClick(paper)}
-                          >
-                            <Flag className="h-4 w-4" />
-                            Report
-                          </Button>
+                        <div className="sm:col-span-2">
+                          <div className="mt-1 flex items-center justify-center gap-2 border-t border-slate-100 pt-3">
+                            <Button
+                              className="h-9 min-w-[112px] bg-slate-900 px-3 text-sm text-white shadow-sm hover:bg-slate-800"
+                              onClick={() => handleView(paper)}
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                              View paper
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              className="h-9 min-w-[112px] px-3 text-sm text-red-600 hover:bg-red-50 hover:text-red-700"
+                              onClick={() => handleReportClick(paper)}
+                            >
+                              <Flag className="h-3.5 w-3.5" />
+                              Report issue
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -428,26 +480,26 @@ export default function DepartmentPYQPage() {
 
       {/* Report Modal */}
       {isReportModalOpen && selectedPaperToReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <Card className="w-full max-w-md shadow-2xl border-indigo-100 bg-white">
-            <CardHeader className="relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-md p-4">
+          <Card className="w-full max-w-md border-slate-200 bg-white shadow-2xl">
+            <CardHeader className="relative border-b border-slate-100 pb-5">
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+                className="absolute right-4 top-4 text-slate-400 hover:text-slate-700"
                 onClick={() => setIsReportModalOpen(false)}
               >
                 <X className="h-4 w-4" />
               </Button>
-              <CardTitle className="text-xl flex items-center gap-2 text-red-600">
+              <CardTitle className="flex items-center gap-2 text-xl text-slate-900">
                 <Flag className="h-5 w-5" />
                 Report PYQ Paper
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-slate-500">
                 Help us maintain quality. Report issues with <strong>{selectedPaperToReport.subjectName}</strong>.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-5">
               {reportError && (
                 <Alert variant="destructive" className="mb-4">
                   <AlertDescription>{reportError}</AlertDescription>
@@ -455,7 +507,7 @@ export default function DepartmentPYQPage() {
               )}
               {reportSuccess ? (
                 <div className="space-y-4 py-4 text-center">
-                  <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-lg font-bold">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-lg font-bold text-green-600">
                     ✓
                   </div>
                   <p className="font-semibold text-green-800">{reportSuccess}</p>
@@ -469,13 +521,13 @@ export default function DepartmentPYQPage() {
               ) : (
                 <form onSubmit={handleReportSubmit} className="space-y-4">
                   <div>
-                    <label className="text-sm font-semibold text-gray-700 block mb-1.5">
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                       Reason for Reporting *
                     </label>
                     <select
                       value={reportReason}
                       onChange={(e) => setReportReason(e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg p-2.5 bg-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                       required
                     >
                       <option value="">Select a reason</option>
@@ -487,14 +539,14 @@ export default function DepartmentPYQPage() {
                   </div>
 
                   <div>
-                    <label className="text-sm font-semibold text-gray-700 block mb-1.5">
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                       Additional Details (Optional)
                     </label>
                     <textarea
                       value={reportDescription}
                       onChange={(e) => setReportDescription(e.target.value)}
                       placeholder="Describe the issue in detail..."
-                      className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none min-h-[100px] resize-y"
+                      className="min-h-[110px] w-full resize-y rounded-xl border border-slate-200 p-3 text-sm text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                     />
                   </div>
 
