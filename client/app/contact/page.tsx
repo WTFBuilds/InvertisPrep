@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Mail, MapPin, Phone, Facebook, Twitter, Linkedin, Instagram } from 'lucide-react';
+import { Mail, MapPin, Phone, Instagram, Linkedin } from 'lucide-react';
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -240,25 +240,13 @@ export default function ContactPage() {
               <CardContent>
                 <div className="flex gap-4">
                   <a
-                    href="#"
-                    className="p-3 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition"
-                  >
-                    <Facebook className="h-5 w-5" />
-                  </a>
-                  <a
-                    href="#"
-                    className="p-3 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition"
-                  >
-                    <Twitter className="h-5 w-5" />
-                  </a>
-                  <a
-                    href="#"
-                    className="p-3 bg-cyan-50 text-cyan-600 rounded-lg hover:bg-cyan-100 transition"
+                    href="https://www.linkedin.com/company/invertisprep/"
+                    className="p-3 bg-pink-50 text-blue-600 rounded-lg hover:bg-pink-100 transition"
                   >
                     <Linkedin className="h-5 w-5" />
                   </a>
                   <a
-                    href="#"
+                    href="https://www.instagram.com/invertisprep.in/"
                     className="p-3 bg-pink-50 text-pink-600 rounded-lg hover:bg-pink-100 transition"
                   >
                     <Instagram className="h-5 w-5" />

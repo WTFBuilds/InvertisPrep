@@ -141,9 +141,6 @@ export default function Navbar() {
                       <DropdownMenuItem asChild>
                         <Link href="/about" className="w-full">About</Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/our-mentors" className="w-full">Our Mentors</Link>
-                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem asChild>
                         <Link href="/report-bug" className="w-full">Report Bug</Link>
