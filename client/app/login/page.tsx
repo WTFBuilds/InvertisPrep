@@ -79,7 +79,20 @@ export default function LoginPage() {
             if (isWebViewAuthFlow && typeof window !== 'undefined') {
               const callbackUrl = new URL('invertisprep://auth/callback');
               callbackUrl.searchParams.set('token', response.data.token);
-              callbackUrl.searchParams.set('session', 'true');
+
+              // Pass the user object to the native app so it can write both
+              // `token` AND `user` into the WebView's localStorage (AuthContext
+              // requires both). Encode as base64 of UTF-8 bytes to stay
+              // URL-safe and unicode-safe (btoa() is ASCII-only).
+              const userJson = JSON.stringify(response.data.user);
+              const userB64 = btoa(
+                encodeURIComponent(userJson).replace(
+                  /%([0-9A-F]{2})/g,
+                  (_, p) => String.fromCharCode(parseInt(p, 16))
+                )
+              );
+              callbackUrl.searchParams.set('user', userB64);
+
               window.location.replace(callbackUrl.toString());
               return;
             }
