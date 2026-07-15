@@ -90,22 +90,30 @@ export default function PYQBrowsePage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
             {filteredDepartments.map((dept) => (
               <Link key={dept._id} href={`/pyq/${dept._id}`}>
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
-                  <CardHeader>
-                    <div className="flex items-center gap-4">
-                      <div className="text-5xl">{dept.icon}</div>
-                      <div>
-                        <CardTitle className="text-xl">{dept.displayName}</CardTitle>
-                        <CardDescription>{dept.name}</CardDescription>
+                <Card className="group h-full overflow-hidden border-slate-200/70 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl">
+                  <CardHeader className="pb-4">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-50 to-sky-50 text-5xl shadow-sm ring-1 ring-slate-100">
+                        {dept.icon}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="text-xl font-bold tracking-tight text-slate-900">
+                          {dept.displayName}
+                        </CardTitle>
+                        <CardDescription className="mt-1 text-sm text-slate-500">
+                          {dept.name}
+                        </CardDescription>
                       </div>
                     </div>
                   </CardHeader>
                   {dept.description && (
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground">{dept.description}</p>
+                    <CardContent className="pt-0 pb-6">
+                      <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">
+                        {dept.description}
+                      </p>
                     </CardContent>
                   )}
                 </Card>
