@@ -84,7 +84,7 @@ export default function Footer() {
               <h3 className="text-sm font-semibold text-gray-200">{title}</h3>
               <ul className="space-y-2">
                 {links.map((link) => (
-                  <li key={link.path}>
+                  <li key={`${title}-${link.name}-${link.path}`}>
                     <Link
                       href={link.path}
                       className="text-sm text-gray-400 hover:text-purple-400 transition-colors">
@@ -131,7 +131,7 @@ export default function Footer() {
               <AccordionContent>
                 <ul className="space-y-2 py-2">
                   {links.map((link) => (
-                    <li key={link.path}>
+                    <li key={`${title}-${link.name}-${link.path}`}>
                       <Link
                         href={link.path}
                         className="text-sm text-gray-400 hover:text-purple-400 transition-colors"
