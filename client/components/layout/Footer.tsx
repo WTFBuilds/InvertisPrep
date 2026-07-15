@@ -93,24 +93,24 @@ export default function Footer() {
           </p>
 
 <div className="text-sm text-gray-400">
-  <p className="flex items-center">
-    Made with <span className="heart-icon mx-1">❤️</span> by{" "}
+  <p className="flex items-center flex-wrap justify-center gap-x-1">
+    <span>Made with</span>
+    <span className="heart-icon">❤️</span>
+    <span>by</span>
     <a
       href="https://www.ahqafali.dev"
       target="_blank"
       rel="noopener noreferrer"
-      className="text-purple-400 hover:text-purple-300 transition-colors ml-1"
+      className="text-purple-400 hover:text-purple-300 transition-colors"
     >
       Ahqaf Ali
     </a>
-    <div className="text-purple-400 hover:text-purple-300 transition-colors ml-3">
-      &
-    </div>
+    <span className="text-purple-400">&amp;</span>
     <a
       href="/our-team"
       target="_blank"
       rel="noopener noreferrer"
-      className="text-purple-400 hover:text-purple-300 transition-colors ml-3" 
+      className="text-purple-400 hover:text-purple-300 transition-colors"
     >
       TEAM
     </a>
@@ -151,23 +151,26 @@ export default function Footer() {
           <p className="text-sm text-gray-400 text-center">
             © {new Date().getFullYear()} InvertisPrep. All rights reserved.
           </p>
-          <p className="text-sm text-gray-400 flex items-center justify-center flex-wrap">
-            Made with <span className="heart-icon mx-1">❤️</span> by{" "}
+          <p className="text-sm text-gray-400 flex items-center justify-center flex-wrap gap-x-1">
+            <span>Made with</span>
+            <span className="heart-icon">❤️</span>
+            <span>by</span>
             <a
               href="https://www.ahqafali.dev"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-purple-400 hover:text-purple-300 transition-colors ml-1"
+              className="text-purple-400 hover:text-purple-300 transition-colors"
             >
-              Ahqaf Ali_
+              Ahqaf Ali
             </a>
+            <span className="text-purple-400">&amp;</span>
             <a
-            href="/our-team"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-purple-400 hover:text-purple-300 transition-colors ml-1"
+              href="/our-team"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-purple-400 hover:text-purple-300 transition-colors"
             >
-              & TEAM
+              TEAM
             </a>
           </p>
         </div>
