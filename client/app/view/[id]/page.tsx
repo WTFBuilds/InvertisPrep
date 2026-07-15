@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { pdfApi } from '@/lib/api';
 import PDFViewer from '@/components/PDFViewer';
+import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
