@@ -27,6 +27,7 @@ import {
   ExternalLink,
   Medal,
   User,
+  Users,
   LayoutDashboard,
   TrendingUp,
   Wallet,
@@ -223,6 +224,16 @@ export default function Navbar() {
                             {link.name}
                           </Link>
                         ))}
+
+                        {/* Our Team */}
+                        <Link
+                          href="/our-team"
+                          className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+                          onClick={() => setOpen(false)}
+                        >
+                          <Users className="h-4 w-4 mr-2" />
+                          Our Team
+                        </Link>
                         
                         {/* Leaderboard - Coming Soon Mobile */}
                         <button

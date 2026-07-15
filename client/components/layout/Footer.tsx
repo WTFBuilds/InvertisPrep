@@ -108,13 +108,20 @@ export default function Footer() {
             <p className="flex items-center">
               Made with <span className="heart-icon mx-1">❤️</span> by{" "}
               <a
-                href="https://www.ahqafali.site"
+                href="https://www.ahqafali.dev"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-purple-400 hover:text-purple-300 transition-colors ml-1"
               >
-                AhqafCoder
-              </a> & Team
+                Ahqaf Ali_
+              </a>
+              <a
+                href="/our-team"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                &_TEAM
+              </a>
             </p>
           </div>
         </div>
@@ -169,13 +176,20 @@ export default function Footer() {
           <p className="text-sm text-gray-400 flex items-center justify-center flex-wrap">
             Made with <span className="heart-icon mx-1">❤️</span> by{" "}
             <a
-              href="https://www.ahqafali.site"
+              href="https://www.ahqafali.dev"
               target="_blank"
               rel="noopener noreferrer"
               className="text-purple-400 hover:text-purple-300 transition-colors ml-1"
             >
-              AhqafCoder
-            </a> & Team
+              Ahqaf Ali_
+            </a>
+            <a
+            href="/our-team"
+            target="_blank"
+            rel="noopener noreferrer"
+            >
+              &_TEAM
+            </a>
           </p>
         </div>
       </div>

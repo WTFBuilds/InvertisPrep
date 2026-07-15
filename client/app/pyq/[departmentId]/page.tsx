@@ -346,7 +346,7 @@ export default function DepartmentPYQPage() {
                 {filteredPapers.map((paper) => (
                   <Card key={paper._id} onMouseEnter={() => handleView(paper)}>
                     <CardHeader>
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                      <div className="grid grid-cols-2 md:flex md:flex-row md:justify-between items-center gap-4">
                         <div>
                           <CardTitle className="text-xl">{paper.subjectName}</CardTitle>
                           <CardDescription>
@@ -356,7 +356,7 @@ export default function DepartmentPYQPage() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                      <div className="grid grid-cols-2 md:flex md:flex-row md:justify-between gap-4 text-sm">
                         <div>
                           <p className="text-muted-foreground">Branch</p>
                           <p className="font-medium">{getBranchName(paper)}</p>
