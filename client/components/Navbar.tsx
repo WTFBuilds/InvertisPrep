@@ -33,6 +33,7 @@ import {
   Wallet,
   UploadCloud
 } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -45,6 +46,7 @@ import {
 
 export default function Navbar() {
   const { user, logout } = useAuth();
+  const pathname = usePathname();
   const [isMounted, setIsMounted] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -52,6 +54,10 @@ export default function Navbar() {
     const timer = setTimeout(() => setIsMounted(true), 0);
     return () => clearTimeout(timer);
   }, []);
+
+  if (pathname?.startsWith('/view/')) {
+    return null;
+  }
 
   const handleLogout = async () => {
     try {

@@ -269,4 +269,15 @@ export const reportApi = {
   },
 };
 
+// PDF API
+export const pdfApi = {
+  view: async (id: string, type: 'pyq' | 'syllabus' = 'pyq'): Promise<Blob> => {
+    const { data } = await apiClient.get(`/pdf/view/${id}`, {
+      params: { type },
+      responseType: 'blob',
+    });
+    return data;
+  },
+};
+
 export default apiClient;
