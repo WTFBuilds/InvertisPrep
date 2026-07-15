@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const handledCallbackRef = useRef(false);
   const router = useRouter();
   const { login, updateUser } = useAuth();
 
@@ -23,6 +24,16 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [isWebViewAuthFlow, setIsWebViewAuthFlow] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    setIsWebViewAuthFlow(params.get('webview') === '1' || params.get('mobile') === '1');
+  }, []);
 
   // Handle URL parameters safely on mount
   useEffect(() => {
@@ -36,6 +47,10 @@ export default function LoginPage() {
 
   // Handle checking for NextAuth session on mount (to handle OAuth callback redirect)
   useEffect(() => {
+    if (handledCallbackRef.current) {
+      return;
+    }
+
     const handleGoogleCallback = async () => {
       try {
         const res = await fetch('/api/auth/session');
@@ -51,13 +66,23 @@ export default function LoginPage() {
           });
 
           if (response.data?.success && response.data?.token) {
+            // Call NextAuth signout to clear the NextAuth session so it doesn't linger
+            await signOut({ redirect: false });
+
+            handledCallbackRef.current = true;
+
+            if (isWebViewAuthFlow && typeof window !== 'undefined') {
+              const callbackUrl = new URL('invertisprep://auth/callback');
+              callbackUrl.searchParams.set('token', response.data.token);
+              callbackUrl.searchParams.set('session', 'true');
+              window.location.replace(callbackUrl.toString());
+              return;
+            }
+
             // Store our JWT token and user info, then sync auth state
             localStorage.setItem('token', response.data.token);
             localStorage.setItem('user', JSON.stringify(response.data.user));
             updateUser(response.data.user);
-
-            // Call NextAuth signout to clear the NextAuth session so it doesn't linger
-            await signOut({ redirect: false });
 
             // Redirect to PYQ page
             router.push('/pyq');
@@ -73,7 +98,7 @@ export default function LoginPage() {
     };
 
     handleGoogleCallback();
-  }, [router, updateUser]);
+  }, [isWebViewAuthFlow, router, updateUser]);
 
   // Social sign-in handlers
   const handleGoogleLogin = async () => {
@@ -81,7 +106,7 @@ export default function LoginPage() {
       setLoading(true);
       setError('');
       await signIn('google', {
-        callbackUrl: '/login'
+        callbackUrl: isWebViewAuthFlow ? '/login?webview=1' : '/login'
       });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'An error occurred during Google login';
@@ -95,7 +120,7 @@ export default function LoginPage() {
       setLoading(true);
       setError('');
       await signIn('github', {
-        callbackUrl: '/login'
+        callbackUrl: isWebViewAuthFlow ? '/login?webview=1' : '/login'
       });
     } catch {
       setError('GitHub sign-in is not configured yet. Please continue with Google.');
@@ -108,7 +133,7 @@ export default function LoginPage() {
       setLoading(true);
       setError('');
       await signIn('apple', {
-        callbackUrl: '/login'
+        callbackUrl: isWebViewAuthFlow ? '/login?webview=1' : '/login'
       });
     } catch {
       setError('Mac/Apple sign-in is not configured yet. Please continue with Google.');
