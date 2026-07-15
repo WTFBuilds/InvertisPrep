@@ -23,8 +23,8 @@ const teamMembers = [
     name: "Rajan Sharma",
     role: "Front End Developer",
     image: "/team/member3.jpg",
-    linkedin: "https://linkedin.com/in/rajan-sharma",
-    github: "https://github.com/rajansharma",
+    linkedin: "https://linkedin.com/in/rajan-sharma-stack",
+    github: "https://github.com/rajan2436",
   },
   {
     name: "Bakhtiyar Ali",
