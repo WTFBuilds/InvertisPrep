@@ -44,9 +44,21 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/admin/login';
+      // Don't auto-redirect if we're already on a view or login page to avoid loops
+      const isViewing = window.location.pathname.includes('/view/');
+      const isLogin = window.location.pathname.includes('/login');
+
+      if (!isViewing && !isLogin) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+
+        // Redirect based on current path
+        if (window.location.pathname.startsWith('/admin')) {
+          window.location.href = '/admin/login';
+        } else {
+          window.location.href = '/login';
+        }
+      }
     }
     return Promise.reject(error);
   }

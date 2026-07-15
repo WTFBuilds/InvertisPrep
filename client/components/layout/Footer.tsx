@@ -53,7 +53,8 @@ export default function Footer() {
     ],
   };
 
-  if (pathname?.startsWith('/view/')) {
+  // Hide footer on view pages
+  if (pathname && (pathname.includes('/view/') || pathname.startsWith('/view/'))) {
     return null;
   }
 
