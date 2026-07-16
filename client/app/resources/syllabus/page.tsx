@@ -125,7 +125,7 @@ export default function SyllabusPage() {
                           <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
                             <FileText className="h-5 w-5 text-indigo-600" />
                           </div>
-                          <span className="font-medium text-gray-900 text-xs md:text-base">{item.name}</span>
+                          <span className="font-bold text-gray-900 text-sm md:text-lg">{item.name}</span>
                         </div>
                       </td>
                       <td className="px-4 py-5">
