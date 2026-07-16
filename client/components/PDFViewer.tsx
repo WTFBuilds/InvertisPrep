@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-// Configure worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// Configure worker (client-side only to avoid SSR issues in Next.js)
+if (typeof window !== 'undefined') {
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+}
 
 interface PDFViewerProps {
   file: Blob | string;
@@ -55,6 +57,10 @@ export default function PDFViewer({ file }: PDFViewerProps) {
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
+  }
+
+  function onDocumentLoadError(error: Error) {
+    console.error('PDF load error:', error);
   }
 
   // Prevent right-click and common shortcuts
@@ -143,6 +149,7 @@ export default function PDFViewer({ file }: PDFViewerProps) {
           <Document
             file={fileUrl}
             onLoadSuccess={onDocumentLoadSuccess}
+            onLoadError={onDocumentLoadError}
             loading={
               <div className="flex flex-col items-center justify-center p-12 sm:p-20 text-slate-400">
                 <Loader2 className="h-8 w-8 sm:h-10 sm:w-10 animate-spin mb-4" />

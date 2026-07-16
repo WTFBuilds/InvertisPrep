@@ -73,7 +73,7 @@ function ViewPDFContent() {
     if (id) {
       fetchPDF();
     }
-  }, [id, type]);
+  }, [id, type, authLoading, user]);
 
   if (loading) {
     return (
