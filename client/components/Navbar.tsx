@@ -55,7 +55,8 @@ export default function Navbar() {
     return () => clearTimeout(timer);
   }, []);
 
-  if (pathname?.startsWith('/view/')) {
+  // Hide navbar on view pages
+  if (pathname && (pathname.includes('/view/') || pathname.startsWith('/view/'))) {
     return null;
   }
 
