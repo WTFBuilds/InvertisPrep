@@ -498,7 +498,13 @@ export default function Navbar() {
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/wallet" className="w-full cursor-pointer">
-                      <Wallet className="mr-2 h-4 w-4 text-slate-500" /> QCWallet
+                      <Wallet className="mr-2 h-4 w-4 text-slate-500" />
+                      <span className="flex-1">QCWallet</span>
+                      {user.qcoins !== undefined && (
+                        <span className="ml-auto flex items-center gap-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                          {user.qcoins.toLocaleString('en-IN')} QC
+                        </span>
+                      )}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
@@ -718,7 +724,13 @@ function MobileMenu({
               onClick={onNavigate}
               className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600"
             >
-              <Wallet className="size-4 text-indigo-500" /> QCWallet
+              <Wallet className="size-4 text-indigo-500" />
+              <span className="flex-1">QCWallet</span>
+              {user?.qcoins !== undefined && (
+                <span className="flex items-center gap-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 px-2.5 py-0.5 text-[10px] font-bold text-white">
+                  {user.qcoins.toLocaleString('en-IN')} QC
+                </span>
+              )}
             </Link>
             <Link
               href="/academic-progress"
