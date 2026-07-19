@@ -215,6 +215,11 @@
   @page { size: A4; margin: 0; }
 }
 
+/* printing-clean: hides print watermark when user paid for clean PDF */
+html.printing-clean .resume-print-watermark {
+  display: none !important;
+}
+
 @media (max-width: 700px) {
   .resume-page { width: 8.27in; }
 }
