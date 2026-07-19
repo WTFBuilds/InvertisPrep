@@ -12,6 +12,48 @@ export interface User {
   course?: string;
   followers?: string[];
   following?: string[];
+  qcoins: number;
+  freeDownloadsLeft: number;
+}
+
+// Wallet types
+export type TransactionType = 'credit' | 'debit';
+export type TransactionCategory = 'topup' | 'resume_download' | 'bonus' | 'refund';
+
+export interface WalletTransaction {
+  _id: string;
+  userId: string;
+  type: TransactionType;
+  category: TransactionCategory;
+  coins: number;
+  rupees?: number | null;
+  description: string;
+  resumeId?: string | null;
+  balanceAfter: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WalletBalance {
+  qcoins: number;
+  freeDownloadsLeft: number;
+}
+
+export type TopUpPackId = 'starter' | 'plus' | 'pro';
+
+export interface TopUpPack {
+  coins: number;
+  rupees: number;
+  label: string;
+}
+
+export type TopUpPacks = Record<TopUpPackId, TopUpPack>;
+
+export interface TransactionMeta {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
 }
 
 // Auth types
