@@ -384,7 +384,28 @@ function ProjectEditor({ item, onChange, onRemove }: { item: ResumeProject; onCh
 function ResumePreview({ resume }: { resume: Resume }) {
   const p = resume.personal;
   const hasLeft = resume.summary || resume.education.length || resume.skillGroups.some((group) => group.items.some(Boolean)) || resume.achievements.some(Boolean) || resume.languages.some(Boolean) || resume.certifications.some(Boolean);
-  return <section className="resume-preview-wrap overflow-auto rounded-xl bg-slate-200 p-3 shadow-inner sm:p-5"><article className="resume-page mx-auto bg-white text-black shadow-xl">
+
+  // Enough repeated tiles to fill the diagonal overlay at any scroll position
+  const watermarkTiles = Array.from({ length: 60 });
+
+  return (
+    <section className="resume-preview-wrap relative overflow-auto rounded-xl bg-slate-200 p-3 shadow-inner sm:p-5 select-none">
+      {/* Print-only centred watermark */}
+      <div className="resume-print-watermark" aria-hidden="true">INVERTISPREP</div>
+
+      <article
+        className="resume-page mx-auto bg-white text-black shadow-xl"
+        onCopy={(e) => e.preventDefault()}
+        onCut={(e) => e.preventDefault()}
+      >
+        {/* Diagonal watermark grid — inside the page so it covers all content when scrolling */}
+        <div className="resume-preview-watermark" aria-hidden="true">
+          <div className="resume-preview-watermark-inner">
+            {watermarkTiles.map((_, i) => (
+              <span key={i}>INVERTISPREP</span>
+            ))}
+          </div>
+        </div>
     <header className="border-b border-slate-300 pb-3 text-center">
       <h1 className="text-[22px] font-bold uppercase tracking-wide">{p.name || 'Your Name'}</h1>
       {p.headline && <p className="mt-0.5 text-[15px]">{p.headline}</p>}
@@ -406,7 +427,9 @@ function ResumePreview({ resume }: { resume: Resume }) {
       </main> : null}
     </div>
     <footer className="resume-watermark">Made with www.invertisprep.in</footer>
-  </article></section>;
+      </article>
+    </section>
+  );
 }
 
 function PreviewSection({ title, children }: { title: string; children: React.ReactNode }) { return <section className="mb-4"><h2 className="mb-1 border-b-2 border-slate-300 pb-0.5 text-[15px] font-bold">{title}</h2><div className="resume-content">{children}</div></section>; }
