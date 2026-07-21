@@ -50,6 +50,8 @@ export default function LoginPage() {
     if (handledCallbackRef.current) {
       return;
     }
+    // Set immediately to prevent double-execution in React strict mode
+    handledCallbackRef.current = true;
 
     const handleGoogleCallback = async () => {
       try {
@@ -68,8 +70,6 @@ export default function LoginPage() {
           if (response.data?.success && response.data?.token) {
             // Call NextAuth signout to clear the NextAuth session so it doesn't linger
             await signOut({ redirect: false });
-
-            handledCallbackRef.current = true;
 
             // Keep the web app auth state in sync before the native app consumes the deep link.
             localStorage.setItem('token', response.data.token);
@@ -97,8 +97,36 @@ export default function LoginPage() {
               return;
             }
 
-            // Redirect to PYQ page
-            router.push('/pyq');
+            // Check for returnUrl parameter - redirect there if present
+            const searchParams = new URLSearchParams(window.location.search);
+            const returnUrl = searchParams.get('returnUrl');
+            if (returnUrl && returnUrl.startsWith('/')) {
+              // Migrate guest resume if exists
+              const guestResumeData = localStorage.getItem('resume-builder-guest-draft');
+              if (guestResumeData) {
+                try {
+                  const guestResume = JSON.parse(guestResumeData);
+                  // Import the API and create the resume
+                  const { resumeApi } = await import('@/lib/api');
+                  const migrateResponse = await resumeApi.create(guestResume);
+                  if (migrateResponse.data) {
+                    // Clear guest data after successful save
+                    localStorage.removeItem('resume-builder-guest-draft');
+                    // Redirect to resume builder with the new ID
+                    router.push(`/resume-builder?id=${migrateResponse.data._id}`);
+                    return;
+                  }
+                } catch (error) {
+                  console.error('Failed to migrate guest resume:', error);
+                  // Continue with normal redirect even if migration fails
+                }
+              }
+              // Default redirect if no guest resume
+              router.push(returnUrl);
+            } else {
+              // Default redirect to PYQ page
+              router.push('/pyq');
+            }
           } else {
             setError(response.data?.message || 'Failed to authenticate with server');
             setLoading(false);
