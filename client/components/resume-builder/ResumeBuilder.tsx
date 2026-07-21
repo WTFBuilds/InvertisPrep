@@ -9,6 +9,7 @@ import { resumeApi, walletApi } from '@/lib/api';
 import type { Resume, ResumeDraft, ResumeEducation, ResumeExperience, ResumeLink, ResumeProject } from '@/types';
 import { CheckCircle2, Clock, Coins, CreditCard, Download, FileUp, Gift, LayoutDashboard, Loader2, Plus, Printer, Save, Shield, Sparkles, Trash2, Wallet } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { SavePromptModal } from './SavePromptModal';
 
 const emptyEducation = (): ResumeEducation => ({ institution: '', degree: '', startDate: '', endDate: '' });
 const emptyExperience = (): ResumeExperience => ({ company: '', role: '', description: '', achievements: [''], startDate: '', endDate: '' });
@@ -133,6 +134,18 @@ function formatDate(value: string) {
   return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
+// Global flag to suppress beforeunload during OAuth redirect
+export const navigationFlag = { suppress: false };
+
+// Minimal localStorage helper — only used to stash draft before OAuth redirect
+const GUEST_RESUME_KEY = 'resume-builder-guest-draft';
+function stashGuestResume(draft: ResumeDraft): void {
+  try { localStorage.setItem(GUEST_RESUME_KEY, JSON.stringify(draft)); } catch { /* noop */ }
+}
+export function clearGuestResume(): void {
+  localStorage.removeItem(GUEST_RESUME_KEY);
+}
+
 export function ResumeBuilder() {
   const { user, loading, updateUser } = useAuth();
   const router = useRouter();
@@ -140,6 +153,10 @@ export function ResumeBuilder() {
   const [resume, setResume] = useState<Resume | null>(null);
   const [booting, setBooting] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Save prompt modal state for guest users (declared early for beforeunload guard)
+  const [showSavePrompt, setShowSavePrompt] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
 
   // Task 3: dirty flag + saved timestamp for autosave indicator
   const [isDirty, setIsDirty] = useState(false);
@@ -150,16 +167,33 @@ export function ResumeBuilder() {
   const loadedIdRef = useRef<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
-  // Task 1: auth redirect — also unblock booting when user is definitively null
-  useEffect(() => {
-    if (!loading && !user) {
-      setBooting(false);
-      router.replace('/login');
-    }
-  }, [loading, user, router]);
+  // Guest mode: allow access without login
+  // Auth redirect removed to support guest resume building
 
   // Task 1: id-keyed load effect — re-runs whenever ?id changes
   const idParam = searchParams.get('id');
+
+  // Guest mode load effect - creates fresh starter in memory (no localStorage)
+  useEffect(() => {
+    if (user) return; // Only for guests
+    if (loadedIdRef.current) return; // Already loaded
+
+    setBooting(true);
+    const starterDraft = createStarterResume();
+    const resumeWithId: Resume = {
+      ...starterDraft,
+      _id: `guest-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setResume(resumeWithId);
+    loadedIdRef.current = resumeWithId._id;
+    setIsDirty(false);
+    setSavedAt(null);
+    setBooting(false);
+  }, [user]);
+
+  // Logged-in user load effect - uses server API
   useEffect(() => {
     if (!user) return;
     // Skip if the ?id we want is already loaded
@@ -210,17 +244,24 @@ export function ResumeBuilder() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, idParam]);
 
-  // Task 3: debounced autosave — fires 2s after last edit when isDirty
+  // Task 3: debounced autosave — fires 2s after last edit when isDirty (logged-in only)
   const saveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const save = useCallback(async (draft = resume, isAuto = false) => {
     if (!draft) return;
+
+    // Guest: show login prompt instead of saving
+    if (!user) {
+      if (!isAuto) setShowSavePrompt(true);
+      return;
+    }
+
+    // Logged-in: save to server
     setSaving(true);
     try {
       await resumeApi.update(draft._id, toDraft(draft));
       setIsDirty(false);
       setSavedAt(new Date());
       if (!isAuto) toast.success('Resume saved');
-      // Show the autosave toast only once per session
       if (isAuto && !firstAutosaveToastShown.current) {
         firstAutosaveToastShown.current = true;
         toast.success('Resume autosaved');
@@ -230,25 +271,31 @@ export function ResumeBuilder() {
     } finally {
       setSaving(false);
     }
-  }, [resume]);
+  }, [resume, user]);
 
   useEffect(() => {
-    if (booting || !isDirty || !resume) return;
+    if (booting || !isDirty || !resume || !user) return; // No autosave for guests
     if (saveRef.current) clearTimeout(saveRef.current);
     saveRef.current = setTimeout(() => { void save(resume, true); }, 2000);
     return () => { if (saveRef.current) clearTimeout(saveRef.current); };
-  }, [resume, isDirty, booting, save]);
+  }, [resume, isDirty, booting, save, user]);
 
   // Task 4: beforeunload guard — warn when there are unsaved changes
+  // Skip when SavePromptModal is open (user is about to sign in)
   useEffect(() => {
-    if (!isDirty) return;
+    if (!isDirty || showSavePrompt) return;
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (navigationFlag.suppress) return;
       e.preventDefault();
       e.returnValue = '';
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [isDirty]);
+  }, [isDirty, showSavePrompt]);
+
+  // Navigation guard for guest users with unsaved changes
+  // Note: Next.js App Router doesn't support router.events, so we handle navigation
+  // through Link click handlers and beforeunload events instead
 
   // Mark dirty on every edit
   const update = (patch: Partial<Resume>) => {
@@ -339,6 +386,9 @@ export function ResumeBuilder() {
 
   // Task 3: save status indicator label
   const SaveStatus = () => {
+    if (!user && isDirty) {
+      return <span className="flex items-center gap-1 text-xs text-amber-600 font-medium"><Clock size={12}/> Not saved — <button onClick={() => setShowSavePrompt(true)} className="underline">Sign in</button></span>;
+    }
     if (saving) return <span className="flex items-center gap-1 text-xs text-slate-400"><Loader2 className="animate-spin" size={12}/> Saving…</span>;
     if (!isDirty && savedAt) return <span className="flex items-center gap-1 text-xs text-slate-400"><CheckCircle2 size={12} className="text-green-500"/> Saved {savedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>;
     if (!isDirty && !savedAt) return <span className="flex items-center gap-1 text-xs text-slate-400"><CheckCircle2 size={12} className="text-green-500"/> All changes saved</span>;
@@ -355,10 +405,28 @@ export function ResumeBuilder() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <SaveStatus />
-            <Link className="resume-tool" href="/resumes"><LayoutDashboard size={16}/> My resumes</Link>
+            <Link
+              className="resume-tool"
+              href="/resumes"
+              onClick={(e) => {
+                if (!user && isDirty) {
+                  e.preventDefault();
+                  setPendingNavigation('/resumes');
+                  setShowSavePrompt(true);
+                }
+              }}
+            >
+              <LayoutDashboard size={16}/> My resumes
+            </Link>
             <button className="resume-tool" onClick={() => importRef.current?.click()}><FileUp size={16}/> Import</button>
             <button className="resume-tool" onClick={exportJson}><Download size={16}/> Export</button>
-            <button className="resume-tool" onClick={() => setShowDownloadModal(true)}><Printer size={16}/> PDF</button>            <button className="resume-tool-primary" disabled={saving} onClick={() => save(resume, false)}>
+            <button className="resume-tool" onClick={() => {
+              if (!user) {
+                setShowSavePrompt(true);
+              } else {
+                setShowDownloadModal(true);
+              }
+            }}><Printer size={16}/> PDF</button>            <button className="resume-tool-primary" disabled={saving} onClick={() => save(resume, false)}>
               {saving ? <Loader2 className="animate-spin" size={16}/> : <Save size={16}/>} Save
             </button>
             <input ref={importRef} className="hidden" type="file" accept="application/json,.json" onChange={importJson} />
@@ -376,6 +444,21 @@ export function ResumeBuilder() {
         freeDownloadsLeft={user?.freeDownloadsLeft ?? 0}
         downloading={downloading}
         onDownload={handleDownload}
+      />
+      <SavePromptModal
+        open={showSavePrompt}
+        onOpenChange={setShowSavePrompt}
+        onSaveAndLogin={() => {
+          // Stash draft to localStorage so login page migration can pick it up
+          // Don't close the modal here — it will unmount when the page navigates
+          if (resume) stashGuestResume(toDraft(resume));
+        }}
+        onDiscard={() => {
+          // Discard changes and allow navigation
+          clearGuestResume();
+          setPendingNavigation(null);
+          setShowSavePrompt(false);
+        }}
       />
     </div>
   );
