@@ -43,10 +43,15 @@ export default function Footer() {
       { name: "Previous Year Papers", path: "/pyq" },
       { name: "Syllabus", path: "/resources/syllabus" },
     ],
+    "Legal": [
+      { name: "Terms and Conditions", path: "/terms-of-service" },
+      { name: "Privacy Policy", path: "/privacy-policy" },
+      { name: "Shipping Policy", path: "/shipping-policy" },
+      { name: "Cancellation & Refunds", path: "/cancellation-and-refunds" },
+      { name: "Contact Us", path: "/contact" },
+    ],
     "Support": [
       { name: "Help & Support", path: "/support" },
-      { name: "Privacy Policy", path: "/privacy-policy" },
-      { name: "Terms of Service", path: "/terms-of-service" },
     ],
     "Admin": [
       { name: "Admin Login", path: "/admin/login" },
