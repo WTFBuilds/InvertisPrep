@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { QuizSocketProvider } from "@/contexts/QuizSocketContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/layout/Footer";
 
@@ -20,11 +21,13 @@ export default function RootLayout({
     <html lang="en">
       <body className={`antialiased flex flex-col min-h-screen`}>
         <AuthProvider>
-          <Navbar />
-          <main className="flex-grow">
-            {children}
-          </main>
-          <Footer />
+          <QuizSocketProvider>
+            <Navbar />
+            <main className="flex-grow">
+              {children}
+            </main>
+            <Footer />
+          </QuizSocketProvider>
         </AuthProvider>
       </body>
     </html>
