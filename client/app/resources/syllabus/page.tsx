@@ -4,11 +4,10 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/fetcher';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Download, Eye, FileText, Search, ChevronRight } from 'lucide-react';
+import { Eye, FileText, Search, ChevronRight, X } from 'lucide-react';
 import Link from 'next/link';
-import { Input } from '@/components/ui/input';
+import { fuzzySearch } from '@/lib/search';
 import type { APIResponse } from '@/types';
 
 interface Syllabus {
@@ -36,11 +35,10 @@ export default function SyllabusPage() {
   const syllabus = response?.data || [];
 
   const filteredSyllabus = useMemo(() => {
-    if (!searchQuery) return syllabus;
-    const query = searchQuery.toLowerCase();
-    return syllabus.filter(item =>
-      item.name.toLowerCase().includes(query) ||
-      item.department.toLowerCase().includes(query)
+    return fuzzySearch(
+      syllabus,
+      searchQuery,
+      (item) => [item.name, item.department, item.year],
     );
   }, [searchQuery, syllabus]);
 
@@ -74,15 +72,30 @@ export default function SyllabusPage() {
         </div>
 
         {/* Search Bar */}
-        <div className="relative max-w-md mb-8">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input 
-            type="text" 
-            placeholder="Search Syllabus files..." 
-            className="pl-10 h-11 border-gray-200 bg-gray-50/50"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        <div className="flex items-center gap-3 mb-8">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by name, department, or year..."
+              className="w-full pl-10 pr-10 h-11 border border-gray-200 bg-gray-50/50 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          {searchQuery && (
+            <span className="text-sm text-gray-500 flex-shrink-0">
+              {filteredSyllabus.length} result{filteredSyllabus.length !== 1 ? 's' : ''}
+            </span>
+          )}
         </div>
 
         {/* Table View */}
@@ -106,7 +119,29 @@ export default function SyllabusPage() {
                   </tr>
                 ) : filteredSyllabus.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="px-6 py-12 text-center text-gray-500">No syllabus files found</td>
+                    <td colSpan={2} className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                          <Search className="h-6 w-6 text-gray-400" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">No syllabus files found</p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            {searchQuery
+                              ? `No results for "${searchQuery}". Try different keywords.`
+                              : 'No syllabus files available yet.'}
+                          </p>
+                        </div>
+                        {searchQuery && (
+                          <button
+                            onClick={() => setSearchQuery('')}
+                            className="text-sm text-indigo-600 hover:underline font-medium"
+                          >
+                            Clear search
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ) : (
                   filteredSyllabus.map((item) => (
