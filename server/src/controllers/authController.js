@@ -52,6 +52,7 @@ export const login = async (req, res) => {
       email: user.email,
       name: user.name,
       role: user.role,
+      picture: user.picture || null,
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
@@ -182,6 +183,7 @@ export const googleLogin = async (req, res) => {
       email: user.email,
       name: user.name,
       role: user.role,
+      picture: user.picture || null,
     };
 
     const jwtToken = jwt.sign(payload, process.env.JWT_SECRET, {
