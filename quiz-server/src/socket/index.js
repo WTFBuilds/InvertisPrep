@@ -31,23 +31,25 @@ const userMatches = new Map(); // userId → matchId
 export function registerQuizHandlers(io) {
   io.on('connection', (socket) => {
     const userId = socket.user.id;
-    console.log(`User connected: ${socket.user.name} (${socket.id})`);
+    console.log(`🔍 [DEBUG index.js] User connected: ${socket.user.name} (${socket.id}) userId=${userId}`);
 
     // ─── Auto-rejoin active match ──────────────────────────
     // When client redirects to match page, new socket joins the room
     const existingMatchId = userMatches.get(userId);
     if (existingMatchId) {
+      console.log(`🔍 [DEBUG index.js] Auto-rejoin: user ${userId} has existing match ${existingMatchId}`);
       const state = getActiveMatch(existingMatchId);
       if (state) {
         state.playerSockets.set(userId, socket.id);
         socket.join(`match:${existingMatchId}`);
-        console.log(`[Rejoin] ${socket.user.name} rejoined match ${existingMatchId}`);
+        console.log(`🔍 [DEBUG index.js] [Rejoin] ${socket.user.name} rejoined match ${existingMatchId}, status=${state.status}`);
 
         // Re-send current question to rejoining player
         if (state.status === 'playing' && state.questions[state.currentQuestion]) {
           const question = state.questions[state.currentQuestion];
           const remaining = Math.max(0, QUESTION_TIME - (Date.now() - state.questionStartTime));
           socket.emit('question', {
+            matchId: existingMatchId,
             index: state.currentQuestion,
             total: QUESTIONS_PER_MATCH,
             question: question.question,
@@ -64,15 +66,21 @@ export function registerQuizHandlers(io) {
         } else if (state.status === 'countdown') {
           socket.emit('quiz-start', { matchId: existingMatchId, questions: [], countdown: 1 });
         } else if (state.status === 'finished' && state.finalResult) {
-          console.log(`[Rejoin] Match already finished, sending results to ${socket.user.name}`);
+          console.log(`🔍 [DEBUG index.js] [Rejoin] Match already finished, sending results to ${socket.user.name}`);
           socket.emit('quiz-end', state.finalResult);
+          // Clean up stale userMatches entry
+          userMatches.delete(userId);
         }
+      } else {
+        // Active state gone (match ended & cleaned up) — remove stale entry
+        console.log(`🔍 [DEBUG index.js] No active state for ${existingMatchId}, cleaning userMatches`);
+        userMatches.delete(userId);
       }
     }
 
     // ─── Queue Management ────────────────────────────────────
     socket.on('join-queue', async ({ subject }) => {
-      console.log(`[Queue] ${socket.user.name} joining queue for ${subject}`);
+      console.log(`🔍 [DEBUG index.js] [Queue] ${socket.user.name} joining queue for ${subject}`);
       if (!VALID_SUBJECTS.includes(subject)) {
         socket.emit('error', { message: 'Invalid subject' });
         return;
@@ -84,10 +92,10 @@ export function registerQuizHandlers(io) {
       // Try to find a match
       const match = findMatch(subject);
       if (match) {
-        console.log(`[Queue] Match found: ${match[0].userName} vs ${match[1].userName}`);
+        console.log(`🔍 [DEBUG index.js] [Queue] Match found: ${match[0].userName} vs ${match[1].userName}`);
         await createAndStartMatch(io, match[0], match[1], subject, 'auto');
       } else {
-        console.log(`[Queue] No match yet. Queue size: ${getQueueSize(subject)}`);
+        console.log(`🔍 [DEBUG index.js] [Queue] No match yet. Queue size: ${getQueueSize(subject)}`);
       }
     });
 
@@ -176,11 +184,17 @@ export function registerQuizHandlers(io) {
 
     // ─── Quiz Gameplay ───────────────────────────────────────
     socket.on('submit-answer', async ({ matchId, questionIndex, chosenIndex }) => {
-      await handleAnswer(io, matchId, userId, questionIndex, chosenIndex);
+      console.log(`🔍 [DEBUG index.js] submit-answer: matchId=${matchId}, questionIndex=${questionIndex}, chosenIndex=${chosenIndex}, userId=${userId}`);
+      try {
+        await handleAnswer(io, matchId, userId, questionIndex, chosenIndex);
+      } catch (err) {
+        console.error(`❌ [DEBUG index.js] Error handling answer from ${userId}:`, err);
+      }
     });
 
     // ─── Reconnection ────────────────────────────────────────
     socket.on('rejoin-match', ({ matchId }) => {
+      console.log(`🔍 [DEBUG index.js] rejoin-match: matchId=${matchId}, userId=${userId}`);
       const success = handleRejoin(io, socket, matchId, userId);
       if (success) {
         socket.emit('rejoin-success', { matchId });
@@ -191,7 +205,7 @@ export function registerQuizHandlers(io) {
 
     // ─── Disconnect ──────────────────────────────────────────
     socket.on('disconnect', () => {
-      console.log(`User disconnected: ${socket.user.name} (${socket.id})`);
+      console.log(`🔍 [DEBUG index.js] User disconnected: ${socket.user.name} (${socket.id}) userId=${userId}`);
 
       // Clean up queues
       leaveAllQueues(socket.id);
@@ -199,7 +213,15 @@ export function registerQuizHandlers(io) {
       // Check if in active match
       const matchId = userMatches.get(userId);
       if (matchId) {
-        handleDisconnect(io, userId, matchId);
+        const state = getActiveMatch(matchId);
+        if (state && state.status === 'playing') {
+          console.log(`🔍 [DEBUG index.js] Disconnect during active match ${matchId}, handling...`);
+          handleDisconnect(io, userId, matchId);
+        } else {
+          // Match ended or no active state — clean up userMatches
+          console.log(`🔍 [DEBUG index.js] Match ${matchId} not playing or no state, cleaning userMatches`);
+          userMatches.delete(userId);
+        }
       }
     });
   });
@@ -210,7 +232,10 @@ export function registerQuizHandlers(io) {
  */
 async function createAndStartMatch(io, player1, player2, subject, mode) {
   try {
-    console.log(`[Match] Creating match: ${player1.userName} vs ${player2.userName} (${subject}, ${mode})`);
+    console.log(`🔍 [DEBUG index.js] [createAndStartMatch] Creating match: ${player1.userName} vs ${player2.userName} (${subject}, ${mode})`);
+    console.log(`🔍 [DEBUG index.js] [createAndStartMatch] player1: id=${player1.userId}, socketId=${player1.socketId}, name=${player1.userName}`);
+    console.log(`🔍 [DEBUG index.js] [createAndStartMatch] player2: id=${player2.userId}, socketId=${player2.socketId}, name=${player2.userName}`);
+    
     const match = await QuizMatch.create({
       players: [
         { user: player1.userId },
@@ -237,7 +262,7 @@ async function createAndStartMatch(io, player1, player2, subject, mode) {
     if (s2) s2.join(`match:${matchId}`);
 
     // Notify both players
-    console.log(`[Match] Emitting match-found to ${matchId}`);
+    console.log(`🔍 [DEBUG index.js] [createAndStartMatch] Emitting match-found to match:${matchId}`);
     io.to(`match:${matchId}`).emit('match-found', {
       matchId,
       subject,
@@ -249,21 +274,13 @@ async function createAndStartMatch(io, player1, player2, subject, mode) {
     });
 
     // Auto-start after short delay
-    console.log(`[Match] Scheduling quiz start for match ${matchId} in 2s`);
+    console.log(`🔍 [DEBUG index.js] [createAndStartMatch] Scheduling quiz start for match ${matchId} in 2s`);
     setTimeout(() => {
-      console.log(`[Match] Timer fired, calling startQuiz for ${matchId}`);
+      console.log(`🔍 [DEBUG index.js] [createAndStartMatch] Timer fired, calling startQuiz for ${matchId}`);
       startQuiz(io, matchId);
     }, 2000);
-
-    // Cleanup user match tracking when quiz ends
-    match.on('save', () => {
-      if (match.status === 'finished' || match.status === 'cancelled') {
-        userMatches.delete(player1.userId);
-        userMatches.delete(player2.userId);
-      }
-    });
   } catch (error) {
-    console.error('Error creating match:', error);
+    console.error('❌ [DEBUG index.js] Error creating match:', error);
     io.to(player1.socketId).emit('error', { message: 'Failed to create match' });
     io.to(player2.socketId).emit('error', { message: 'Failed to create match' });
   }

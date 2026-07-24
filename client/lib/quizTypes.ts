@@ -42,6 +42,7 @@ export interface QuizMatchResult {
 
 // ─── Question ────────────────────────────────────────────────
 export interface QuizQuestion {
+  matchId?: string;
   index: number;
   total: number;
   question: string;
@@ -86,6 +87,7 @@ export interface ServerToClientEvents {
   'question': (data: QuizQuestion) => void;
   'answer-confirmed': (data: { questionIndex: number; chosenIndex: number; isCorrect: boolean; score: number; totalScore: number; timedOut?: boolean }) => void;
   'opponent-answered': (data: { questionIndex: number }) => void;
+  'both-answered': () => void;
   'question-result': (data: QuestionResult) => void;
   'quiz-end': (data: QuizMatchResult) => void;
   'opponent-disconnected': (data: { rejoinWindow: number }) => void;

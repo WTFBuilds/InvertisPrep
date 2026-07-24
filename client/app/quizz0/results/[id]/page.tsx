@@ -3,32 +3,107 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Trophy, RotateCcw, Home, History, Star, Target, Clock, Zap } from 'lucide-react';
+import { Trophy, RotateCcw, Home, History, Star, Target, Clock, Zap, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Spotlight } from '@/components/ui/spotlight';
-import { GlowCard } from '@/components/ui/glow-card';
 import { BackgroundGradient } from '@/components/ui/background-gradient';
-import { ResultBreakdown } from '@/components/quiz/ResultBreakdown';
-import { useQuizSocket } from '@/contexts/QuizSocketContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { SUBJECTS, QuizMatchResult } from '@/lib/quizTypes';
+import { useQuizSocket } from '@/contexts/QuizSocketContext';
+import { SUBJECTS } from '@/lib/quizTypes';
+
+const QUIZ_SERVER = process.env.NEXT_PUBLIC_QUIZ_SERVER_URL || 'http://localhost:5001';
+
+interface PlayerData {
+  user: { _id: string; name: string; picture?: string };
+  score: number;
+  correctCount: number;
+  answers: { questionIndex: number; chosenIndex: number; isCorrect: boolean; timeTaken: number }[];
+}
+
+interface MatchData {
+  _id: string;
+  subject: string;
+  mode: string;
+  status: string;
+  players: PlayerData[];
+  winner: { _id: string; name: string; picture?: string } | null;
+  startedAt: string;
+  finishedAt: string;
+  questions: { _id: string; question: string; options: string[]; correctIndex: number; explanation: string }[];
+}
 
 export default function ResultsPage() {
   const router = useRouter();
   const params = useParams();
   const matchId = params.id as string;
   const { user } = useAuth();
-  const { quizState, resetQuiz } = useQuizSocket();
-  const [result, setResult] = useState<QuizMatchResult | null>(quizState.result);
+  const { resetQuiz } = useQuizSocket();
+
+  const [match, setMatch] = useState<MatchData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch match data from quiz server REST API
+  useEffect(() => {
+    if (!matchId) return;
+
+    const fetchMatch = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        console.log('🔍 [DEBUG ResultsPage] Fetching match data for', matchId);
+        const res = await fetch(`${QUIZ_SERVER}/api/quiz/match/${matchId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        console.log('🔍 [DEBUG ResultsPage] API response:', data.success ? 'success' : 'failure', data.message || '');
+        if (data.success) {
+          setMatch(data.data);
+          console.log('🔍 [DEBUG ResultsPage] Match loaded:', JSON.stringify({
+            matchId: data.data._id,
+            winner: data.data.winner,
+            status: data.data.status,
+            players: data.data.players.map(p => ({
+              id: p.user?._id,
+              name: p.user?.name,
+              score: p.score,
+              correctCount: p.correctCount,
+              answers: p.answers?.length
+            }))
+          }));
+        } else {
+          setError(data.message || 'Match not found');
+        }
+      } catch (err) {
+        console.error('🔍 [DEBUG ResultsPage] Fetch error:', err);
+        setError('Failed to load match results');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMatch();
+  }, [matchId]);
 
   const myId = user?.id;
-  const me = result?.players.find((p) => p.id === myId);
-  const opponent = result?.players.find((p) => p.id !== myId);
-  const isWinner = result?.winner === myId;
-  const isDraw = result?.isDraw;
-  const subjectInfo = SUBJECTS.find((s) => s.id === result?.subject);
+  const me = match?.players.find((p) => p.user && (p.user._id === myId || p.user._id?.toString() === myId));
+  const opponent = match?.players.find((p) => p.user && p.user._id !== myId && p.user._id?.toString() !== myId);
+  const winnerId = (match?.winner as any)?._id || (match?.winner as any);
+  const isWinner = winnerId && (winnerId === myId || winnerId?.toString() === myId);
+  const isDraw = !match?.winner;
+
+  // Debug logging for winner determination
+  if (match) {
+    console.log('🔍 [DEBUG ResultsPage] ──── WINNER DETERMINATION ────');
+    console.log('🔍 [DEBUG ResultsPage] myId:', myId);
+    console.log('🔍 [DEBUG ResultsPage] me:', me?.user?._id, 'score:', me?.score, 'correct:', me?.correctCount);
+    console.log('🔍 [DEBUG ResultsPage] opponent:', opponent?.user?._id, 'score:', opponent?.score, 'correct:', opponent?.correctCount);
+    console.log('🔍 [DEBUG ResultsPage] match.winner (raw):', match.winner);
+    console.log('🔍 [DEBUG ResultsPage] winnerId (extracted):', winnerId);
+    console.log('🔍 [DEBUG ResultsPage] isWinner:', isWinner, '| isDraw:', isDraw);
+  }
+  const subjectInfo = SUBJECTS.find((s) => s.id === match?.subject);
 
   // Calculate stats
   const accuracy = me ? Math.round((me.correctCount / (me.answers?.length || 1)) * 100) : 0;
@@ -38,8 +113,8 @@ export default function ResultsPage() {
   const bestStreak = me?.answers?.reduce(
     (acc, a) => {
       if (a.isCorrect) acc.current += 1;
-      acc.current = a.isCorrect ? acc.current : 0;
       acc.best = Math.max(acc.best, acc.current);
+      if (!a.isCorrect) acc.current = 0;
       return acc;
     },
     { current: 0, best: 0 }
@@ -52,12 +127,39 @@ export default function ResultsPage() {
 
   const handleRematch = () => {
     resetQuiz();
-    if (result?.subject) {
-      router.push(`/quizz0/play?subject=${result.subject}`);
+    if (match?.subject) {
+      router.push(`/quizz0/play?subject=${match.subject}`);
     } else {
       router.push('/quizz0');
     }
   };
+
+  // Loading
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-500 mx-auto mb-4" />
+          <p className="text-gray-500">Loading results...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error
+  if (error || !match) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+        <Card className="p-8 max-w-md mx-4 text-center border-0 shadow-lg">
+          <p className="text-gray-900 font-semibold mb-2">Could not load results</p>
+          <p className="text-gray-500 text-sm mb-6">{error || 'Match not found'}</p>
+          <Button onClick={handlePlayAgain} className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
+            Back to Quizzo
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -109,7 +211,7 @@ export default function ResultsPage() {
             {subjectInfo?.icon} {subjectInfo?.name} Battle
           </motion.p>
 
-          {/* Score Comparison */}
+          {/* Score Comparison — correct answers */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -119,15 +221,17 @@ export default function ResultsPage() {
             <div className="text-center">
               <p className="text-sm text-gray-500 mb-1">You</p>
               <p className={`text-4xl font-bold ${isWinner ? 'text-yellow-400' : 'text-white'}`}>
-                {me?.score || 0}
+                {me?.correctCount || 0}<span className="text-lg text-gray-400">/10</span>
               </p>
+              <p className="text-xs text-gray-500 mt-1">{me?.score || 0} pts</p>
             </div>
             <span className="text-gray-600 text-lg font-medium">—</span>
             <div className="text-center">
-              <p className="text-sm text-gray-500 mb-1">{opponent?.name || 'Opponent'}</p>
+              <p className="text-sm text-gray-500 mb-1">{opponent?.user?.name || 'Opponent'}</p>
               <p className={`text-4xl font-bold ${!isWinner && !isDraw ? 'text-yellow-400' : 'text-white'}`}>
-                {opponent?.score || 0}
+                {opponent?.correctCount || 0}<span className="text-lg text-gray-400">/10</span>
               </p>
+              <p className="text-xs text-gray-500 mt-1">{opponent?.score || 0} pts</p>
             </div>
           </motion.div>
         </div>
@@ -160,50 +264,65 @@ export default function ResultsPage() {
         </div>
       </section>
 
-      {/* ─── Breakdown ─────────────────────────────────────── */}
+      {/* ─── Per-Question Breakdown ────────────────────────── */}
       <section className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
         <h2 className="text-xl font-bold text-gray-900 mb-6">Question Breakdown</h2>
-        {/* We don't have full question data in the result, so we show answer details */}
         {me?.answers && (
           <div className="space-y-3">
-            {me.answers.map((answer, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                className={`flex items-center gap-4 p-4 rounded-xl border-2 ${
-                  answer.isCorrect
-                    ? 'bg-green-50 border-green-200'
-                    : answer.chosenIndex === -1
-                    ? 'bg-yellow-50 border-yellow-200'
-                    : 'bg-red-50 border-red-200'
-                }`}
-              >
-                <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white flex-shrink-0 ${
-                  answer.isCorrect ? 'bg-green-500' :
-                  answer.chosenIndex === -1 ? 'bg-yellow-500' :
-                  'bg-red-500'
-                }`}>
-                  {idx + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">
-                    {answer.isCorrect ? 'Correct' :
-                     answer.chosenIndex === -1 ? 'Timed Out' :
-                     'Wrong'}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Time: {(answer.timeTaken / 1000).toFixed(1)}s
-                  </p>
-                </div>
-                <span className={`text-sm font-bold ${
-                  answer.score > 0 ? 'text-green-600' : 'text-gray-400'
-                }`}>
-                  +{answer.score}
-                </span>
-              </motion.div>
-            ))}
+            {me.answers.map((answer, idx) => {
+              const question = match.questions[answer.questionIndex];
+              const isCorrect = answer.isCorrect;
+              const choseTimeout = answer.chosenIndex === -1;
+
+              return (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  className={`flex items-center gap-4 p-4 rounded-xl border-2 ${
+                    isCorrect
+                      ? 'bg-green-50 border-green-200'
+                      : choseTimeout
+                      ? 'bg-yellow-50 border-yellow-200'
+                      : 'bg-red-50 border-red-200'
+                  }`}
+                >
+                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white flex-shrink-0 ${
+                    isCorrect ? 'bg-green-500' :
+                    choseTimeout ? 'bg-yellow-500' :
+                    'bg-red-500'
+                  }`}>
+                    {idx + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 mb-1 line-clamp-2">
+                      {question?.question || `Question ${idx + 1}`}
+                    </p>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      {!choseTimeout && question?.options && (
+                        <span className={`px-2 py-0.5 rounded-md font-medium ${
+                          isCorrect ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
+                        }`}>
+                          Your answer: {question.options[answer.chosenIndex]}
+                        </span>
+                      )}
+                      {!isCorrect && question?.options && (
+                        <span className="px-2 py-0.5 rounded-md bg-green-200 text-green-800 font-medium">
+                          Correct: {question.options[question.correctIndex]}
+                        </span>
+                      )}
+                      <span className="px-2 py-0.5 rounded-md bg-gray-200 text-gray-700 font-medium">
+                        {answer.isCorrect ? `+${calculatePoints(answer.timeTaken)}` : '+0'} pts
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-500">
+                        {(answer.timeTaken / 1000).toFixed(1)}s
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </section>
@@ -242,4 +361,13 @@ export default function ResultsPage() {
       </section>
     </div>
   );
+}
+
+function calculatePoints(timeTaken: number): number {
+  const timeRemaining = Math.max(0, 10000 - timeTaken);
+  const fraction = timeRemaining / 10000;
+  if (fraction >= 0.7) return 150;
+  if (fraction >= 0.4) return 130;
+  if (fraction >= 0.2) return 115;
+  return 105;
 }

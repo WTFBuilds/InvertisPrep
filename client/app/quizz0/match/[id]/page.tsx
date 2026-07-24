@@ -21,6 +21,13 @@ export default function ActiveQuizPage() {
   const { user } = useAuth();
   const { quizState, submitAnswer, rejoinMatch } = useQuizSocket();
 
+  // Sync matchId from URL into quizState if not already set
+  useEffect(() => {
+    if (matchId && quizState.matchId !== matchId) {
+      console.log(`🔍 [DEBUG MatchPage] Syncing matchId from URL: ${matchId}`);
+    }
+  }, [matchId, quizState.matchId]);
+
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [phase, setPhase] = useState<'answering' | 'waiting' | 'reveal' | 'next'>('answering');
@@ -32,6 +39,7 @@ export default function ActiveQuizPage() {
   // Redirect if no match
   useEffect(() => {
     if (quizState.status === 'finished' && quizState.result) {
+      console.log('🔍 [DEBUG MatchPage] Status finished + result exists, redirecting to results page');
       router.push(`/quizz0/results/${matchId}`);
     }
   }, [quizState.status, quizState.result, matchId, router]);
@@ -72,18 +80,20 @@ export default function ActiveQuizPage() {
 
   const handleSelectAnswer = useCallback((index: number) => {
     if (phase !== 'answering') return;
+    console.log(`🔍 [DEBUG MatchPage] Player selected answer: Q${quizState.questionIndex}, choice=${index}, matchId=${matchId}`);
     setSelectedAnswer(index);
-    submitAnswer(quizState.questionIndex, index);
+    submitAnswer(quizState.questionIndex, index, matchId);
     setPhase('waiting');
-  }, [phase, submitAnswer, quizState.questionIndex]);
+  }, [phase, submitAnswer, quizState.questionIndex, matchId]);
 
   const handleTimeUp = useCallback(() => {
     if (phase === 'answering') {
+      console.log(`🔍 [DEBUG MatchPage] Timer expired for Q${quizState.questionIndex}, submitting timeout, matchId=${matchId}`);
       // Submit -1 for timeout
-      submitAnswer(quizState.questionIndex, -1);
+      submitAnswer(quizState.questionIndex, -1, matchId);
       setPhase('waiting');
     }
-  }, [phase, submitAnswer, quizState.questionIndex]);
+  }, [phase, submitAnswer, quizState.questionIndex, matchId]);
 
   const handleRejoin = () => {
     rejoinMatch(matchId);
@@ -124,7 +134,7 @@ export default function ActiveQuizPage() {
           {question && (
             <Timer
               duration={question.timeLimit > 0 ? question.timeLimit : 10000}
-              isRunning={phase === 'answering'}
+              isRunning={phase === 'answering' && !quizState.bothAnswered}
               questionIndex={quizState.questionIndex}
               onTimeUp={handleTimeUp}
             />

@@ -7,10 +7,20 @@ import { History, Trophy, ArrowLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { fetcher } from '@/lib/fetcher';
 import { SUBJECTS, QuizSubject } from '@/lib/quizTypes';
 import { useAuth } from '@/contexts/AuthContext';
-import type { APIResponse } from '@/types';
+
+const QUIZ_SERVER = process.env.NEXT_PUBLIC_QUIZ_SERVER_URL || 'http://localhost:5001';
+
+// Custom fetcher that hits the quiz server directly
+const quizFetcher = async (url: string) => {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${QUIZ_SERVER}${url}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error('Failed to fetch');
+  return res.json();
+};
 
 interface MatchHistoryItem {
   _id: string;
@@ -42,9 +52,9 @@ export default function HistoryPage() {
   const queryParams = new URLSearchParams({ page: String(page), limit: '20' });
   if (subjectFilter) queryParams.set('subject', subjectFilter);
 
-  const { data, isLoading } = useSWR<APIResponse<{ matches: MatchHistoryItem[]; pagination: any }>>(
-    `/quiz/history?${queryParams}`,
-    fetcher,
+  const { data, isLoading } = useSWR<{ success: boolean; data: { matches: MatchHistoryItem[]; pagination: any } }>(
+    `/api/quiz/history?${queryParams}`,
+    quizFetcher,
     { revalidateOnFocus: false }
   );
 
@@ -107,7 +117,8 @@ export default function HistoryPage() {
               const subjectInfo = SUBJECTS.find((s) => s.id === match.subject);
               const me = match.players.find((p) => p.user?.name === user?.name || (p.user as any)?._id === user?.id);
               const opponent = match.players.find((p) => p.user?.name !== user?.name && (p.user as any)?._id !== user?.id);
-              const isWinner = match.winner?.name === user?.name || (match as any).winner === user?.id;
+              const winnerId = (match.winner as any)?._id || (match.winner as any);
+              const isWinner = winnerId === user?.id || winnerId?.toString() === user?.id;
               const isDraw = !match.winner && me?.score === opponent?.score;
 
               return (

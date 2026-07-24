@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Spotlight } from '@/components/ui/spotlight';
 import { useQuizSocket } from '@/contexts/QuizSocketContext';
+import { QuizAuthGuard } from '@/components/quiz/QuizAuthGuard';
 import { SUBJECTS, QuizSubject } from '@/lib/quizTypes';
 
 function MatchmakingContent() {
@@ -35,6 +36,9 @@ function MatchmakingContent() {
     if (countdownStarted.current) return;
     if (quizState.status !== 'countdown' || !quizState.matchId) return;
 
+    console.log('🔍 [DEBUG PlayPage] Match found! status=countdown, matchId=', quizState.matchId);
+    console.log('🔍 [DEBUG PlayPage] Players:', quizState.players.map(p => ({ id: p.id, name: p.name })));
+
     countdownStarted.current = true;
     redirectRef.current = `/quizz0/match/${quizState.matchId}`;
     setShowCountdown(true);
@@ -50,6 +54,7 @@ function MatchmakingContent() {
         // Redirect after brief pause
         setTimeout(() => {
           if (redirectRef.current) {
+            console.log('🔍 [DEBUG PlayPage] Redirecting to match page:', redirectRef.current);
             router.push(redirectRef.current);
           }
         }, 500);
@@ -223,8 +228,10 @@ function MatchmakingContent() {
 
 export default function MatchmakingPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-      <MatchmakingContent />
-    </Suspense>
+    <QuizAuthGuard>
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+        <MatchmakingContent />
+      </Suspense>
+    </QuizAuthGuard>
   );
 }

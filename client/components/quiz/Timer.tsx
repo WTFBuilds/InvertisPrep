@@ -16,7 +16,7 @@ export function Timer({ duration, isRunning, questionIndex, onTimeUp }: TimerPro
   onTimeUpRef.current = onTimeUp;
 
   const seconds = Math.ceil(remaining / 1000);
-  const fraction = remaining / duration;
+  const fraction = duration > 0 ? remaining / duration : 0;
 
   // Reset timer when question changes (questionIndex changes)
   useEffect(() => {
@@ -32,7 +32,8 @@ export function Timer({ duration, isRunning, questionIndex, onTimeUp }: TimerPro
         const next = prev - 100;
         if (next <= 0) {
           clearInterval(interval);
-          onTimeUpRef.current?.();
+          // Defer callback to avoid "setState during render" error
+          setTimeout(() => onTimeUpRef.current?.(), 0);
           return 0;
         }
         return next;
@@ -55,7 +56,7 @@ export function Timer({ duration, isRunning, questionIndex, onTimeUp }: TimerPro
   };
 
   const circumference = 2 * Math.PI * 40;
-  const strokeDashoffset = circumference * (1 - fraction);
+  const strokeDashoffset = fraction >= 0 ? circumference * (1 - fraction) : 0;
 
   return (
     <div className="relative flex items-center justify-center">
@@ -70,6 +71,7 @@ export function Timer({ duration, isRunning, questionIndex, onTimeUp }: TimerPro
           fill="none" stroke={getStrokeColor()}
           strokeWidth="4" strokeLinecap="round"
           strokeDasharray={circumference}
+          initial={{ strokeDashoffset: circumference }}
           animate={{ strokeDashoffset }}
           transition={{ duration: 0.1, ease: 'linear' }}
         />

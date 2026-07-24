@@ -8,10 +8,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { fetcher } from '@/lib/fetcher';
 import { SUBJECTS, QuizSubject } from '@/lib/quizTypes';
 import { useAuth } from '@/contexts/AuthContext';
-import type { APIResponse } from '@/types';
+
+const QUIZ_SERVER = process.env.NEXT_PUBLIC_QUIZ_SERVER_URL || 'http://localhost:5001';
+
+const quizFetcher = async (url: string) => {
+  const res = await fetch(`${QUIZ_SERVER}${url}`);
+  if (!res.ok) throw new Error('Failed to fetch');
+  return res.json();
+};
 
 interface LeaderboardEntry {
   rank: number;
@@ -39,9 +45,9 @@ export default function LeaderboardPage() {
   const [activeTab, setActiveTab] = useState('all');
 
   const subjectParam = activeTab !== 'all' ? `?subject=${activeTab}` : '';
-  const { data, isLoading } = useSWR<APIResponse<LeaderboardEntry[]>>(
-    `/quiz/leaderboard${subjectParam}`,
-    fetcher,
+  const { data, isLoading } = useSWR<{ success: boolean; data: LeaderboardEntry[] }>(
+    `/api/quiz/leaderboard${subjectParam}`,
+    quizFetcher,
     { revalidateOnFocus: false }
   );
 

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import mongoose from 'mongoose';
 import QuizMatch from '../models/QuizMatch.js';
 import { authenticateJWT } from '../middleware/auth.js';
 
@@ -44,7 +45,7 @@ router.get('/leaderboard', async (req, res) => {
       .slice(0, 50);
 
     // Fetch user details
-    const User = (await import('../models/Question.js')).default.db.model('User');
+    const User = mongoose.model('User');
     const userIds = leaderboard.map((e) => e.userId);
     const users = await User.find({ _id: { $in: userIds } }).select('name picture email').lean();
     const userMap = {};
@@ -106,19 +107,42 @@ router.get('/history', authenticateJWT, async (req, res) => {
 // ─── Match Details ──────────────────────────────────────────
 router.get('/match/:id', authenticateJWT, async (req, res) => {
   try {
-    const match = await QuizMatch.findById(req.params.id)
+    console.log(`🔍 [DEBUG quiz.js] GET /match/${req.params.id}`);
+
+    let match = await QuizMatch.findById(req.params.id)
       .populate('players.user', 'name picture')
       .populate('winner', 'name picture')
       .populate('questions')
       .lean();
 
     if (!match) {
+      console.warn(`⚠️ [DEBUG quiz.js] Match ${req.params.id} not found`);
       return res.status(404).json({ success: false, message: 'Match not found' });
+    }
+
+    console.log(`🔍 [DEBUG quiz.js] Match found: status=${match.status}, mode=${match.mode}`);
+    console.log(`🔍 [DEBUG quiz.js] winner (raw):`, match.winner);
+    match.players.forEach((p, i) => {
+      console.log(`🔍 [DEBUG quiz.js] Player ${i}: user=${p.user?._id || p.user}, score=${p.score}, correctCount=${p.correctCount}, answers=${p.answers?.length}`);
+    });
+
+    // Fallback: if populate left user as null, try to fill from raw data
+    if (match.players.some((p) => !p.user)) {
+      console.log(`🔍 [DEBUG quiz.js] Some players have null user, re-fetching without populate`);
+      match = await QuizMatch.findById(req.params.id)
+        .populate('questions')
+        .lean();
+      // Attach names from the raw player data if available
+      for (const player of match.players) {
+        if (!player.user) {
+          player.user = { _id: player.user, name: 'Unknown', picture: null };
+        }
+      }
     }
 
     res.json({ success: true, data: match });
   } catch (error) {
-    console.error('Match detail error:', error);
+    console.error('❌ [DEBUG quiz.js] Match detail error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });

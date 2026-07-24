@@ -11,6 +11,7 @@ import { Spotlight } from '@/components/ui/spotlight';
 import { WaitingSpinner } from '@/components/quiz/WaitingSpinner';
 import { useQuizSocket } from '@/contexts/QuizSocketContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { QuizAuthGuard } from '@/components/quiz/QuizAuthGuard';
 import { SUBJECTS, QuizSubject } from '@/lib/quizTypes';
 
 function CreateRoomContent() {
@@ -224,8 +225,10 @@ function CreateRoomContent() {
 
 export default function CreateRoomPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-      <CreateRoomContent />
-    </Suspense>
+    <QuizAuthGuard>
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+        <CreateRoomContent />
+      </Suspense>
+    </QuizAuthGuard>
   );
 }

@@ -12,19 +12,9 @@ import { registerQuizHandlers } from './socket/index.js';
 import quizRoutes from './routes/quiz.js';
 
 // Import all models so Mongoose registers schemas for ref lookups
+import './models/User.js';
 import './models/Question.js';
 import './models/QuizMatch.js';
-
-// Register User schema for ObjectId refs in QuizMatch
-const userSchema = new mongoose.Schema({
-  googleId: String,
-  email: { type: String, unique: true },
-  name: String,
-  picture: String,
-  role: { type: String, default: 'student' },
-  qcoins: { type: Number, default: 0 },
-}, { timestamps: true });
-mongoose.model('User', userSchema);
 
 const PORT = process.env.PORT || 5001;
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';

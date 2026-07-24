@@ -10,6 +10,7 @@ import { Spotlight } from '@/components/ui/spotlight';
 import { TextGenerateEffect } from '@/components/ui/text-generate-effect';
 import { BackgroundGradient } from '@/components/ui/background-gradient';
 import { SubjectCard } from '@/components/quiz/SubjectCard';
+import { QuizAuthGuard } from '@/components/quiz/QuizAuthGuard';
 import { useQuizSocket } from '@/contexts/QuizSocketContext';
 import { SUBJECTS, QuizSubject } from '@/lib/quizTypes';
 
@@ -24,6 +25,14 @@ const item = {
 };
 
 export default function QuizzoLandingPage() {
+  return (
+    <QuizAuthGuard>
+      <QuizzoContent />
+    </QuizAuthGuard>
+  );
+}
+
+function QuizzoContent() {
   const router = useRouter();
   const { isConnected } = useQuizSocket();
   const [selectedSubject, setSelectedSubject] = useState<QuizSubject | null>(null);

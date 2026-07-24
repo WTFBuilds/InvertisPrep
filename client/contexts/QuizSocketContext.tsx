@@ -34,6 +34,7 @@ interface QuizState {
   lastAnswer: PlayerAnswer | null;
   lastResult: QuestionResult | null;
   opponentAnswered: boolean;
+  bothAnswered: boolean;
   roomCode: string | null;
   opponentDisconnected: boolean;
   rejoinTimer: number;
@@ -48,7 +49,7 @@ interface QuizSocketContextType {
   createRoom: (subject: QuizSubject) => void;
   joinRoom: (roomCode: string) => void;
   startRoomMatch: (roomCode: string) => void;
-  submitAnswer: (questionIndex: number, chosenIndex: number) => void;
+  submitAnswer: (questionIndex: number, chosenIndex: number, matchIdOverride?: string) => void;
   rejoinMatch: (matchId: string) => void;
   resetQuiz: () => void;
 }
@@ -70,6 +71,7 @@ const initialState: QuizState = {
   lastAnswer: null,
   lastResult: null,
   opponentAnswered: false,
+  bothAnswered: false,
   roomCode: null,
   opponentDisconnected: false,
   rejoinTimer: 0,
@@ -135,7 +137,7 @@ export function QuizSocketProvider({ children }: { children: ReactNode }) {
 
     // ─── Match Events ────────────────────────────────
     socket.on('match-found', (data: MatchFoundPayload) => {
-      console.log('Match found!', data);
+      console.log('🔍 [DEBUG Client] match-found:', JSON.stringify(data));
       setQuizState((s) => ({
         ...s,
         matchId: data.matchId,
@@ -194,21 +196,24 @@ export function QuizSocketProvider({ children }: { children: ReactNode }) {
     });
 
     socket.on('question', (data) => {
-      console.log('Question received:', data.index, data.question);
+      console.log('🔍 [DEBUG Client] question received: Q' + data.index, data.question?.substring(0, 60), 'matchId=' + data.matchId);
       setQuizState((s) => ({
         ...s,
+        // Capture matchId from server if provided (fixes rejoin/navigation gap)
+        ...(data.matchId ? { matchId: data.matchId } : {}),
         currentQuestion: data,
         questionIndex: data.index,
         status: 'playing',
         lastAnswer: null,
         lastResult: null,
         opponentAnswered: false,
+        bothAnswered: false,
         opponentDisconnected: false,
       }));
     });
 
     socket.on('answer-confirmed', (data) => {
-      console.log('Answer confirmed:', data);
+      console.log('🔍 [DEBUG Client] answer-confirmed:', JSON.stringify(data));
       setQuizState((s) => ({
         ...s,
         lastAnswer: {
@@ -227,11 +232,18 @@ export function QuizSocketProvider({ children }: { children: ReactNode }) {
       setQuizState((s) => ({ ...s, opponentAnswered: true }));
     });
 
+    socket.on('both-answered', () => {
+      console.log('Both players answered — stopping timers');
+      setQuizState((s) => ({ ...s, bothAnswered: true }));
+    });
+
     socket.on('question-result', (data) => {
-      console.log('Question result:', data);
       const myId = myIdRef.current;
       const me = data.players.find((p) => p.id === myId);
       const opponent = data.players.find((p) => p.id !== myId);
+      console.log(`🔍 [DEBUG Client] question-result Q${data.index}: myId=${myId}`);
+      console.log(`🔍 [DEBUG Client] me: id=${me?.id}, totalScore=${me?.totalScore}, correctCount=${me?.correctCount}`);
+      console.log(`🔍 [DEBUG Client] opponent: id=${opponent?.id}, totalScore=${opponent?.totalScore}, correctCount=${opponent?.correctCount}`);
 
       setQuizState((s) => ({
         ...s,
@@ -244,7 +256,16 @@ export function QuizSocketProvider({ children }: { children: ReactNode }) {
     });
 
     socket.on('quiz-end', (data) => {
-      console.log('Quiz ended!', data);
+      console.log('🔍 [DEBUG Client] ═══════════════════════════════');
+      console.log('🔍 [DEBUG Client] ════ QUIZ END RECEIVED ════');
+      console.log('🔍 [DEBUG Client] matchId:', data.matchId);
+      console.log('🔍 [DEBUG Client] winner:', data.winner);
+      console.log('🔍 [DEBUG Client] isDraw:', data.isDraw);
+      console.log('🔍 [DEBUG Client] disconnectedPlayer:', data.disconnectedPlayer);
+      data.players.forEach((p) => {
+        console.log(`🔍 [DEBUG Client] Player: ${p.name || p.id}, score=${p.score}, correctCount=${p.correctCount}, answers=${p.answers?.length}`);
+      });
+      console.log('🔍 [DEBUG Client] ═══════════════════════════════');
       setQuizState((s) => ({
         ...s,
         status: 'finished',
@@ -314,9 +335,13 @@ export function QuizSocketProvider({ children }: { children: ReactNode }) {
     socketRef.current?.emit('start-room-match', { roomCode });
   }, []);
 
-  const submitAnswer = useCallback((questionIndex: number, chosenIndex: number) => {
-    const matchId = quizStateRef.current.matchId;
-    if (!matchId) return;
+  const submitAnswer = useCallback((questionIndex: number, chosenIndex: number, matchIdOverride?: string) => {
+    const matchId = matchIdOverride || quizStateRef.current.matchId;
+    console.log(`🔍 [DEBUG Client] submitAnswer: matchId=${matchId} (override=${matchIdOverride}, state=${quizStateRef.current.matchId}), Q${questionIndex}, choice=${chosenIndex}`);
+    if (!matchId) {
+      console.warn('⚠️ [DEBUG Client] submitAnswer aborted — no matchId (both override and state are null)');
+      return;
+    }
     socketRef.current?.emit('submit-answer', {
       matchId,
       questionIndex,
