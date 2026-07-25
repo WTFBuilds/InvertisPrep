@@ -64,7 +64,7 @@ export default function ResultsPage() {
             matchId: data.data._id,
             winner: data.data.winner,
             status: data.data.status,
-            players: data.data.players.map(p => ({
+            players: data.data.players.map((p: PlayerData) => ({
               id: p.user?._id,
               name: p.user?.name,
               score: p.score,
