@@ -2,8 +2,25 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { authApi } from '@/lib/api';
+import { authApi, resumeApi } from '@/lib/api';
 import type { User, LoginCredentials } from '@/types';
+
+// Guest resume localStorage utilities
+const GUEST_RESUME_KEY = 'resume-builder-guest-draft';
+
+function loadGuestResume() {
+  try {
+    const data = localStorage.getItem(GUEST_RESUME_KEY);
+    if (!data) return null;
+    return JSON.parse(data);
+  } catch {
+    return null;
+  }
+}
+
+function clearGuestResume() {
+  localStorage.removeItem(GUEST_RESUME_KEY);
+}
 
 interface AuthContextType {
   user: User | null;
@@ -11,6 +28,7 @@ interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updatedUser: User) => void;
+  migrateGuestResume: () => Promise<string | null>;
   isAdmin: boolean;
   isSuperAdmin: boolean;
 }
@@ -88,6 +106,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('user', JSON.stringify(updatedUser));
   };
 
+  const migrateGuestResume = async (): Promise<string | null> => {
+    try {
+      const guestResume = loadGuestResume();
+      if (!guestResume) return null;
+
+      const response = await resumeApi.create(guestResume);
+      if (response.data) {
+        clearGuestResume();
+        return response.data._id;
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to migrate guest resume:', error);
+      return null;
+    }
+  };
+
   const isAdmin = user?.role === 'admin' || user?.role === 'super-admin';
   const isSuperAdmin = user?.role === 'super-admin';
 
@@ -99,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         updateUser,
+        migrateGuestResume,
         isAdmin,
         isSuperAdmin,
       }}

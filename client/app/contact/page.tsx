@@ -1,289 +1,305 @@
 'use client';
 
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion } from 'framer-motion';
+import { Mail, MapPin, Instagram, Linkedin, Twitter, ExternalLink } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Mail, MapPin, Phone, Instagram, Linkedin } from 'lucide-react';
+import { BackgroundGradient } from '@/components/ui/background-gradient';
+import { ContactForm, FAQGrid } from '@/components/ui/faq-accordion';
+
+const socialLinks = [
+  { name: 'Instagram', icon: Instagram, href: 'https://www.instagram.com/invertisprep.in/', color: 'from-pink-500 to-purple-600' },
+  { name: 'LinkedIn', icon: Linkedin, href: 'https://www.linkedin.com/company/invertisprep/', color: 'from-blue-600 to-blue-700' },
+  { name: 'Twitter', icon: Twitter, href: 'https://twitter.com/invertisprep', color: 'from-sky-500 to-sky-600' },
+];
+
+const contactInfo = [
+  {
+    icon: Mail,
+    title: 'Email Us',
+    value: 'invertisprep@gmail.com',
+    href: 'mailto:invertisprep@gmail.com',
+    color: 'from-indigo-500 to-purple-600',
+    description: 'Our team typically responds within 24 hours.',
+  },
+  {
+    icon: MapPin,
+    title: 'Visit Us',
+    value: 'Invertis University, Bareilly',
+    href: 'https://maps.google.com/?q=Invertis+University+Bareilly',
+    color: 'from-purple-500 to-pink-600',
+    description: 'Bareilly, Uttar Pradesh, India',
+  },
+];
+
+const quickLinks = [
+  { name: 'Help & Support', href: '/support' },
+  { name: 'Privacy Policy', href: '/privacy-policy' },
+  { name: 'Terms of Service', href: '/terms-of-service' },
+  { name: 'Cancellation & Refunds', href: '/cancellation-and-refunds' },
+];
+
+const container = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 },
+  },
+};
+
+const item = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0 },
+};
 
 export default function ContactPage() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    subject: '',
-    message: '',
-  });
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // TODO: Implement contact form submission
-    setSubmitted(true);
-    setTimeout(() => {
-      setFormData({ name: '', email: '', subject: '', message: '' });
-      setSubmitted(false);
-    }, 3000);
-  };
-
-  const faqs = [
-    {
-      question: 'How do I report a technical issue?',
-      answer: 'You can report technical issues through this contact form or by directly emailing us at support@invertisprep.com with details of the problem you\'re experiencing.',
-    },
-    {
-      question: 'What are your support hours?',
-      answer: 'Our support team is available Monday through Friday from 9:00 AM to 5:00 PM IST. Email support is available 24/7, and we aim to respond within 24 hours.',
-    },
-    {
-      question: 'How can I provide feedback about the platform?',
-      answer: 'We welcome your feedback! You can use this contact form or email us at feedback@invertisprep.com with your suggestions, comments, or ideas for improvement.',
-    },
-    {
-      question: 'How do I request new features or study materials?',
-      answer: 'You can submit feature requests or study material suggestions through our contact form. Select "Feature Request" as the subject and provide details about what you\'d like to see.',
-    },
-  ];
-
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header Section */}
-      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 py-12">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Contact Us</h1>
-          <p className="text-xl text-gray-600 mb-2">
-            Have questions or need assistance? We're here to help. Reach out to us and we'll get back to you as soon as possible.
-          </p>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        {/* Contact Info Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          {/* Email Card */}
-          <Card className="hover:shadow-lg transition-all">
-            <CardHeader>
-              <div className="flex items-center gap-3 mb-2">
-                <Mail className="h-8 w-8 text-indigo-600" />
-                <CardTitle>Email Us</CardTitle>
-              </div>
-              <CardDescription>Our friendly team is here to help.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <a href="mailto:invertisprep@gmail.com" className="text-indigo-600 hover:text-indigo-700 font-medium break-all">
-                invertisprep@gmail.com
-              </a>
-            </CardContent>
-          </Card>
-
-          {/* Address Card */}
-          <Card className="hover:shadow-lg transition-all">
-            <CardHeader>
-              <div className="flex items-center gap-3 mb-2">
-                <MapPin className="h-8 w-8 text-purple-600" />
-                <CardTitle>Visit Us</CardTitle>
-              </div>
-              <CardDescription>Come say hello at our campus.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-700 text-sm">
-                Invertis University<br />
-                Bareilly, Uttar Pradesh, India
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Phone Card */}
-          <Card className="hover:shadow-lg transition-all">
-            <CardHeader>
-              <div className="flex items-center gap-3 mb-2">
-                <Phone className="h-8 w-8 text-pink-600" />
-                <CardTitle>Call Us</CardTitle>
-              </div>
-              <CardDescription>Mon-Fri from 8am to 5pm.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <a href="tel:+917084089921" className="text-pink-600 hover:text-pink-700 font-medium">
-                +91 (708) 408-9921
-              </a>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
-          {/* Contact Form */}
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Send Us a Message</h2>
-            <p className="text-gray-600 mb-6">
-              Fill out the form below and we'll get back to you as soon as possible.
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      {/* Hero Section */}
+      <BackgroundGradient className="py-20 sm:py-28">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 tracking-tight mb-6">
+              Get in Touch
+            </h1>
+            <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
+              Have questions or feedback? We&apos;d love to hear from you.
+              Our team is here to help and typically responds within 24 hours.
             </p>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                  Name
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="Your name"
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-              </div>
+          </motion.div>
+        </div>
+      </BackgroundGradient>
 
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="your.email@example.com"
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-              </div>
+      {/* Contact Info Cards */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 relative z-10">
+        <motion.div
+          variants={container}
+          initial="hidden"
+          animate="show"
+          className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto"
+        >
+          {contactInfo.map((info, idx) => (
+            <motion.div key={idx} variants={item}>
+              <a href={info.href} target="_blank" rel="noopener noreferrer" className="block h-full">
+                <Card className="h-full hover:shadow-xl transition-all duration-300 border-0 shadow-lg group">
+                  <CardContent className="p-8">
+                    <div className="flex items-start gap-5">
+                      <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${info.color} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300`}>
+                        <info.icon className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1 flex items-center gap-2">
+                          {info.title}
+                          <ExternalLink className="h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </h3>
+                        <p className="text-gray-900 font-medium truncate">{info.value}</p>
+                        <p className="text-sm text-gray-500 mt-1">{info.description}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </a>
+            </motion.div>
+          ))}
+        </motion.div>
+      </section>
 
-              <div>
-                <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
-                  Subject
-                </label>
-                <input
-                  id="subject"
-                  type="text"
-                  name="subject"
-                  value={formData.subject}
-                  onChange={handleChange}
-                  placeholder="How can we help you?"
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-              </div>
+      {/* Main Content */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="grid lg:grid-cols-[1fr_400px] gap-12 lg:gap-16">
+          {/* Contact Form */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+              Send us a message
+            </h2>
+            <p className="text-gray-500 mb-8">
+              Fill out the form below and we&apos;ll get back to you as soon as possible.
+            </p>
+            <Card className="border-0 shadow-lg">
+              <CardContent className="p-8">
+                <ContactForm />
+              </CardContent>
+            </Card>
+          </motion.div>
 
-              <div>
-                <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
-                  Message
-                </label>
-                <textarea
-                  id="message"
-                  name="message"
-                  value={formData.message}
-                  onChange={handleChange}
-                  placeholder="Your message..."
-                  rows={6}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700"
-              >
-                Send Message
-              </Button>
-
-              {submitted && (
-                <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg text-center">
-                  Thank you for reaching out! We'll get back to you soon.
-                </div>
-              )}
-            </form>
-          </div>
-
-          {/* Office Info */}
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Visit Our Office</h2>
-
-            {/* Office Details */}
-            <Card className="mb-6">
+          {/* Sidebar */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="space-y-6"
+          >
+            {/* Quick Links */}
+            <Card className="border-0 shadow-lg">
               <CardHeader>
-                <CardTitle>Invertis University</CardTitle>
+                <CardTitle className="text-lg font-semibold">Quick Links</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Address</h4>
-                  <p className="text-gray-600 text-sm">
-                    Bareilly - Lucknow National Highway-24,<br />
-                    Bareilly, Uttar Pradesh 243123
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Opening Hours</h4>
-                  <ul className="text-gray-600 text-sm space-y-1">
-                    <li><strong>Monday - Friday:</strong> 9:00 AM - 5:00 PM</li>
-                    <li><strong>Saturday:</strong> 9:00 AM - 1:00 PM</li>
-                    <li><strong>Sunday:</strong> Closed</li>
-                  </ul>
+              <CardContent>
+                <div className="space-y-3">
+                  {quickLinks.map((link, idx) => (
+                    <a
+                      key={idx}
+                      href={link.href}
+                      className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+                    >
+                      <span className="text-sm font-medium text-gray-700 group-hover:text-indigo-600 transition-colors">
+                        {link.name}
+                      </span>
+                      <ExternalLink className="h-4 w-4 text-gray-400 group-hover:text-indigo-500 transition-colors" />
+                    </a>
+                  ))}
                 </div>
               </CardContent>
             </Card>
 
             {/* Social Links */}
-            <Card>
+            <Card className="border-0 shadow-lg">
               <CardHeader>
-                <CardTitle>Connect With Us</CardTitle>
+                <CardTitle className="text-lg font-semibold">Connect With Us</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex gap-4">
-                  <a
-                    href="https://www.linkedin.com/company/invertisprep/"
-                    className="p-3 bg-pink-50 text-blue-600 rounded-lg hover:bg-pink-100 transition"
-                  >
-                    <Linkedin className="h-5 w-5" />
-                  </a>
-                  <a
-                    href="https://www.instagram.com/invertisprep.in/"
-                    className="p-3 bg-pink-50 text-pink-600 rounded-lg hover:bg-pink-100 transition"
-                  >
-                    <Instagram className="h-5 w-5" />
-                  </a>
+                <div className="grid grid-cols-3 gap-3">
+                  {socialLinks.map((social, idx) => (
+                    <motion.a
+                      key={idx}
+                      href={social.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors group"
+                      whileHover={{ y: -3 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <social.icon className="h-5 w-5 text-gray-600 group-hover:text-indigo-600 transition-colors" />
+                      <span className="text-xs font-medium text-gray-600 group-hover:text-indigo-600 transition-colors">
+                        {social.name}
+                      </span>
+                    </motion.a>
+                  ))}
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </div>
 
-        {/* FAQ Section */}
-        <div className="mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2 text-center">Frequently Asked Questions</h2>
-          <p className="text-gray-600 text-center mb-8">Find answers to common questions about our platform</p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {faqs.map((faq, idx) => (
-              <Card key={idx}>
-                <CardHeader>
-                  <CardTitle className="text-lg">{faq.question}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-600 text-sm">{faq.answer}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+            {/* Support Hours */}
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-indigo-50 to-purple-50">
+              <CardContent className="p-6">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Support Hours</h3>
+                <div className="space-y-2 text-sm text-gray-600">
+                  <div className="flex justify-between">
+                    <span>Monday - Friday</span>
+                    <span className="font-medium">9:00 AM - 6:00 PM</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Saturday</span>
+                    <span className="font-medium">10:00 AM - 2:00 PM</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Sunday</span>
+                    <span className="font-medium text-gray-400">Closed</span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-4">
+                  *IST (Indian Standard Time)
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
+      </section>
 
-        {/* Footer Info */}
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-8 text-center">
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">InvertisPrep</h3>
-          <p className="text-gray-600">
-            Your gateway to academic excellence at Invertis University
-          </p>
+      {/* FAQ Section */}
+      <section className="bg-gray-50 py-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-gray-600 text-lg">
+              Quick answers to common questions
+            </p>
+          </motion.div>
+
+          <FAQGrid
+            items={[
+              {
+                question: 'How do I sign up?',
+                answer: 'Click the "Sign In" button and use your Google account to authenticate. Your account will be created automatically on first login.',
+              },
+              {
+                question: 'Are PYQ papers free?',
+                answer: 'Yes! All PYQ papers on InvertisPrep are completely free to download and use for educational purposes.',
+              },
+              {
+                question: 'How do I download papers?',
+                answer: 'Browse to the desired department, use filters to find papers, and click the "Download PDF" button to download.',
+              },
+              {
+                question: 'Is my data safe?',
+                answer: 'Yes, we use industry-standard security measures and OAuth 2.0 for authentication. See our Privacy Policy for details.',
+              },
+              {
+                question: 'Can I upload papers?',
+                answer: 'Only admin users can upload papers. If you\'d like to contribute, please contact us through this form.',
+              },
+              {
+                question: 'How do I report an issue?',
+                answer: 'Use this contact form or email us at invertisprep@gmail.com with details of the problem you\'re experiencing.',
+              },
+            ]}
+          />
         </div>
-      </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <BackgroundGradient className="rounded-3xl">
+            <Card className="border-0 shadow-2xl overflow-hidden">
+              <CardContent className="p-10 sm:p-12 text-center">
+                <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                  Still have questions?
+                </h2>
+                <p className="text-gray-600 mb-8 max-w-lg mx-auto">
+                  Can&apos;t find what you&apos;re looking for? Our support team is ready to help you with anything you need.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Button
+                    asChild
+                    className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-8 py-6 text-base"
+                  >
+                    <a href="mailto:invertisprep@gmail.com">
+                      <Mail className="h-5 w-5 mr-2" />
+                      Email Us Directly
+                    </a>
+                  </Button>
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="px-8 py-6 text-base border-gray-200"
+                  >
+                    <a href="/support">
+                      Visit Help Center
+                    </a>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </BackgroundGradient>
+        </div>
+      </section>
     </div>
   );
 }

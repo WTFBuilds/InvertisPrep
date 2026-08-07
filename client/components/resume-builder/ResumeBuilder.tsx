@@ -5,9 +5,11 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { resumeApi } from '@/lib/api';
+import { resumeApi, walletApi } from '@/lib/api';
 import type { Resume, ResumeDraft, ResumeEducation, ResumeExperience, ResumeLink, ResumeProject } from '@/types';
-import { CheckCircle2, Clock, Download, FileUp, LayoutDashboard, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react';
+import { CheckCircle2, Clock, Coins, CreditCard, Download, FileUp, Gift, LayoutDashboard, Loader2, Plus, Printer, Save, Shield, Sparkles, Trash2, Wallet } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { SavePromptModal } from './SavePromptModal';
 
 const emptyEducation = (): ResumeEducation => ({ institution: '', degree: '', startDate: '', endDate: '' });
 const emptyExperience = (): ResumeExperience => ({ company: '', role: '', description: '', achievements: [''], startDate: '', endDate: '' });
@@ -132,13 +134,29 @@ function formatDate(value: string) {
   return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
+// Global flag to suppress beforeunload during OAuth redirect
+export const navigationFlag = { suppress: false };
+
+// Minimal localStorage helper — only used to stash draft before OAuth redirect
+const GUEST_RESUME_KEY = 'resume-builder-guest-draft';
+function stashGuestResume(draft: ResumeDraft): void {
+  try { localStorage.setItem(GUEST_RESUME_KEY, JSON.stringify(draft)); } catch { /* noop */ }
+}
+export function clearGuestResume(): void {
+  localStorage.removeItem(GUEST_RESUME_KEY);
+}
+
 export function ResumeBuilder() {
-  const { user, loading } = useAuth();
+  const { user, loading, updateUser } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [resume, setResume] = useState<Resume | null>(null);
   const [booting, setBooting] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Save prompt modal state for guest users (declared early for beforeunload guard)
+  const [showSavePrompt, setShowSavePrompt] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
 
   // Task 3: dirty flag + saved timestamp for autosave indicator
   const [isDirty, setIsDirty] = useState(false);
@@ -149,16 +167,33 @@ export function ResumeBuilder() {
   const loadedIdRef = useRef<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
-  // Task 1: auth redirect — also unblock booting when user is definitively null
-  useEffect(() => {
-    if (!loading && !user) {
-      setBooting(false);
-      router.replace('/login');
-    }
-  }, [loading, user, router]);
+  // Guest mode: allow access without login
+  // Auth redirect removed to support guest resume building
 
   // Task 1: id-keyed load effect — re-runs whenever ?id changes
   const idParam = searchParams.get('id');
+
+  // Guest mode load effect - creates fresh starter in memory (no localStorage)
+  useEffect(() => {
+    if (user) return; // Only for guests
+    if (loadedIdRef.current) return; // Already loaded
+
+    setBooting(true);
+    const starterDraft = createStarterResume();
+    const resumeWithId: Resume = {
+      ...starterDraft,
+      _id: `guest-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setResume(resumeWithId);
+    loadedIdRef.current = resumeWithId._id;
+    setIsDirty(false);
+    setSavedAt(null);
+    setBooting(false);
+  }, [user]);
+
+  // Logged-in user load effect - uses server API
   useEffect(() => {
     if (!user) return;
     // Skip if the ?id we want is already loaded
@@ -209,17 +244,24 @@ export function ResumeBuilder() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, idParam]);
 
-  // Task 3: debounced autosave — fires 2s after last edit when isDirty
+  // Task 3: debounced autosave — fires 2s after last edit when isDirty (logged-in only)
   const saveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const save = useCallback(async (draft = resume, isAuto = false) => {
     if (!draft) return;
+
+    // Guest: show login prompt instead of saving
+    if (!user) {
+      if (!isAuto) setShowSavePrompt(true);
+      return;
+    }
+
+    // Logged-in: save to server
     setSaving(true);
     try {
       await resumeApi.update(draft._id, toDraft(draft));
       setIsDirty(false);
       setSavedAt(new Date());
       if (!isAuto) toast.success('Resume saved');
-      // Show the autosave toast only once per session
       if (isAuto && !firstAutosaveToastShown.current) {
         firstAutosaveToastShown.current = true;
         toast.success('Resume autosaved');
@@ -229,25 +271,31 @@ export function ResumeBuilder() {
     } finally {
       setSaving(false);
     }
-  }, [resume]);
+  }, [resume, user]);
 
   useEffect(() => {
-    if (booting || !isDirty || !resume) return;
+    if (booting || !isDirty || !resume || !user) return; // No autosave for guests
     if (saveRef.current) clearTimeout(saveRef.current);
     saveRef.current = setTimeout(() => { void save(resume, true); }, 2000);
     return () => { if (saveRef.current) clearTimeout(saveRef.current); };
-  }, [resume, isDirty, booting, save]);
+  }, [resume, isDirty, booting, save, user]);
 
   // Task 4: beforeunload guard — warn when there are unsaved changes
+  // Skip when SavePromptModal is open (user is about to sign in)
   useEffect(() => {
-    if (!isDirty) return;
+    if (!isDirty || showSavePrompt) return;
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (navigationFlag.suppress) return;
       e.preventDefault();
       e.returnValue = '';
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [isDirty]);
+  }, [isDirty, showSavePrompt]);
+
+  // Navigation guard for guest users with unsaved changes
+  // Note: Next.js App Router doesn't support router.events, so we handle navigation
+  // through Link click handlers and beforeunload events instead
 
   // Mark dirty on every edit
   const update = (patch: Partial<Resume>) => {
@@ -259,8 +307,52 @@ export function ResumeBuilder() {
     setIsDirty(true);
   };
 
-  const exportJson = () => {
+  // Download modal state
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [downloading, setDownloading] = useState<'free' | 'coins' | 'razorpay' | 'watermark' | null>(null);
+
+  // Print without watermark: temporarily hide overlay, print, restore
+  const printClean = () => {
+    document.documentElement.classList.add('printing-clean');
+    window.print();
+    // restore after print dialog closes (listen for afterprint or fallback timeout)
+    const restore = () => {
+      document.documentElement.classList.remove('printing-clean');
+      window.removeEventListener('afterprint', restore);
+    };
+    window.addEventListener('afterprint', restore);
+    setTimeout(restore, 3000); // fallback
+  };
+
+  const handleDownload = async (method: 'free' | 'coins' | 'razorpay' | 'watermark') => {
+    if (method === 'watermark') {
+      window.print();
+      setShowDownloadModal(false);
+      return;
+    }
+    if (method === 'razorpay') {
+      toast.info('Razorpay payment coming soon! Use QCoins or buy a pack.');
+      return;
+    }
     if (!resume) return;
+    setDownloading(method);
+    try {
+      const res = await walletApi.spendDownload(resume._id, method);
+      if (res.success && res.data) {
+        updateUser({ ...user!, qcoins: res.data.qcoins, freeDownloadsLeft: res.data.freeDownloadsLeft });
+        setShowDownloadModal(false);
+        toast.success(method === 'free' ? 'Free download used — printing now!' : '200 QCoins spent — printing now!');
+        setTimeout(printClean, 300);
+      }
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Download failed';
+      toast.error(msg);
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const exportJson = () => {    if (!resume) return;
     const url = URL.createObjectURL(new Blob([JSON.stringify(toDraft(resume), null, 2)], { type: 'application/json' }));
     const link = document.createElement('a');
     link.href = url;
@@ -294,6 +386,9 @@ export function ResumeBuilder() {
 
   // Task 3: save status indicator label
   const SaveStatus = () => {
+    if (!user && isDirty) {
+      return <span className="flex items-center gap-1 text-xs text-amber-600 font-medium"><Clock size={12}/> Not saved — <button onClick={() => setShowSavePrompt(true)} className="underline">Sign in</button></span>;
+    }
     if (saving) return <span className="flex items-center gap-1 text-xs text-slate-400"><Loader2 className="animate-spin" size={12}/> Saving…</span>;
     if (!isDirty && savedAt) return <span className="flex items-center gap-1 text-xs text-slate-400"><CheckCircle2 size={12} className="text-green-500"/> Saved {savedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>;
     if (!isDirty && !savedAt) return <span className="flex items-center gap-1 text-xs text-slate-400"><CheckCircle2 size={12} className="text-green-500"/> All changes saved</span>;
@@ -310,11 +405,28 @@ export function ResumeBuilder() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <SaveStatus />
-            <Link className="resume-tool" href="/resumes"><LayoutDashboard size={16}/> My resumes</Link>
+            <Link
+              className="resume-tool"
+              href="/resumes"
+              onClick={(e) => {
+                if (!user && isDirty) {
+                  e.preventDefault();
+                  setPendingNavigation('/resumes');
+                  setShowSavePrompt(true);
+                }
+              }}
+            >
+              <LayoutDashboard size={16}/> My resumes
+            </Link>
             <button className="resume-tool" onClick={() => importRef.current?.click()}><FileUp size={16}/> Import</button>
             <button className="resume-tool" onClick={exportJson}><Download size={16}/> Export</button>
-            <button className="resume-tool" onClick={() => window.print()}><Printer size={16}/> PDF</button>
-            <button className="resume-tool-primary" disabled={saving} onClick={() => save(resume, false)}>
+            <button className="resume-tool" onClick={() => {
+              if (!user) {
+                setShowSavePrompt(true);
+              } else {
+                setShowDownloadModal(true);
+              }
+            }}><Printer size={16}/> PDF</button>            <button className="resume-tool-primary" disabled={saving} onClick={() => save(resume, false)}>
               {saving ? <Loader2 className="animate-spin" size={16}/> : <Save size={16}/>} Save
             </button>
             <input ref={importRef} className="hidden" type="file" accept="application/json,.json" onChange={importJson} />
@@ -325,7 +437,174 @@ export function ResumeBuilder() {
           <ResumePreview resume={resume} />
         </div>
       </div>
+      <DownloadModal
+        open={showDownloadModal}
+        onClose={() => setShowDownloadModal(false)}
+        qcoins={user?.qcoins ?? 0}
+        freeDownloadsLeft={user?.freeDownloadsLeft ?? 0}
+        downloading={downloading}
+        onDownload={handleDownload}
+      />
+      <SavePromptModal
+        open={showSavePrompt}
+        onOpenChange={setShowSavePrompt}
+        onSaveAndLogin={() => {
+          // Stash draft to localStorage so login page migration can pick it up
+          // Don't close the modal here — it will unmount when the page navigates
+          if (resume) stashGuestResume(toDraft(resume));
+        }}
+        onDiscard={() => {
+          // Discard changes and allow navigation
+          clearGuestResume();
+          setPendingNavigation(null);
+          setShowSavePrompt(false);
+        }}
+      />
     </div>
+  );
+}
+
+// ─── DownloadModal ─────────────────────────────────────────────────────────────
+function DownloadModal({
+  open, onClose, qcoins, freeDownloadsLeft, downloading, onDownload,
+}: {
+  open: boolean;
+  onClose: () => void;
+  qcoins: number;
+  freeDownloadsLeft: number;
+  downloading: 'free' | 'coins' | 'razorpay' | 'watermark' | null;
+  onDownload: (method: 'free' | 'coins' | 'razorpay' | 'watermark') => void;
+}) {
+  const canFree  = freeDownloadsLeft > 0;
+  const canCoins = qcoins >= 200;
+
+  const OptionButton = ({
+    method, icon, title, subtitle, badge, disabled, accent,
+  }: {
+    method: 'free' | 'coins' | 'razorpay' | 'watermark';
+    icon: React.ReactNode;
+    title: string;
+    subtitle: React.ReactNode;
+    badge?: string;
+    disabled?: boolean;
+    accent?: string;
+  }) => {
+    const isLoading = downloading === method;
+    return (
+      <button
+        onClick={() => !disabled && onDownload(method)}
+        disabled={disabled || downloading !== null}
+        className={`group relative flex w-full items-center gap-4 rounded-xl border-2 p-4 text-left transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed
+          ${disabled
+            ? 'border-slate-100 bg-slate-50'
+            : accent === 'indigo'
+              ? 'border-indigo-200 bg-indigo-50/50 hover:border-indigo-400 hover:bg-indigo-50 hover:shadow-sm'
+              : accent === 'emerald'
+                ? 'border-emerald-200 bg-emerald-50/50 hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-sm'
+                : accent === 'purple'
+                  ? 'border-purple-200 bg-purple-50/50 hover:border-purple-400 hover:bg-purple-50 hover:shadow-sm'
+                  : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
+          }`}
+      >
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg
+          ${accent === 'emerald' ? 'bg-emerald-100 text-emerald-600' :
+            accent === 'indigo'  ? 'bg-indigo-100 text-indigo-600' :
+            accent === 'purple'  ? 'bg-purple-100 text-purple-600' :
+            'bg-slate-100 text-slate-500'}`}
+        >
+          {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="font-semibold text-slate-900 text-sm">{title}</p>
+            {badge && (
+              <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
+                {badge}
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
+        </div>
+        {!disabled && downloading === null && (
+          <Download className="h-4 w-4 shrink-0 text-slate-300 transition group-hover:text-slate-500" />
+        )}
+      </button>
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-slate-900">
+            <Printer className="h-5 w-5 text-indigo-600" />
+            Download PDF
+          </DialogTitle>
+          <DialogDescription>
+            Choose how you'd like to download your resume.
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* balance pill */}
+        <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs">
+          <Coins className="h-4 w-4 text-indigo-500" />
+          <span className="font-semibold text-slate-700">{qcoins.toLocaleString('en-IN')} QCoins</span>
+          <span className="mx-1 text-slate-300">·</span>
+          <Gift className="h-4 w-4 text-emerald-500" />
+          <span className="font-semibold text-slate-700">{freeDownloadsLeft} free download{freeDownloadsLeft !== 1 ? 's' : ''} left</span>
+          <Link href="/wallet" className="ml-auto flex items-center gap-1 text-indigo-600 hover:underline font-medium">
+            <Wallet className="h-3 w-3" /> Top up
+          </Link>
+        </div>
+
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Watermark-free</p>
+
+        <div className="space-y-2">
+          <OptionButton
+            method="free"
+            icon={<Gift className="h-5 w-5" />}
+            title={`Use free trial ${canFree ? `(${freeDownloadsLeft} remaining)` : '(none left)'}`}
+            subtitle="Download a clean, watermark-free PDF — no coins needed."
+            badge={canFree ? 'FREE' : undefined}
+            disabled={!canFree}
+            accent="emerald"
+          />
+          <OptionButton
+            method="coins"
+            icon={<Coins className="h-5 w-5" />}
+            title={`Spend 200 QCoins ${!canCoins ? `(need ${200 - qcoins} more)` : ''}`}
+            subtitle={`You have ${qcoins.toLocaleString('en-IN')} QCoins. Each watermark-free download costs 200 QC.`}
+            disabled={!canCoins}
+            accent="indigo"
+          />
+          <OptionButton
+            method="razorpay"
+            icon={<CreditCard className="h-5 w-5" />}
+            title="Pay ₹19.99"
+            subtitle={<span>Razorpay coming soon. <span className="line-through text-slate-400">₹99.99</span> <span className="font-bold text-rose-500">₹19.99</span> — Limited offer!</span>}
+            accent="purple"
+          />
+        </div>
+
+        <div className="relative my-1 flex items-center gap-3">
+          <div className="flex-1 border-t border-slate-200" />
+          <span className="text-xs text-slate-400">or</span>
+          <div className="flex-1 border-t border-slate-200" />
+        </div>
+
+        <OptionButton
+          method="watermark"
+          icon={<Sparkles className="h-5 w-5" />}
+          title="Download with watermark"
+          subtitle="Always free. The InvertisPrep watermark will be visible on the PDF."
+        />
+
+        <p className="text-center text-[11px] text-slate-400">
+          <Shield className="mr-1 inline h-3 w-3" />
+          Watermark-free downloads are for your personal use only.
+        </p>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -384,7 +663,28 @@ function ProjectEditor({ item, onChange, onRemove }: { item: ResumeProject; onCh
 function ResumePreview({ resume }: { resume: Resume }) {
   const p = resume.personal;
   const hasLeft = resume.summary || resume.education.length || resume.skillGroups.some((group) => group.items.some(Boolean)) || resume.achievements.some(Boolean) || resume.languages.some(Boolean) || resume.certifications.some(Boolean);
-  return <section className="resume-preview-wrap overflow-auto rounded-xl bg-slate-200 p-3 shadow-inner sm:p-5"><article className="resume-page mx-auto bg-white text-black shadow-xl">
+
+  // Enough repeated tiles to fill the diagonal overlay at any scroll position
+  const watermarkTiles = Array.from({ length: 60 });
+
+  return (
+    <section className="resume-preview-wrap relative overflow-auto rounded-xl bg-slate-200 p-3 shadow-inner sm:p-5 select-none">
+      {/* Print-only centred watermark */}
+      <div className="resume-print-watermark" aria-hidden="true">INVERTISPREP</div>
+
+      <article
+        className="resume-page mx-auto bg-white text-black shadow-xl"
+        onCopy={(e) => e.preventDefault()}
+        onCut={(e) => e.preventDefault()}
+      >
+        {/* Diagonal watermark grid — inside the page so it covers all content when scrolling */}
+        <div className="resume-preview-watermark" aria-hidden="true">
+          <div className="resume-preview-watermark-inner">
+            {watermarkTiles.map((_, i) => (
+              <span key={i}>INVERTISPREP</span>
+            ))}
+          </div>
+        </div>
     <header className="border-b border-slate-300 pb-3 text-center">
       <h1 className="text-[22px] font-bold uppercase tracking-wide">{p.name || 'Your Name'}</h1>
       {p.headline && <p className="mt-0.5 text-[15px]">{p.headline}</p>}
@@ -406,7 +706,9 @@ function ResumePreview({ resume }: { resume: Resume }) {
       </main> : null}
     </div>
     <footer className="resume-watermark">Made with www.invertisprep.in</footer>
-  </article></section>;
+      </article>
+    </section>
+  );
 }
 
 function PreviewSection({ title, children }: { title: string; children: React.ReactNode }) { return <section className="mb-4"><h2 className="mb-1 border-b-2 border-slate-300 pb-0.5 text-[15px] font-bold">{title}</h2><div className="resume-content">{children}</div></section>; }

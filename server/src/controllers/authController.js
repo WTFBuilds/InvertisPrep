@@ -3,6 +3,22 @@ import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
 import { verifyGoogleToken } from '../services/googleAuthService.js';
 
+// Centralised user shape so every response stays consistent
+const formatUser = (user) => ({
+  id: user._id,
+  email: user.email,
+  name: user.name,
+  role: user.role,
+  picture: user.picture,
+  studentId: user.studentId || '',
+  phoneNumber: user.phoneNumber || '',
+  course: user.course || '',
+  followers: user.followers || [],
+  following: user.following || [],
+  qcoins: user.qcoins ?? 0,
+  freeDownloadsLeft: user.freeDownloadsLeft ?? 2,
+});
+
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -45,18 +61,7 @@ export const login = async (req, res) => {
     res.json({
       success: true,
       token,
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        picture: user.picture,
-        studentId: user.studentId || '',
-        phoneNumber: user.phoneNumber || '',
-        course: user.course || '',
-        followers: user.followers || [],
-        following: user.following || [],
-      },
+      user: formatUser(user),
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error during login' });
@@ -79,18 +84,7 @@ export const getCurrentUser = async (req, res) => {
 
     res.json({
       success: true,
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        picture: user.picture,
-        studentId: user.studentId || '',
-        phoneNumber: user.phoneNumber || '',
-        course: user.course || '',
-        followers: user.followers || [],
-        following: user.following || [],
-      },
+      user: formatUser(user),
     });
   } catch (error) {
     console.error('Get current user error:', error);
@@ -197,18 +191,7 @@ export const googleLogin = async (req, res) => {
     res.json({
       success: true,
       token: jwtToken,
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        picture: user.picture,
-        studentId: user.studentId || '',
-        phoneNumber: user.phoneNumber || '',
-        course: user.course || '',
-        followers: user.followers || [],
-        following: user.following || [],
-      },
+      user: formatUser(user),
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -246,18 +229,7 @@ export const updateProfile = async (req, res) => {
     res.json({
       success: true,
       message: 'Profile updated successfully',
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        picture: user.picture,
-        studentId: user.studentId || '',
-        phoneNumber: user.phoneNumber || '',
-        course: user.course || '',
-        followers: user.followers || [],
-        following: user.following || [],
-      },
+      user: formatUser(user),
     });
   } catch (error) {
     console.error('Update profile error:', error);

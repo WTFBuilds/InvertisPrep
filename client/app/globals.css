@@ -146,6 +146,45 @@
 .resume-content { font-size: 12px; line-height: 1.42; overflow-wrap: anywhere; }
 .resume-watermark { position: absolute; right: 0.42in; bottom: 0.24in; color: #94a3b8; font-size: 10px; }
 
+/* Preview-only diagonal watermark grid — sits inside .resume-page, hidden during print */
+.resume-preview-watermark {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
+  overflow: hidden;
+  z-index: 10;
+  border-radius: inherit;
+}
+.resume-preview-watermark-inner {
+  position: absolute;
+  inset: -60%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 2rem 3rem;
+  transform: rotate(-35deg);
+  opacity: 0.11;
+}
+.resume-preview-watermark-inner span {
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 900;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.14em;
+  background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* PDF print watermark — single centred stamp, only visible during print */
+.resume-print-watermark {
+  display: none;
+}
+
 @media print {
   body { background: white !important; }
   body > * { visibility: hidden; }
@@ -155,7 +194,30 @@
   .resume-preview-wrap { overflow: visible !important; border-radius: 0 !important; background: white !important; padding: 0 !important; box-shadow: none !important; }
   .resume-page { margin: 0 !important; min-height: auto; box-shadow: none !important; }
   .resume-watermark { position: fixed; right: 0.42in; bottom: 0.24in; }
+  /* Hide the live preview overlay, show the print watermark */
+  .resume-preview-watermark { display: none !important; }
+  .resume-print-watermark {
+    display: block;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-35deg);
+    font-size: 72pt;
+    font-weight: 900;
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0.1em;
+    color: #a5b4fc;
+    opacity: 0.12;
+    pointer-events: none;
+    z-index: 9999;
+    white-space: nowrap;
+  }
   @page { size: A4; margin: 0; }
+}
+
+/* printing-clean: hides print watermark when user paid for clean PDF */
+html.printing-clean .resume-print-watermark {
+  display: none !important;
 }
 
 @media (max-width: 700px) {

@@ -17,6 +17,13 @@ import type {
   Report,
   Resume,
   ResumeDraft,
+  WalletTransaction,
+  WalletBalance,
+  TopUpPack,
+  TopUpPackId,
+  TopUpPacks,
+  TransactionMeta,
+  TransactionType,
 } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -318,6 +325,52 @@ export const pdfApi = {
       params: { type },
       responseType: 'blob',
     });
+    return data;
+  },
+};
+
+// Wallet API
+export const walletApi = {
+  getBalance: async (): Promise<APIResponse<WalletBalance>> => {
+    const { data } = await apiClient.get<APIResponse<WalletBalance>>('/wallet/balance');
+    return data;
+  },
+
+  getTransactions: async (
+    page = 1,
+    limit = 20,
+    type?: TransactionType | 'all'
+  ): Promise<APIResponse<WalletTransaction[]> & { meta?: TransactionMeta }> => {
+    const params: Record<string, unknown> = { page, limit };
+    if (type && type !== 'all') params.type = type;
+    const { data } = await apiClient.get<APIResponse<WalletTransaction[]> & { meta?: TransactionMeta }>(
+      '/wallet/transactions',
+      { params }
+    );
+    return data;
+  },
+
+  getPacks: async (): Promise<APIResponse<TopUpPacks>> => {
+    const { data } = await apiClient.get<APIResponse<TopUpPacks>>('/wallet/packs');
+    return data;
+  },
+
+  topup: async (packId: TopUpPackId): Promise<APIResponse<WalletBalance & { transaction: WalletTransaction }>> => {
+    const { data } = await apiClient.post<APIResponse<WalletBalance & { transaction: WalletTransaction }>>(
+      '/wallet/topup',
+      { packId }
+    );
+    return data;
+  },
+
+  spendDownload: async (
+    resumeId: string,
+    method: 'coins' | 'free'
+  ): Promise<APIResponse<WalletBalance>> => {
+    const { data } = await apiClient.post<APIResponse<WalletBalance>>(
+      '/wallet/spend-download',
+      { resumeId, method }
+    );
     return data;
   },
 };

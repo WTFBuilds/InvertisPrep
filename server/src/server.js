@@ -23,6 +23,7 @@ import userRoutes from './routes/users.js';
 import reportRoutes from './routes/reports.js';
 import pdfRoutes from './routes/pdf.js';
 import resumeRoutes from './routes/resumes.js';
+import walletRoutes from './routes/wallet.js';
 
 // Load environment variables
 dotenv.config();
@@ -94,6 +95,7 @@ const initApp = async () => {
   app.use('/api/reports', reportRoutes);
   app.use('/api/pdf', pdfRoutes);
   app.use('/api/resumes', resumeRoutes);
+  app.use('/api/wallet', walletRoutes);
 
   // Error handling
   app.use(notFound);

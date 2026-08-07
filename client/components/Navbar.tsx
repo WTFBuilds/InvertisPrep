@@ -337,7 +337,7 @@ export default function Navbar() {
 
   const careerLinks: MenuLink[] = [
     { title: 'ATS Score Checker', href: '/coming-soon/ats-score', description: 'Check how your resume scores against ATS filters.', icon: <Target />, badge: 'new' },
-    { title: 'Resume Builder', href: '/resumes', description: 'Create, manage and export ATS-friendly resumes.', icon: <FileCheck2 />, badge: 'new' },
+    { title: 'Resume Builder', href: user ? '/resumes' : '/resume-builder', description: 'Create, manage and export ATS-friendly resumes.', icon: <FileCheck2 />, badge: 'new' },
     { title: 'Career Hub', href: '/coming-soon/career', description: 'Internships, jobs & hackathons for students.', icon: <Briefcase />, badge: 'soon' },
   ];
 
@@ -506,7 +506,13 @@ export default function Navbar() {
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/wallet" className="w-full cursor-pointer">
-                      <Wallet className="mr-2 h-4 w-4 text-slate-500" /> QCWallet
+                      <Wallet className="mr-2 h-4 w-4 text-slate-500" />
+                      <span className="flex-1">QCWallet</span>
+                      {user.qcoins !== undefined && (
+                        <span className="ml-auto flex items-center gap-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                          {user.qcoins.toLocaleString('en-IN')} QC
+                        </span>
+                      )}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
@@ -718,6 +724,15 @@ function MobileMenu({
               className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-zinc-100 hover:text-zinc-900 group"
             >
               <Wallet className="size-4 text-zinc-400 group-hover:text-zinc-800 transition-colors" /> QCWallet
+
+              <Wallet className="size-4 text-zinc-400 group-hover:text-zinc-800 transition-colors" />
+              <span className="flex-1">QCWallet</span>
+              {user?.qcoins !== undefined && (
+                <span className="flex items-center gap-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 px-2.5 py-0.5 text-[10px] font-bold text-white">
+                  {user.qcoins.toLocaleString('en-IN')} QC
+                </span>
+              )}
+
             </Link>
             <Link
               href="/academic-progress"

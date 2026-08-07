@@ -66,6 +66,16 @@ const userSchema = new Schema(
       type: Boolean,
       default: true,
     },
+    qcoins: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    freeDownloadsLeft: {
+      type: Number,
+      default: 2,
+      min: 0,
+    },
   },
   {
     timestamps: true,
