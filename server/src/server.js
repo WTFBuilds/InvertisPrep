@@ -10,8 +10,7 @@ import fs from 'fs';
 import { connectDB } from './config/database.js';
 import { configureCloudinary } from './config/cloudinary.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
-import dns from 'dns';
-dns.setServers(["1.1.1.1", "8.8.8.8"]);
+
 
 
 // Import routes

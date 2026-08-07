@@ -1,11 +1,13 @@
 import Hero from '@/components/layout/Hero';
-import Features from '@/components/layout/Features';
+import ResumeShowcase from '@/components/layout/ResumeShowcase';
+import PyqMarketing from '@/components/layout/PyqMarketing';
 
 export default function HomePage() {
   return (
     <div className="min-h-screen">
       <Hero />
-      <Features />
+      <PyqMarketing />
+      <ResumeShowcase />
     </div>
   );
 }
