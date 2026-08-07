@@ -273,7 +273,7 @@ export function ProfileCard(props: ProfileCardProps) {
           {/* Square Mobile Image */}
           <div className={cn('w-full aspect-square bg-gray-200 dark:bg-gray-700 rounded-2xl overflow-hidden mb-6 flex items-center justify-center border-2 border-solid shadow-md', themeStyles.imageBorder)}>
             {!imageUrl || imageError ? (
-              <div className="flex h-full w-full items-center justify-center font-black text-6xl select-none bg-gradient-to-br from-indigo-100 to-indigo-200 dark:from-indigo-900 dark:to-indigo-800 text-indigo-600 dark:text-indigo-300">
+              <div className="flex h-[280px] w-[280px] items-center justify-center font-black text-6xl select-none bg-gradient-to-br from-indigo-100 to-indigo-200 dark:from-indigo-900 dark:to-indigo-800 text-indigo-600 dark:text-indigo-300">
                 {initials}
               </div>
             ) : (
