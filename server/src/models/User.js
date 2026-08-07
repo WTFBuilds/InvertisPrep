@@ -76,6 +76,17 @@ const userSchema = new Schema(
       default: 2,
       min: 0,
     },
+    points: {
+      type: Number,
+      default: 0,
+      min: 0,
+      index: true,
+    },
+    weeklyPoints: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   {
     timestamps: true,

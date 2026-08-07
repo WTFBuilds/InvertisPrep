@@ -10,7 +10,6 @@ import { ContactForm, FAQGrid } from '@/components/ui/faq-accordion';
 const socialLinks = [
   { name: 'Instagram', icon: Instagram, href: 'https://www.instagram.com/invertisprep.in/', color: 'from-pink-500 to-purple-600' },
   { name: 'LinkedIn', icon: Linkedin, href: 'https://www.linkedin.com/company/invertisprep/', color: 'from-blue-600 to-blue-700' },
-  { name: 'Twitter', icon: Twitter, href: 'https://twitter.com/invertisprep', color: 'from-sky-500 to-sky-600' },
 ];
 
 const contactInfo = [

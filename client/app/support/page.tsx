@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import {
   HelpCircle,
   BookOpen,
@@ -18,12 +18,9 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { BackgroundGradient } from '@/components/ui/background-gradient';
-import { Spotlight } from '@/components/ui/spotlight';
 import { GlowCard } from '@/components/ui/glow-card';
-import { TextGenerateEffect } from '@/components/ui/text-generate-effect';
-import { FAQAccordion } from '@/components/ui/faq-accordion';
+import { FAQAccordion, ContactForm } from '@/components/ui/faq-accordion';
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -134,26 +131,50 @@ const quickLinks = [
   { name: 'Contact Us', href: '/contact', icon: Mail },
 ];
 
-const stats = [
-  { label: 'Response Time', value: '< 24hrs', icon: Clock },
-  { label: 'Resolution Rate', value: '95%', icon: CheckCircle },
-  { label: 'Happy Users', value: '10K+', icon: Users },
-];
+// Animation variants
+const letterContainerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05,
+      delayChildren: 0.1,
+    },
+  },
+};
 
-// ─── Page ────────────────────────────────────────────────────────────────────
+const letterVariants: Variants = {
+  hidden: { y: 60, opacity: 0, rotateX: -60 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    rotateX: 0,
+    transition: {
+      type: 'spring',
+      damping: 10,
+      stiffness: 100,
+    },
+  },
+};
+
+const fadeInUp: Variants = {
+  hidden: { opacity: 0, y: 35 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] }
+  }
+};
 
 export default function SupportPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<number | null>(null);
 
-  // Flatten all FAQ items for search
-  const allItems = useMemo(
-    () => categories.flatMap((cat) => cat.items),
-    []
-  );
+  const brandName = "FAQ & Support";
+  const brandLetters = Array.from(brandName);
 
   // Filter items based on search query
-  const filteredCategories = useMemo(() => {
+  const displayCategories = useMemo(() => {
     if (!searchQuery.trim()) return categories;
     const q = searchQuery.toLowerCase();
     return categories
@@ -168,111 +189,73 @@ export default function SupportPage() {
       .filter((cat) => cat.items.length > 0);
   }, [searchQuery]);
 
-  // Show filtered results when searching, show all when idle
-  const displayCategories = searchQuery.trim() ? filteredCategories : categories;
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* ─── Hero Section (Dark with Spotlight) ───────────────────────────── */}
-      <section className="relative overflow-hidden bg-gray-950 py-24 sm:py-32">
-        <Spotlight
-          className="absolute inset-0"
-          gradientFirst="radial-gradient(68.54% 68.72% at 50% 0%, rgba(99, 102, 241, 0.2) 0%, transparent 50.11%)"
-          gradientSecond="radial-gradient(50% 50% at 50% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50.11%)"
-          gradientThird="radial-gradient(80% 60% at 50% 0%, rgba(139, 92, 246, 0.15) 0%, transparent 50%)"
-          spread={100}
-        />
+    <div className="min-h-screen pt-16 bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-50 overflow-x-hidden relative transition-colors duration-300">
 
-        {/* Grid pattern overlay */}
-        <div
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width='32' height='32' fill='none' stroke='rgb(255 255 255 / 0.1)'%3e%3cpath d='M0 .5H31.5V32'/%3e%3c/svg%3e")`,
-          }}
-        />
+      {/* Background glow effects */}
+      <div className="absolute top-0 inset-x-0 h-[600px] overflow-hidden pointer-events-none -z-10">
+        <div className="absolute -top-[20%] left-[5%] w-[450px] h-[450px] bg-indigo-500/10 dark:bg-indigo-500/5 rounded-full blur-[110px] animate-pulse" />
+        <div className="absolute -top-[10%] right-[5%] w-[550px] h-[550px] bg-pink-500/10 dark:bg-pink-500/5 rounded-full blur-[130px] animate-pulse" style={{ animationDelay: '2.5s' }} />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
+      </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="mb-8"
-          >
-            <Badge
-              variant="secondary"
-              className="mb-6 bg-white/10 text-indigo-300 border-indigo-500/30 backdrop-blur-sm"
+      {/* Hero / Landing Title Section */}
+      <section className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-0 w-full text-left">
+        {/* Text Landing Animation */}
+        <motion.div
+          variants={letterContainerVariants}
+          initial="hidden"
+          animate="visible"
+          className="mb-4 flex flex-wrap justify-start items-center gap-x-1 sm:gap-x-2 select-none"
+        >
+          {brandLetters.map((char, index) => (
+            <motion.span
+              key={index}
+              variants={letterVariants}
+              className="text-4xl sm:text-7xl md:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-zinc-50 drop-shadow-sm"
+              style={{
+                fontFamily: 'Inter, system-ui, sans-serif',
+              }}
             >
-              <Sparkles className="h-3 w-3 mr-1.5" />
-              Help Center
-            </Badge>
-          </motion.div>
+              {char === ' ' ? '\u00A0' : char}
+            </motion.span>
+          ))}
+        </motion.div>
 
-          <TextGenerateEffect
-            words="How can we help you today?"
-            className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight mb-6"
-          />
-
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8, duration: 0.6 }}
-            className="text-lg sm:text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed"
-          >
-            Find answers to common questions, troubleshoot issues, or reach out
-            to our dedicated support team.
-          </motion.p>
-
-          {/* Stats */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1, duration: 0.6 }}
-            className="flex flex-wrap justify-center gap-8 sm:gap-12 mt-12"
-          >
-            {stats.map((stat, i) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1.1 + i * 0.1, duration: 0.5 }}
-                className="flex items-center gap-3"
-              >
-                <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                  <stat.icon className="h-5 w-5 text-indigo-400" />
-                </div>
-                <div className="text-left">
-                  <p className="text-xl font-bold text-white">{stat.value}</p>
-                  <p className="text-xs text-gray-500">{stat.label}</p>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
+        <motion.p
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.7 }}
+          className="text-base sm:text-lg text-slate-500 dark:text-zinc-400 max-w-2xl leading-relaxed mb-8"
+        >
+          Have questions? We've got answers. Explore our resources below or get in touch with support.
+        </motion.p>
       </section>
 
-      {/* ─── Search Bar ──────────────────────────────────────────────────── */}
-      <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 -mt-7 relative z-10">
+      {/* Search Bar Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 w-full">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
+          transition={{ duration: 0.6, delay: 0.9 }}
+          className="max-w-3xl"
         >
           <div className="relative group">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl opacity-20 group-hover:opacity-40 transition duration-300 blur-sm" />
-            <div className="relative bg-white rounded-2xl shadow-xl border border-gray-100">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 via-pink-500 to-blue-500 rounded-2xl opacity-25 group-hover:opacity-45 transition duration-300 blur-sm" />
+            <div className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-slate-200/50 dark:border-zinc-800/80">
               <div className="relative">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-zinc-500" />
                 <input
                   type="text"
-                  placeholder="Search for answers... (e.g. 'how to download', 'QCoins', 'refund')"
+                  placeholder="Search for answers... (e.g. 'signup', 'papers', 'QCoins')"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-14 pr-5 py-5 text-lg border-0 focus:ring-0 focus:outline-none bg-transparent rounded-2xl text-gray-900 placeholder:text-gray-400"
+                  className="w-full pl-14 pr-12 py-4.5 text-base sm:text-lg border-0 focus:ring-0 focus:outline-none bg-transparent rounded-2xl text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
                   >
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -285,96 +268,70 @@ export default function SupportPage() {
         </motion.div>
       </section>
 
-      {/* ─── Search Results Info ─────────────────────────────────────────── */}
-      <AnimatePresence>
-        {searchQuery.trim() && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8"
-          >
-            <p className="text-sm text-gray-500">
-              {displayCategories.reduce((acc, cat) => acc + cat.items.length, 0)}{' '}
-              results found for{' '}
-              <span className="font-semibold text-gray-900">&quot;{searchQuery}&quot;</span>
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ─── Category Quick Nav ──────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-4">
+      {/* Category Nav pills */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4 w-full">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 1.1 }}
+          className="flex flex-wrap gap-2.5"
         >
-          <div className="flex flex-wrap justify-center gap-3">
-            {categories.map((cat, idx) => (
-              <motion.button
-                key={idx}
-                onClick={() => {
-                  setActiveCategory(activeCategory === idx ? null : idx);
-                  setSearchQuery('');
-                  // Scroll to the category section
-                  document
-                    .getElementById(`category-${idx}`)
-                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200 border ${
-                  activeCategory === idx
-                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-sm'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-200 hover:text-indigo-600 hover:shadow-sm'
+          {categories.map((cat, idx) => (
+            <button
+              key={idx}
+              onClick={() => {
+                setActiveCategory(activeCategory === idx ? null : idx);
+                setSearchQuery('');
+                // Scroll to category
+                document
+                  .getElementById(`category-${idx}`)
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs sm:text-sm font-semibold transition-all duration-200 border cursor-pointer ${activeCategory === idx
+                  ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 shadow-sm'
+                  : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-800 hover:border-indigo-300 dark:hover:border-indigo-800 hover:text-indigo-600 dark:hover:text-indigo-400 hover:shadow-sm'
                 }`}
-              >
-                <cat.icon className="h-4 w-4" />
-                {cat.title}
-                <span className="text-xs text-gray-400">({cat.items.length})</span>
-              </motion.button>
-            ))}
-          </div>
+            >
+              <cat.icon className="h-4 w-4" />
+              {cat.title}
+              <span className="text-[10px] text-slate-400 dark:text-zinc-500">({cat.items.length})</span>
+            </button>
+          ))}
         </motion.div>
       </section>
 
-      {/* ─── FAQ Categories ──────────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="space-y-12">
+      {/* FAQ Categories Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
+        <div className="space-y-10">
           {displayCategories.map((category, idx) => {
             const catIndex = categories.findIndex((c) => c.title === category.title);
             return (
               <motion.div
                 key={category.title}
                 id={`category-${catIndex}`}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-50px' }}
-                transition={{ duration: 0.5, delay: idx * 0.1 }}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: '-100px' }}
+                variants={fadeInUp}
               >
-                <GlowCard glowColor={category.glowColor} className="p-0">
+                <GlowCard glowColor={category.glowColor} className="p-0 border border-slate-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden shadow-sm">
                   <div className="p-6 sm:p-8">
                     {/* Category Header */}
                     <div className="flex items-center gap-4 mb-8">
-                      <motion.div
-                        whileHover={{ rotate: 5, scale: 1.1 }}
-                        className={`w-12 h-12 rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center shadow-lg`}
-                      >
+                      <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${category.color} flex items-center justify-center shadow-md`} >
                         <category.icon className="h-6 w-6 text-white" />
-                      </motion.div>
+                      </div>
                       <div>
-                        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
                           {category.title}
                         </h2>
-                        <p className="text-gray-500 text-sm mt-0.5">
-                          {category.items.length} questions
+                        <p className="text-slate-400 dark:text-zinc-500 text-xs sm:text-sm mt-0.5">
+                          {category.items.length} Questions
                         </p>
                       </div>
                     </div>
 
-                    {/* FAQ Items */}
+                    {/* FAQ Items Accordion list */}
                     <FAQAccordion items={category.items} />
                   </div>
                 </GlowCard>
@@ -382,189 +339,141 @@ export default function SupportPage() {
             );
           })}
 
-          {/* No results */}
+          {/* No search results display */}
           {displayCategories.length === 0 && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-center py-16"
+              className="text-center py-16 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200/60 dark:border-zinc-800/80 max-w-xl mx-auto"
             >
-              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                <Search className="h-8 w-8 text-gray-400" />
+              <div className="w-16 h-16 rounded-2xl bg-slate-50 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 flex items-center justify-center mx-auto mb-4 border border-slate-100 dark:border-zinc-700">
+                <Search className="h-7 w-7" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                No results found
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
+                No matching answers found
               </h3>
-              <p className="text-gray-500 max-w-md mx-auto">
-                We couldn&apos;t find any answers matching your search. Try different
-                keywords or{' '}
-                <a href="/contact" className="text-indigo-600 hover:underline font-medium">
-                  contact our team
-                </a>{' '}
-                directly.
+              <p className="text-sm text-slate-500 dark:text-zinc-400 max-w-sm mx-auto px-4 leading-relaxed">
+                We couldn't find any results for your query. Try searching different keywords or check out support below.
               </p>
             </motion.div>
           )}
         </div>
       </section>
 
-      {/* ─── Still Need Help CTA ─────────────────────────────────────────── */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <BackgroundGradient className="rounded-3xl">
-              <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-                <div className="grid md:grid-cols-2 gap-0">
-                  {/* Left — CTA */}
-                  <div className="p-10 sm:p-12">
-                    <motion.div
-                      initial={{ opacity: 0, x: -20 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.5, delay: 0.2 }}
-                    >
-                      <div className="flex items-center gap-2 mb-6">
-                        <MessageCircle className="h-5 w-5 text-indigo-500" />
-                        <span className="text-sm font-medium text-indigo-600">
-                          Get in Touch
-                        </span>
-                      </div>
-                      <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                        Still need help?
-                      </h2>
-                      <p className="text-gray-600 mb-8 leading-relaxed">
-                        Our support team is available Monday to Friday, 9 AM to 6 PM
-                        IST. We typically respond within 24 hours.
-                      </p>
-                      <div className="flex flex-col sm:flex-row gap-4">
-                        <Button
-                          asChild
-                          className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/25"
-                        >
-                          <a href="mailto:invertisprep@gmail.com">
-                            <Mail className="h-4 w-4 mr-2" />
-                            Email Support
-                          </a>
-                        </Button>
-                        <Button
-                          asChild
-                          variant="outline"
-                          className="border-gray-200"
-                        >
-                          <a href="/contact">
-                            Contact Form
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </a>
-                        </Button>
-                      </div>
-                    </motion.div>
-                  </div>
+      {/* Still Need Help CTA Section */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          variants={fadeInUp}
+        >
+          <BackgroundGradient className="rounded-3xl p-0.5 overflow-hidden">
+            <div className="bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden shadow-2xl">
+              <div className="grid grid-cols-1 lg:grid-cols-2">
 
-                  {/* Right — Trust Indicators */}
-                  <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-10 sm:p-12">
-                    <motion.div
-                      initial={{ opacity: 0, x: 20 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.5, delay: 0.4 }}
-                      className="space-y-5"
-                    >
-                      {[
-                        {
-                          icon: CheckCircle,
-                          title: 'Fast Response',
-                          desc: 'Usually within 24 hours',
-                          color: 'text-green-500',
-                        },
-                        {
-                          icon: Users,
-                          title: 'Expert Team',
-                          desc: 'Dedicated support staff',
-                          color: 'text-indigo-500',
-                        },
-                        {
-                          icon: Sparkles,
-                          title: 'Issue Resolution',
-                          desc: '95% resolved on first contact',
-                          color: 'text-purple-500',
-                        },
-                        {
-                          icon: Shield,
-                          title: 'Data Privacy',
-                          desc: 'Your information is secure',
-                          color: 'text-pink-500',
-                        },
-                      ].map((item, i) => (
-                        <motion.div
-                          key={item.title}
-                          initial={{ opacity: 0, x: 10 }}
-                          whileInView={{ opacity: 1, x: 0 }}
-                          viewport={{ once: true }}
-                          transition={{ delay: 0.5 + i * 0.1 }}
-                          className="flex items-start gap-4 p-4 bg-white/70 backdrop-blur-sm rounded-xl border border-white"
-                        >
-                          <item.icon
-                            className={`h-5 w-5 ${item.color} mt-0.5 flex-shrink-0`}
-                          />
-                          <div>
-                            <h4 className="font-semibold text-gray-900">
-                              {item.title}
-                            </h4>
-                            <p className="text-sm text-gray-500">{item.desc}</p>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </motion.div>
+                {/* Left Form */}
+                <div className="p-8 sm:p-12 border-b lg:border-b-0 lg:border-r border-slate-200/50 dark:border-zinc-800/60">
+                  <div className="flex items-center gap-2 mb-6">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                      <MessageCircle className="h-4.5 w-4.5" />
+                    </div>
+                    <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                      General Inquiry
+                    </span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mb-4 tracking-tight">
+                    Still need help?
+                  </h2>
+                  <p className="text-sm sm:text-base text-slate-500 dark:text-zinc-400 mb-8 leading-relaxed">
+                    Our support team is available Monday to Friday. We typically respond within 24 hours to help you solve any issues.
+                  </p>
+
+                  {/* Reuse importable ContactForm */}
+                  <ContactForm />
+                </div>
+
+                {/* Right Indicators */}
+                <div className="bg-gradient-to-br from-indigo-50/50 via-purple-50/20 to-transparent dark:from-indigo-950/20 dark:via-zinc-950/40 p-8 sm:p-12 flex flex-col justify-center">
+                  <div className="space-y-6">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-pink-500/10 dark:bg-pink-500/5 text-pink-600 dark:text-pink-400 text-xs font-semibold uppercase tracking-wider mb-2">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Trust Indicators
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="flex items-start gap-4 p-4 bg-white dark:bg-zinc-900/80 rounded-2xl border border-slate-200/40 dark:border-zinc-800 shadow-sm">
+                        <Clock className="h-5 w-5 text-indigo-500 shrink-0 mt-0.5" />
+                        <div>
+                          <h4 className="font-bold text-sm text-slate-900 dark:text-white">Fast Response</h4>
+                          <p className="text-xs text-slate-500 dark:text-zinc-500">Under 24 hours average.</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-4 p-4 bg-white dark:bg-zinc-900/80 rounded-2xl border border-slate-200/40 dark:border-zinc-800 shadow-sm">
+                        <Users className="h-5 w-5 text-pink-500 shrink-0 mt-0.5" />
+                        <div>
+                          <h4 className="font-bold text-sm text-slate-900 dark:text-white">Expert Admins</h4>
+                          <p className="text-xs text-slate-500 dark:text-zinc-500">Experienced moderators.</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-4 p-4 bg-white dark:bg-zinc-900/80 rounded-2xl border border-slate-200/40 dark:border-zinc-800 shadow-sm">
+                        <CheckCircle className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+                        <div>
+                          <h4 className="font-bold text-sm text-slate-900 dark:text-white">High Resolution</h4>
+                          <p className="text-xs text-slate-500 dark:text-zinc-500">95% tickets resolved.</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-4 p-4 bg-white dark:bg-zinc-900/80 rounded-2xl border border-slate-200/40 dark:border-zinc-800 shadow-sm">
+                        <Shield className="h-5 w-5 text-purple-500 shrink-0 mt-0.5" />
+                        <div>
+                          <h4 className="font-bold text-sm text-slate-900 dark:text-white">Secure Data</h4>
+                          <p className="text-xs text-slate-500 dark:text-zinc-500">OAuth 2.0 encrypted flows.</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
+
               </div>
-            </BackgroundGradient>
-          </motion.div>
-        </div>
+            </div>
+          </BackgroundGradient>
+        </motion.div>
       </section>
 
-      {/* ─── Quick Links ─────────────────────────────────────────────────── */}
-      <section className="py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">
-              Related Resources
-            </h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {quickLinks.map((link, idx) => (
-                <motion.a
-                  key={idx}
-                  href={link.href}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: idx * 0.08, duration: 0.4 }}
-                  whileHover={{ y: -4, scale: 1.02 }}
-                  className="flex items-center gap-3 p-5 bg-white border border-gray-100 rounded-xl hover:shadow-lg hover:border-indigo-200 transition-all duration-300 group"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-gray-50 group-hover:bg-indigo-50 flex items-center justify-center transition-colors">
-                    <link.icon className="h-5 w-5 text-gray-400 group-hover:text-indigo-500 transition-colors" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700 group-hover:text-indigo-600 transition-colors flex-1">
-                    {link.name}
-                  </span>
-                  <ExternalLink className="h-3.5 w-3.5 text-gray-300 group-hover:text-indigo-400 transition-colors" />
-                </motion.a>
-              ))}
-            </div>
-          </motion.div>
-        </div>
+      {/* Related Resources / Quick Links Section */}
+      <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          variants={fadeInUp}
+        >
+          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mb-6 tracking-tight text-left">
+            Related Resources
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            {quickLinks.map((link, idx) => (
+              <a
+                key={idx}
+                href={link.href}
+                className="flex items-center gap-3 p-4 bg-white dark:bg-zinc-900 border border-slate-200/50 dark:border-zinc-800/80 rounded-2xl hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-800 transition-all duration-300 group cursor-pointer"
+              >
+                <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-zinc-800 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/40 flex items-center justify-center transition-colors">
+                  <link.icon className="h-5 w-5 text-slate-400 dark:text-zinc-500 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors" />
+                </div>
+                <span className="text-sm font-semibold text-slate-700 dark:text-zinc-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors flex-1">
+                  {link.name}
+                </span>
+                <ChevronRight className="h-4 w-4 text-slate-300 dark:text-zinc-600 group-hover:text-indigo-400 transition-colors" />
+              </a>
+            ))}
+          </div>
+        </motion.div>
       </section>
+
     </div>
   );
 }
