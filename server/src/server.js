@@ -1,15 +1,16 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
-import dotenv from 'dotenv';
 import fs from 'fs';
 import { connectDB } from './config/database.js';
 import { configureCloudinary } from './config/cloudinary.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
-import dns from 'dns';
-dns.setServers(["1.1.1.1", "8.8.8.8"]);
+
 
 
 // Import routes
@@ -24,9 +25,9 @@ import reportRoutes from './routes/reports.js';
 import pdfRoutes from './routes/pdf.js';
 import resumeRoutes from './routes/resumes.js';
 import walletRoutes from './routes/wallet.js';
-
-// Load environment variables
-dotenv.config();
+import bugRoutes from './routes/bugs.js';
+import leaderboardRoutes from './routes/leaderboard.js';
+import eventRoutes from './routes/events.js';
 
 // Initialize Express app
 const app = express();
@@ -96,6 +97,9 @@ const initApp = async () => {
   app.use('/api/pdf', pdfRoutes);
   app.use('/api/resumes', resumeRoutes);
   app.use('/api/wallet', walletRoutes);
+  app.use('/api/bugs', bugRoutes);
+  app.use('/api/leaderboard', leaderboardRoutes);
+  app.use('/api/events', eventRoutes);
 
   // Error handling
   app.use(notFound);

@@ -1,17 +1,25 @@
 import { OAuth2Client } from 'google-auth-library';
 
-const client = new OAuth2Client(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.CLIENT_URL
-);
+let client;
+
+const getGoogleClient = () => {
+  if (!client) {
+    client = new OAuth2Client(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.CLIENT_URL
+    );
+  }
+  return client;
+};
 
 export const verifyGoogleToken = async (token) => {
   if (!token || typeof token !== 'string') {
     throw new Error('Token must be a non-empty string');
   }
 
-  const ticket = await client.verifyIdToken({
+  const gClient = getGoogleClient();
+  const ticket = await gClient.verifyIdToken({
     idToken: token,
     audience: process.env.GOOGLE_CLIENT_ID,
   });
