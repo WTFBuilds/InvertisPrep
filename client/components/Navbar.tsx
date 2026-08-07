@@ -64,15 +64,15 @@ const SOCIAL_LINKS = {
 // ============================================================
 function SoonBadge() {
   return (
-    <span className="ml-1.5 inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-bold leading-none text-red-600">
-      SOON
+    <span className="ml-1.5 inline-flex items-center rounded-full border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider leading-none text-zinc-500">
+      Soon
     </span>
   );
 }
 function NewBadge() {
   return (
-    <span className="ml-1.5 inline-flex items-center rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold leading-none text-emerald-700">
-      NEW
+    <span className="ml-1.5 inline-flex items-center rounded-full border border-zinc-200 bg-zinc-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider leading-none text-zinc-800">
+      New
     </span>
   );
 }
@@ -141,7 +141,7 @@ function MenuTile({ link, onNavigate }: { link: MenuLink; onNavigate?: () => voi
   const content = (
     <>
       <div className="flex items-center gap-2">
-        <span className="text-indigo-500 group-hover:text-indigo-600 [&>svg]:size-4">{link.icon}</span>
+        <span className="text-zinc-400 group-hover:text-zinc-800 transition-colors [&>svg]:size-4">{link.icon}</span>
         <span className="flex items-center text-sm font-semibold text-slate-900">
           {link.title}
           {link.badge === 'soon' && <SoonBadge />}
@@ -161,7 +161,7 @@ function MenuTile({ link, onNavigate }: { link: MenuLink; onNavigate?: () => voi
         onClick={onNavigate}
         className={cn(
           'group block rounded-lg p-3 leading-none no-underline outline-none transition-colors',
-          link.hoverClass ?? 'hover:bg-indigo-50/70 focus:bg-indigo-50'
+          link.hoverClass ?? 'hover:bg-zinc-50 focus:bg-zinc-50'
         )}
       >
         {content}
@@ -175,7 +175,7 @@ function MenuTile({ link, onNavigate }: { link: MenuLink; onNavigate?: () => voi
       onClick={onNavigate}
       className={cn(
         'group block rounded-lg p-3 leading-none no-underline outline-none transition-colors',
-        link.hoverClass ?? 'hover:bg-indigo-50/70 focus:bg-indigo-50'
+        link.hoverClass ?? 'hover:bg-zinc-50 focus:bg-zinc-50'
       )}
     >
       {content}
@@ -213,15 +213,15 @@ function NavDropdown({
         aria-expanded={isOpen}
         className={cn(
           'flex h-9 items-center gap-1 rounded-md px-3 text-sm font-medium text-slate-700 transition-colors',
-          'hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-300',
-          isOpen && 'bg-indigo-50 text-indigo-600'
+          'hover:bg-zinc-100 hover:text-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-200',
+          isOpen && 'bg-zinc-100 text-zinc-900'
         )}
       >
         {group.label}
         {group.badge === 'new' && <NewBadge />}
         {group.badge === 'soon' && <SoonBadge />}
         <ChevronDown
-          className={cn('h-3.5 w-3.5 text-slate-400 transition-transform duration-200', isOpen && 'rotate-180 text-indigo-500')}
+          className={cn('h-3.5 w-3.5 text-slate-400 transition-transform duration-200', isOpen && 'rotate-180 text-zinc-900')}
         />
       </button>
 
@@ -260,6 +260,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [isHiddenByFooter, setIsHiddenByFooter] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navRef = useRef<HTMLElement>(null);
 
@@ -274,6 +275,17 @@ export default function Navbar() {
   const handleClose = () => {
     closeTimer.current = setTimeout(() => setOpenMenu(null), 120);
   };
+
+  // Listen for footer visibility
+  useEffect(() => {
+    const handleFooterVisibility = (e: Event) => {
+      const customEvent = e as CustomEvent<{ isVisible: boolean }>;
+      setIsHiddenByFooter(customEvent.detail.isVisible);
+    };
+
+    window.addEventListener('footerVisibilityChange', handleFooterVisibility);
+    return () => window.removeEventListener('footerVisibilityChange', handleFooterVisibility);
+  }, []);
 
   // Close on outside click and on Escape
   useEffect(() => {
@@ -359,7 +371,10 @@ export default function Navbar() {
   return (
     <nav
       ref={navRef}
-      className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-md"
+      className={cn(
+        "sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-md transition-transform duration-500",
+        isHiddenByFooter ? "-translate-y-full" : "translate-y-0"
+      )}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
@@ -375,13 +390,6 @@ export default function Navbar() {
         {/* ---------- Desktop nav ---------- */}
         <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-center">
           <div className="flex items-center gap-0.5">
-            <Link
-              href="/"
-              className="flex h-9 items-center rounded-md px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-indigo-50 hover:text-indigo-600"
-            >
-              Home
-            </Link>
-
             {groups.map((g) => (
               <NavDropdown
                 key={g.key}
@@ -463,10 +471,10 @@ export default function Navbar() {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-2 rounded-lg border border-purple-100 bg-gradient-to-r from-indigo-50 to-purple-50 px-3 py-1.5 shadow-sm transition-all hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-300">
-                    <Avatar className="h-7 w-7 ring-1 ring-purple-200">
+                  <button className="flex items-center gap-2.5 rounded-full border border-zinc-200 bg-white px-1.5 py-1.5 pr-3 shadow-sm transition-all hover:bg-zinc-50 hover:border-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50">
+                    <Avatar className="h-7 w-7 ring-1 ring-zinc-200/50">
                       {user.picture && <AvatarImage src={user.picture} alt={user.name || 'User'} className="object-cover" />}
-                      <AvatarFallback className="bg-gradient-to-br from-indigo-400 to-purple-400 text-xs text-white">
+                      <AvatarFallback className="bg-zinc-100 text-zinc-700 text-[10px] font-bold">
                         {user.name ? getInitials(user.name) : user.email ? getInitials(user.email) : 'U'}
                       </AvatarFallback>
                     </Avatar>
@@ -477,10 +485,10 @@ export default function Navbar() {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-64" align="end">
-                  <div className="flex items-center gap-2 p-2">
-                    <Avatar className="h-9 w-9 ring-1 ring-purple-200">
+                  <div className="flex items-center gap-3 p-2">
+                    <Avatar className="h-10 w-10 ring-1 ring-zinc-200">
                       {user.picture && <AvatarImage src={user.picture} alt={user.name || 'User'} className="object-cover" />}
-                      <AvatarFallback className="bg-gradient-to-br from-indigo-400 to-purple-400 text-xs text-white">
+                      <AvatarFallback className="bg-zinc-100 text-zinc-700 text-xs font-bold">
                         {user.name ? getInitials(user.name) : user.email ? getInitials(user.email) : 'U'}
                       </AvatarFallback>
                     </Avatar>
@@ -544,7 +552,7 @@ export default function Navbar() {
               </DropdownMenu>
             ) : (
               <Link href="/login">
-                <Button className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white shadow-md hover:opacity-90">
+                <Button className="bg-zinc-900 text-white shadow-sm hover:bg-zinc-800 rounded-md font-medium px-5">
                   Sign In
                 </Button>
               </Link>
@@ -575,7 +583,7 @@ type MobileMenuProps = {
 function MobileLinkRow({ link, onNavigate }: { link: MenuLink; onNavigate: () => void }) {
   const content = (
     <>
-      <span className="text-indigo-500 [&>svg]:size-4">{link.icon}</span>
+      <span className="text-zinc-400 group-hover:text-zinc-800 transition-colors [&>svg]:size-4">{link.icon}</span>
       <span className="flex items-center">
         {link.title}
         {link.badge === 'soon' && <SoonBadge />}
@@ -593,7 +601,7 @@ function MobileLinkRow({ link, onNavigate }: { link: MenuLink; onNavigate: () =>
         onClick={onNavigate}
         className={cn(
           'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors',
-          link.hoverClass ?? 'hover:bg-indigo-50 hover:text-indigo-600'
+          link.hoverClass ?? 'hover:bg-zinc-100 hover:text-zinc-900'
         )}
       >
         {content}
@@ -649,10 +657,10 @@ function MobileMenu({
         </button>
 
         {user ? (
-          <div className="flex flex-col items-center gap-2 pt-2 text-center">
-            <Avatar className="h-16 w-16 ring-2 ring-indigo-100">
+          <div className="flex flex-col items-center gap-3 pt-2 text-center">
+            <Avatar className="h-16 w-16 ring-1 ring-zinc-200 shadow-sm">
               {user.picture && <AvatarImage src={user.picture} alt={user.name || 'User'} className="object-cover" />}
-              <AvatarFallback className="bg-gradient-to-br from-indigo-400 to-purple-400 text-lg text-white">
+              <AvatarFallback className="bg-zinc-100 text-zinc-700 text-lg font-bold">
                 {user.name ? getInitials(user.name) : user.email ? getInitials(user.email) : 'U'}
               </AvatarFallback>
             </Avatar>
@@ -669,8 +677,8 @@ function MobileMenu({
       {!user && (
         <div className="p-4 pb-1">
           <Link href="/login" onClick={onNavigate}>
-            <Button className="w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">
-              Sign In with Google
+            <Button className="w-full bg-zinc-900 text-white hover:bg-zinc-800 rounded-md">
+              Sign In
             </Button>
           </Link>
         </div>
@@ -678,19 +686,10 @@ function MobileMenu({
 
       {/* Body: scrollable accordion menu */}
       <div className="flex-1 overflow-y-auto p-3">
-        <Link
-          href="/"
-          onClick={onNavigate}
-          className="mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600"
-        >
-          <Home className="size-4 text-indigo-500" />
-          Home
-        </Link>
-
         <Accordion type="multiple" defaultValue={['academics']} className="w-full">
           {groups.map((g) => (
             <AccordionItem key={g.value} value={g.value} className="border-0">
-              <AccordionTrigger className="rounded-lg px-3 py-3 text-sm font-semibold capitalize text-slate-800 hover:bg-indigo-50 hover:no-underline">
+              <AccordionTrigger className="rounded-lg px-3 py-3 text-sm font-semibold capitalize text-zinc-800 hover:bg-zinc-100 hover:no-underline">
                 {g.label}
               </AccordionTrigger>
               <AccordionContent className="pb-1">
@@ -709,38 +708,38 @@ function MobileMenu({
             <Link
               href="/profile"
               onClick={onNavigate}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600"
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-zinc-100 hover:text-zinc-900 group"
             >
-              <User className="size-4 text-indigo-500" /> Profile
+              <User className="size-4 text-zinc-400 group-hover:text-zinc-800 transition-colors" /> Profile
             </Link>
             <Link
               href="/wallet"
               onClick={onNavigate}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600"
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-zinc-100 hover:text-zinc-900 group"
             >
-              <Wallet className="size-4 text-indigo-500" /> QCWallet
+              <Wallet className="size-4 text-zinc-400 group-hover:text-zinc-800 transition-colors" /> QCWallet
             </Link>
             <Link
               href="/academic-progress"
               onClick={onNavigate}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600"
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-zinc-100 hover:text-zinc-900 group"
             >
-              <LineChart className="size-4 text-indigo-500" /> Academic Progress
+              <LineChart className="size-4 text-zinc-400 group-hover:text-zinc-800 transition-colors" /> Academic Progress
             </Link>
             <Link
               href="/pyq/upload"
               onClick={onNavigate}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600"
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-zinc-100 hover:text-zinc-900 group"
             >
-              <UploadCloud className="size-4 text-indigo-500" /> Upload PYQ
+              <UploadCloud className="size-4 text-zinc-400 group-hover:text-zinc-800 transition-colors" /> Upload PYQ
             </Link>
             {user.role === 'admin' || user.role === 'super-admin' ? (
               <Link
                 href="/admin/dashboard"
                 onClick={onNavigate}
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600"
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-zinc-100 hover:text-zinc-900 group"
               >
-                <LayoutDashboard className="size-4 text-indigo-500" /> Admin Dashboard
+                <LayoutDashboard className="size-4 text-zinc-400 group-hover:text-zinc-800 transition-colors" /> Admin Dashboard
               </Link>
             ) : null}
           </div>
@@ -753,7 +752,7 @@ function MobileMenu({
               key={l.href}
               href={l.href}
               onClick={onNavigate}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600"
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-600 hover:bg-zinc-100 hover:text-zinc-900"
             >
               {l.icon} {l.title}
             </Link>

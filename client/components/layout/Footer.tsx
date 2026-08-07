@@ -2,35 +2,55 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
-import { Mail } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
-const heartBlink = `
-  @keyframes heartBeat {
-    0% { transform: scale(1); }
-    15% { transform: scale(1.25); }
-    30% { transform: scale(1); }
-    45% { transform: scale(1.25); }
-    60% { transform: scale(1); }
-  }
-  
-  .heart-icon {
-    display: inline-block;
-    color: #ff3366;
-    animation: heartBeat 2s infinite;
+const customStyles = `
+  @supports (animation-timeline: view()) {
+    .reveal-on-scroll {
+      animation: revealFooter linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 40%;
+    }
+    .reveal-text {
+      animation: revealText linear both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 50%;
+    }
+    
+    @keyframes revealFooter {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    @keyframes revealText {
+      from { opacity: 0; transform: translateY(100px) scale(0.95); filter: blur(8px); }
+      to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0px); }
+    }
   }
 `;
 
 export default function Footer() {
   const pathname = usePathname();
+  const footerRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        window.dispatchEvent(
+          new CustomEvent('footerVisibilityChange', { 
+            detail: { isVisible: entry.isIntersecting } 
+          })
+        );
+      },
+      { threshold: 0.1 }
+    );
+
+    if (footerRef.current) {
+      observer.observe(footerRef.current);
+    }
+    return () => observer.disconnect();
+  }, []);
+
   const footerLinks = {
     "Quick Links": [
       { name: "Home", path: "/" },
@@ -43,13 +63,15 @@ export default function Footer() {
       { name: "Previous Year Papers", path: "/pyq" },
       { name: "Syllabus", path: "/resources/syllabus" },
     ],
+    "Legal": [
+      { name: "Terms and Conditions", path: "/terms-of-service" },
+      { name: "Privacy Policy", path: "/privacy-policy" },
+      { name: "Shipping Policy", path: "/shipping-policy" },
+      { name: "Cancellation & Refunds", path: "/cancellation-and-refunds" },
+      { name: "Contact Us", path: "/contact" },
+    ],
     "Support": [
       { name: "Help & Support", path: "/support" },
-      { name: "Privacy Policy", path: "/privacy-policy" },
-      { name: "Terms of Service", path: "/terms-of-service" },
-    ],
-    "Admin": [
-      { name: "Admin Login", path: "/admin/login" },
     ],
   };
 
@@ -59,32 +81,71 @@ export default function Footer() {
   }
 
   return (
-    <footer className="bg-gray-900 text-gray-200">
-      <style>{heartBlink}</style>
+    <footer ref={footerRef} className="relative bg-[#050505] text-white overflow-hidden min-h-screen flex flex-col justify-between reveal-on-scroll border-t border-white/5">
+      <style>{customStyles}</style>
+      
+      {/* Premium Visible Grid Background */}
+      <div 
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px)
+          `,
+          backgroundSize: '64px 64px',
+        }}
+      />
+      {/* Radial fade to soften the grid towards the edges to keep focus on center */}
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_20%,#050505_90%)]" />
 
-      {/* Desktop Footer */}
-      <div className="hidden sm:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="space-y-4">
-            <Link href="/" className="flex items-center">
-              <span className="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">
-                INVERTISPREP <span className="text-sm">v2</span>
+      {/* Top Academic OS Label */}
+      <div className="relative z-10 w-full pt-16 flex justify-center">
+        <p className="text-[10px] md:text-xs font-semibold tracking-[0.5em] text-white/40 uppercase">
+          [ Academic OS ]
+        </p>
+      </div>
+
+      {/* Giant Flagship Brand Section Dominating Center */}
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center w-full px-4 reveal-text py-20">
+        <div className="flex flex-col items-center justify-center leading-[0.75] select-none text-center">
+          <h1 className="text-[20vw] sm:text-[18vw] lg:text-[15vw] font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white to-white/70 hover:scale-[1.02] transition-transform duration-700">
+            INVERTIS
+          </h1>
+          <h1 className="text-[20vw] sm:text-[18vw] lg:text-[15vw] font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white/90 to-white/20 hover:scale-[1.02] transition-transform duration-700">
+            PREP<span className="text-white/20">.</span>
+          </h1>
+        </div>
+      </div>
+
+      {/* Existing Content Pushed to the Edges/Bottom */}
+      <div className="relative z-10 w-full px-6 lg:px-12 pb-8 flex flex-col gap-12 bg-gradient-to-t from-[#050505] to-transparent pt-12">
+        
+        {/* Links Grid across bottom */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-x-8 gap-y-12">
+          
+          {/* Brand */}
+          <div className="col-span-2 md:col-span-1 space-y-4">
+            <Link href="/" className="inline-block group">
+              <span className="text-xl font-black tracking-tighter text-white group-hover:text-white/80 transition-colors">
+                INVERTISPREP
               </span>
             </Link>
-            <p className="text-sm text-gray-400">
+            <p className="text-xs text-white/40 leading-relaxed max-w-[200px]">
               Your gateway to academic excellence at Invertis University.
             </p>
           </div>
 
+          {/* Links Columns */}
           {Object.entries(footerLinks).map(([title, links]) => (
             <div key={title} className="space-y-4">
-              <h3 className="text-sm font-semibold text-gray-200">{title}</h3>
-              <ul className="space-y-2">
+              <h3 className="text-[10px] font-bold text-white/70 tracking-[0.2em] uppercase">{title}</h3>
+              <ul className="space-y-3">
                 {links.map((link) => (
                   <li key={`${title}-${link.name}-${link.path}`}>
                     <Link
                       href={link.path}
-                      className="text-sm text-gray-400 hover:text-purple-400 transition-colors">
+                      className="text-xs text-white/40 hover:text-white transition-colors duration-300 block"
+                    >
                       {link.name}
                     </Link>
                   </li>
@@ -94,95 +155,34 @@ export default function Footer() {
           ))}
         </div>
 
-        <Separator className="my-8 bg-gray-800" />
-
-        <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-          <p className="text-sm text-gray-400">
+        {/* Bottom Bar */}
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] text-white/30 tracking-widest uppercase border-t border-white/10 pt-6">
+          <p>
             © {new Date().getFullYear()} InvertisPrep. All rights reserved.
           </p>
 
-<div className="text-sm text-gray-400">
-  <p className="flex items-center flex-wrap justify-center gap-x-1">
-    <span>Made with</span>
-    <span className="heart-icon">❤️</span>
-    <span>by</span>
-    <a
-      href="https://www.ahqafali.dev"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-purple-400 hover:text-purple-300 transition-colors"
-    >
-      Ahqaf Ali
-    </a>
-    <span className="text-purple-400">&amp;</span>
-    <a
-      href="/our-team"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-purple-400 hover:text-purple-300 transition-colors"
-    >
-      TEAM
-    </a>
-  </p>
-</div>
-
-        </div>
-      </div>
-
-      {/* Mobile Footer */}
-      <div className="sm:hidden px-4 py-6">
-        <Accordion type="single" collapsible className="w-full">
-          {Object.entries(footerLinks).map(([title, links]) => (
-            <AccordionItem key={title} value={title} className="border-gray-800">
-              <AccordionTrigger className="text-sm font-semibold text-gray-200 hover:text-gray-100">
-                {title}
-              </AccordionTrigger>
-              <AccordionContent>
-                <ul className="space-y-2 py-2">
-                  {links.map((link) => (
-                    <li key={`${title}-${link.name}-${link.path}`}>
-                      <Link
-                        href={link.path}
-                        className="text-sm text-gray-400 hover:text-purple-400 transition-colors"
-                      >
-                        {link.name}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-        <Separator className="my-6 bg-gray-800" />
-
-        <div className="flex flex-col space-y-3">
-          <p className="text-sm text-gray-400 text-center">
-            © {new Date().getFullYear()} InvertisPrep. All rights reserved.
-          </p>
-          <p className="text-sm text-gray-400 flex items-center justify-center flex-wrap gap-x-1">
-            <span>Made with</span>
-            <span className="heart-icon">❤️</span>
-            <span>by</span>
+          <div className="flex items-center gap-1.5 flex-wrap justify-center">
+            <span>Designed & Developed by</span>
             <a
               href="https://www.ahqafali.dev"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-purple-400 hover:text-purple-300 transition-colors"
+              className="text-white hover:text-white/80 transition-colors"
             >
               Ahqaf Ali
             </a>
-            <span className="text-purple-400">&amp;</span>
+            <span className="text-white/20">&amp;</span>
             <a
               href="/our-team"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-purple-400 hover:text-purple-300 transition-colors"
+              className="text-white hover:text-white/80 transition-colors"
             >
               TEAM
             </a>
-          </p>
+          </div>
         </div>
+
       </div>
     </footer>
   );
