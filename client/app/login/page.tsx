@@ -132,8 +132,10 @@ export default function LoginPage() {
             setLoading(false);
           }
         }
-      } catch {
-        setError('An error occurred while finishing Google sign-in.');
+      } catch (error: any) {
+        console.error('Google callback error:', error);
+        const serverMessage = error?.response?.data?.message || error?.response?.data?.details || error?.message;
+        setError(serverMessage ? `Google sign-in error: ${serverMessage}` : 'An error occurred while finishing Google sign-in.');
         setLoading(false);
       }
     };

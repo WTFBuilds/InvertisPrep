@@ -49,65 +49,11 @@ function QuizzoContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* ─── Hero Section ─────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-gray-950 py-24 sm:py-32">
-        <Spotlight
-          className="absolute inset-0"
-          gradientFirst="radial-gradient(68.54% 68.72% at 50% 0%, rgba(99, 102, 241, 0.2) 0%, transparent 50.11%)"
-          gradientSecond="radial-gradient(50% 50% at 50% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50.11%)"
-          gradientThird="radial-gradient(80% 60% at 50% 0%, rgba(168, 85, 247, 0.15) 0%, transparent 50%)"
-          spread={100}
-        />
-        <div
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width='32' height='32' fill='none' stroke='rgb(255 255 255 / 0.1)'%3e%3cpath d='M0 .5H31.5V32'/%3e%3c/svg%3e")`,
-          }}
-        />
-
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="mb-8"
-          >
-            <Badge
-              variant="secondary"
-              className="mb-6 bg-white/10 text-indigo-300 border-indigo-500/30 backdrop-blur-sm"
-            >
-              <Swords className="h-3 w-3 mr-1.5" />
-              1v1 Battle Arena
-            </Badge>
-          </motion.div>
-
-          <TextGenerateEffect
-            words="Challenge Your Knowledge"
-            className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight mb-6"
-          />
-
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8, duration: 0.6 }}
-            className="text-lg sm:text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed mb-8"
-          >
-            Pick a subject, find an opponent, and battle it out in real-time
-            10-question MCQ rounds. Faster answers earn more points.
-          </motion.p>
-
-          {/* Status indicator */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1 }}
-            className="flex items-center justify-center gap-2"
-          >
-            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-            <span className="text-sm text-gray-500">
-              {isConnected ? 'Connected to quiz server' : 'Connecting...'}
-            </span>
-          </motion.div>
+      <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="py-10 sm:py-12 md:py-16 text-center">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight text-gray-900 leading-none">
+            Challenge Your Knowledge
+          </h1>
         </div>
       </section>
 

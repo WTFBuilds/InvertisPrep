@@ -1,5 +1,6 @@
 import { User } from '../models/User.js';
 import { PYQPaper } from '../models/PYQPaper.js';
+import { awardPoints } from '../utils/points.js';
 
 // Get public user profile (Only logged-in users)
 export const getUserProfile = async (req, res) => {
@@ -69,15 +70,26 @@ export const followUser = async (req, res) => {
       return;
     }
 
-    // Add current user to target user's followers
-    await User.findByIdAndUpdate(id, {
-      $addToSet: { followers: currentUserId },
-    });
+    const isAlreadyFollowing = userToFollow.followers.some(
+      (followerId) => followerId.toString() === currentUserId.toString()
+    );
 
-    // Add target user to current user's following
-    await User.findByIdAndUpdate(currentUserId, {
-      $addToSet: { following: id },
-    });
+    if (!isAlreadyFollowing) {
+      // Add current user to target user's followers
+      await User.findByIdAndUpdate(id, {
+        $addToSet: { followers: currentUserId },
+      });
+
+      // Add target user to current user's following
+      await User.findByIdAndUpdate(currentUserId, {
+        $addToSet: { following: id },
+      });
+
+      // Award points for community interaction:
+      // +5 points for follow, +10 points for target user being followed
+      await awardPoints(currentUserId, 5, 'community', `Followed user: ${userToFollow.name}`);
+      await awardPoints(id, 10, 'community', `Gained follower: ${req.user.name}`);
+    }
 
     res.json({ success: true, message: 'Successfully followed user' });
   } catch (error) {
