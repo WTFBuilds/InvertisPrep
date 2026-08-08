@@ -1,42 +1,172 @@
 'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
+import { Zap, Users, Trophy, History, ArrowRight, Swords } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Spotlight } from '@/components/ui/spotlight';
+import { TextGenerateEffect } from '@/components/ui/text-generate-effect';
+import { BackgroundGradient } from '@/components/ui/background-gradient';
+import { SubjectCard } from '@/components/quiz/SubjectCard';
+import { QuizAuthGuard } from '@/components/quiz/QuizAuthGuard';
+import { useQuizSocket } from '@/contexts/QuizSocketContext';
+import { SUBJECTS, QuizSubject } from '@/lib/quizTypes';
 
-export default function Quizz0Page() {
+const container = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.1 } },
+};
+
+const item = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0 },
+};
+
+export default function QuizzoLandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white py-12">
-      <div className="max-w-4xl mx-auto px-4">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <AlertCircle className="h-8 w-8 text-yellow-600" />
-              <div>
-                <CardTitle className="text-2xl">Quizzo - Coming Soon</CardTitle>
-                <CardDescription>Interactive quiz platform for practice</CardDescription>
+    <QuizAuthGuard>
+      <QuizzoContent />
+    </QuizAuthGuard>
+  );
+}
+
+function QuizzoContent() {
+  const router = useRouter();
+  const { isConnected } = useQuizSocket();
+  const [selectedSubject, setSelectedSubject] = useState<QuizSubject | null>(null);
+
+  const handleQuickMatch = () => {
+    if (!selectedSubject) return;
+    router.push(`/quizz0/play?subject=${selectedSubject}`);
+  };
+
+  const handlePlayWithFriend = () => {
+    if (!selectedSubject) return;
+    router.push(`/quizz0/room/create?subject=${selectedSubject}`);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="py-10 sm:py-12 md:py-16 text-center">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight text-gray-900 leading-none">
+            Challenge Your Knowledge
+          </h1>
+        </div>
+      </section>
+
+      {/* ─── Subject Selection ────────────────────────────────── */}
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-10">
+        <motion.div variants={container} initial="hidden" animate="show">
+          <motion.div variants={item} className="text-center mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Choose Your Arena</h2>
+            <p className="text-gray-500">Select a subject to battle in</p>
+          </motion.div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {SUBJECTS.map((subject) => (
+              <motion.div key={subject.id} variants={item}>
+                <SubjectCard
+                  icon={subject.icon}
+                  name={subject.name}
+                  description={subject.description}
+                  gradient={subject.color}
+                  selected={selectedSubject === subject.id}
+                  onClick={() => setSelectedSubject(subject.id)}
+                />
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Action Buttons */}
+          {selectedSubject && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col sm:flex-row gap-4 justify-center max-w-lg mx-auto"
+            >
+              <BackgroundGradient className="rounded-xl w-full">
+                <Button
+                  onClick={handleQuickMatch}
+                  className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white py-6 text-base font-semibold shadow-lg shadow-indigo-500/25"
+                  size="lg"
+                >
+                  <Zap className="h-5 w-5 mr-2" />
+                  Quick Match
+                  <ArrowRight className="h-5 w-5 ml-2" />
+                </Button>
+              </BackgroundGradient>
+
+              <Button
+                onClick={handlePlayWithFriend}
+                variant="outline"
+                size="lg"
+                className="border-gray-200 py-6 text-base font-semibold"
+              >
+                <Users className="h-5 w-5 mr-2" />
+                Play with Friend
+              </Button>
+            </motion.div>
+          )}
+        </motion.div>
+      </section>
+
+      {/* ─── How It Works ────────────────────────────────────── */}
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-12"
+        >
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">How It Works</h2>
+          <p className="text-gray-500">Simple rules, intense battles</p>
+        </motion.div>
+
+        <div className="grid sm:grid-cols-3 gap-6">
+          {[
+            { icon: Zap, title: 'Pick a Subject', desc: 'Choose from CS, Java, Frontend, or DSA. Get matched with an opponent instantly.', color: 'from-blue-500 to-indigo-600' },
+            { icon: Swords, title: 'Battle It Out', desc: '10 questions, 10 seconds each. Both players answer before the next question appears.', color: 'from-purple-500 to-pink-600' },
+            { icon: Trophy, title: 'Score Points', desc: 'Correct + fast = more points (up to 150 per question). Highest total score wins!', color: 'from-amber-500 to-orange-600' },
+          ].map((step, i) => (
+            <motion.div
+              key={step.title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.15, duration: 0.5 }}
+              className="text-center p-6"
+            >
+              <div className={`w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br ${step.color} flex items-center justify-center mb-4 shadow-lg`}>
+                <step.icon className="h-7 w-7 text-white" />
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-600 mb-6">
-              We're building an interactive quiz platform where you can test your knowledge with questions from previous years and practice for your exams.
-            </p>
-            <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-6">
-              <p className="text-blue-800 font-medium">🚀 Features Coming Soon:</p>
-              <ul className="text-blue-700 mt-2 space-y-1 ml-4">
-                <li>• Multiple choice questions from previous papers</li>
-                <li>• Time-based mock tests</li>
-                <li>• Performance analytics</li>
-                <li>• Topic-wise practice</li>
-              </ul>
-            </div>
-            <Button className="bg-gradient-to-r from-indigo-500 to-purple-600">
-              Notify Me When Available
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">{step.title}</h3>
+              <p className="text-sm text-gray-500 leading-relaxed">{step.desc}</p>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* ─── Quick Links ─────────────────────────────────────── */}
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+        <div className="flex flex-wrap justify-center gap-3">
+          <Button asChild variant="outline" size="sm" className="border-gray-200">
+            <a href="/quizz0/leaderboard">
+              <Trophy className="h-4 w-4 mr-1.5" />
+              Leaderboard
+            </a>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="border-gray-200">
+            <a href="/quizz0/history">
+              <History className="h-4 w-4 mr-1.5" />
+              Match History
+            </a>
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }

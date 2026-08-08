@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { PYQPaper } from '../models/PYQPaper.js';
 import { uploadPDF, deletePDF } from '../services/cloudinaryService.js';
 import fs from 'fs/promises';
+import { awardPoints } from '../utils/points.js';
 
 // Upload PYQ (admin only)
 export const uploadPYQ = async (req, res) => {
@@ -184,6 +185,14 @@ export const verifyPYQ = async (req, res) => {
   try {
     const { id } = req.params;
 
+    const pyqBefore = await PYQPaper.findById(id);
+    if (!pyqBefore) {
+      res.status(404).json({ success: false, message: 'PYQ not found' });
+      return;
+    }
+
+    const wasAlreadyVerified = pyqBefore.verified;
+
     const pyq = await PYQPaper.findByIdAndUpdate(
       id, 
       { $set: { verified: true } }, 
@@ -192,9 +201,8 @@ export const verifyPYQ = async (req, res) => {
       .populate('branchId', 'name')
       .populate('sessionId', 'name');
 
-    if (!pyq) {
-      res.status(404).json({ success: false, message: 'PYQ not found' });
-      return;
+    if (!wasAlreadyVerified && pyq.uploadedBy) {
+      await awardPoints(pyq.uploadedBy, 50, 'upload', `Verified PYQ Upload: ${pyq.title}`);
     }
 
     res.json({ success: true, data: pyq });

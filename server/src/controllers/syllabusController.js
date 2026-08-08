@@ -1,5 +1,6 @@
 import { Syllabus } from '../models/Syllabus.js';
 import { uploadPDF, deletePDF } from '../services/cloudinaryService.js';
+import { awardPoints } from '../utils/points.js';
 
 export const uploadSyllabus = async (req, res) => {
   try {
@@ -31,6 +32,9 @@ export const uploadSyllabus = async (req, res) => {
     });
 
     await syllabus.save();
+
+    // Award points to the contributor
+    await awardPoints(userId, 30, 'contribution', `Syllabus Upload: ${name} (${year})`);
 
     res.json({ success: true, data: syllabus });
   } catch (error) {

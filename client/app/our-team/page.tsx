@@ -1,7 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
-import { LinkedinIcon, GithubIcon, InstagramIcon } from "lucide-react";
+import React from "react";
+import {
+  LinkedinIcon,
+  GithubIcon,
+  InstagramIcon,
+  Compass,
+  Briefcase,
+  ArrowRight,
+} from "lucide-react";
+import { TeamSection, TeamMember, SocialLink } from "@/components/ui/team-section";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const teamMembers = [
@@ -11,6 +19,7 @@ const teamMembers = [
     image: "/team/member1.jpg",
     linkedin: "https://www.linkedin.com/in/ahqaf-ali/",
     github: "https://github.com/AhqafCoder",
+    description: "Ahqaf Ali is the Founder and Lead at InvertisPrep. He directs the platform's vision, system architecture, and coordinates technical execution to provide high-quality learning resources for students.",
   },
   {
     name: "Sumanjeet Raj",
@@ -18,6 +27,7 @@ const teamMembers = [
     image: "/team/member2.jpg",
     linkedin: "https://www.linkedin.com/in/sumanjeet-raj-a59209380/",
     github: "https://github.com/Sumanjeetraj",
+    description: "Sumanjeet Raj is the Content Lead at InvertisPrep. He oversees educational content curation, syllabus tracking, and updates to ensure accuracy and maximum prep readiness for students.",
   },
   {
     name: "Rajan Sharma",
@@ -25,6 +35,7 @@ const teamMembers = [
     image: "/team/member3.jpg",
     linkedin: "https://linkedin.com/in/rajan-sharma-stack",
     github: "https://github.com/rajan2436",
+    description: "Rajan Sharma is a Front End Developer at InvertisPrep. He is dedicated to building modern, highly-polished, responsive user experiences that keep our educational platform accessible and engaging.",
   },
   {
     name: "Bakhtiyar Ali",
@@ -32,6 +43,7 @@ const teamMembers = [
     image: "/team/member4.jpg",
     linkedin: "https://www.linkedin.com/in/bakhtiyar-ali-38526a37a",
     github: "https://github.com/Bakhtiyarali291-png",
+    description: "Bakhtiyar Ali is the Data Analyst at InvertisPrep. He drives data analysis, feedback evaluation, and analytics to align our question banks and preparation resources with student needs.",
   },
   {
     name: "Khanak Aggarwal",
@@ -39,6 +51,7 @@ const teamMembers = [
     image: "/team/member5.jpg",
     linkedin: "https://www.linkedin.com/in/khanak-agarwal-24ka",
     instagram: "https://insta.openinapp.co/ln1gy",
+    description: "Khanak Aggarwal is the Operations Manager at InvertisPrep. She handles daily task management, timelines, and operational alignment across designers, developers, and writers.",
   },
   {
     name: "Prarthna Gupta",
@@ -47,252 +60,116 @@ const teamMembers = [
     linkedin: "https://www.linkedin.com/in/prarthna-gupta-a7076037a?utm_source=share_via&utm_content=profile&utm_medium=member_android",
     github: "",
     instagram: "https://www.instagram.com/praru_20?igsh=MWdidGx1ejR5amRncw==",
+    description: "Prarthna Gupta is the Marketing Specialist at InvertisPrep. She drives communication strategies, public relations, and outreach campaigns to expand InvertisPrep's student community.",
   },
   {
     name: "Krishu Kumar",
     role: "Front End Developer",
     image: "/team/member7.jpg",
     linkedin: "https://www.linkedin.com/in/krishukumar72",
+    description: "Krishu Kumar is a Front End Developer at InvertisPrep. He works on design implementations, styling consistency, and component libraries to enhance performance across devices.",
   },
 ];
 
-function Marquee({
-  children,
-  pauseOnHover = false,
-}: {
-  children: React.ReactNode;
-  pauseOnHover?: boolean;
-}) {
-  return (
-    <div
-      className={`flex w-full overflow-hidden ${
-        pauseOnHover ? "marquee-hover-zone" : ""
-      }`}
-      style={{ "--gap": "1.5rem" } as React.CSSProperties}
-    >
-      <style>{`
-        @keyframes marquee-scroll {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
-        }
-        .marquee-track {
-          animation: marquee-scroll 35s linear infinite;
-          will-change: transform;
-        }
-        .marquee-hover-zone:hover .marquee-track {
-          animation-play-state: paused;
-        }
-      `}</style>
-      {/* No gap on the outer track — both copies must be exactly equal width */}
-      <div className="flex shrink-0 marquee-track">
-        <div className="flex shrink-0" style={{ gap: "var(--gap)", paddingRight: "var(--gap)" }}>
-          {children}
-        </div>
-        <div className="flex shrink-0" style={{ gap: "var(--gap)", paddingRight: "var(--gap)" }} aria-hidden="true">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TeamAvatar({ name, image }: { name: string; image?: string }) {
-  const [errored, setErrored] = useState(false);
-  const initials = name
-    .split(" ")
-    .map((part) => part.charAt(0))
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
-  if (!image || errored) {
-    return (
-      <div className="flex h-full w-full items-center justify-center bg-indigo-100 text-4xl font-bold text-indigo-400">
-        {initials}
-      </div>
-    );
-  }
-
-  return (
-    <img
-      src={image}
-      alt={name}
-      className="h-full w-full object-cover"
-      onError={() => setErrored(true)}
-    />
-  );
-}
-
-function SocialButtons({
-  linkedin,
-  github,
-  instagram
-}: {
-  linkedin?: string;
-  github?: string;
-  instagram?: string;
-}) {
-  if (!linkedin && !github && !instagram) return null;
-
-  return (
-    <div className="absolute top-2 right-2 z-20 grid gap-2 opacity-50 transition-opacity duration-300 md:opacity-0 md:group-hover:opacity-100">
-      {linkedin && (
-        <a
-          href={linkedin}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="LinkedIn profile"
-          onClick={(e) => e.stopPropagation()}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-neutral-700 shadow-md transition-colors hover:bg-indigo-600 hover:text-white"
-        >
-          <LinkedinIcon className="h-4 w-4" />
-        </a>
-      )}
-      {github && (
-        <a
-          href={github}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="GitHub profile"
-          onClick={(e) => e.stopPropagation()}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-neutral-700 shadow-md transition-colors hover:bg-neutral-900 hover:text-white"
-        >
-          <GithubIcon className="h-4 w-4" />
-        </a>
-      )}
-      {instagram && (
-        <a
-          href={instagram}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Instagram profile"
-          onClick={(e) => e.stopPropagation()}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-neutral-700 shadow-md transition-colors hover:bg-pink-500 hover:text-white"
-        >
-          <InstagramIcon className="h-4 w-4" />
-        </a>
-      )}
-    </div>
-  );
-}
-
 export default function OurTeamPage() {
+  // Transform raw data to match TeamMember structure
+  const members: TeamMember[] = React.useMemo(() => {
+    return teamMembers.map((member) => {
+      const socialLinks: SocialLink[] = [];
+      if (member.linkedin) {
+        socialLinks.push({ icon: LinkedinIcon, href: member.linkedin });
+      }
+      if (member.github) {
+        socialLinks.push({ icon: GithubIcon, href: member.github });
+      }
+      if (member.instagram) {
+        socialLinks.push({ icon: InstagramIcon, href: member.instagram });
+      }
+      return {
+        name: member.name,
+        designation: member.role,
+        imageSrc: member.image,
+        description: member.description,
+        githubUrl: member.github || undefined,
+        linkedinUrl: member.linkedin || undefined,
+        instagramUrl: member.instagram || undefined,
+        socialLinks,
+      };
+    });
+  }, []);
+
+  // Branded logo as a ReactNode text element
+  const brandLogo = React.useMemo(() => {
+    return (
+      <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text font-black tracking-tight text-transparent">
+        INVERTISPREP
+      </span>
+    );
+  }, []);
+
   return (
-    <section className="relative w-full overflow-hidden bg-white py-8 md:py-20">
-      <div>
-        <svg
-          className="absolute right-0 bottom-0 text-neutral-200"
-          fill="none"
-          height="154"
-          viewBox="0 0 460 154"
-          width="460"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <g clipPath="url(#clip0_494_1104)">
-            <path
-              d="M-87.463 458.432C-102.118 348.092 -77.3418 238.841 -15.0744 188.274C57.4129 129.408 180.708 150.071 351.748 341.128C278.246 -374.233 633.954 380.602 548.123 42.7707"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="40"
-            />
-          </g>
-          <defs>
-            <clipPath id="clip0_494_1104">
-              <rect fill="white" height="154" width="460" />
-            </clipPath>
-          </defs>
-        </svg>
-      </div>
+    <div className="relative min-h-screen bg-background py-10 md:py-16">
+      {/* Team section */}
+      <TeamSection
+        title="Meet the People behind our success"
+        description="The developers, managers, designers, and specialists who work tirelessly to build InvertisPrep and support student success."
+        members={members}
+        logo={brandLogo}
+        registerLink="https://forms.gle/itpqynriXxkC4bWTA"
+      />
 
-      <div className="relative z-10 mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="mx-auto mb-16 flex max-w-5xl flex-col items-center px-6 text-center lg:px-0">
-          <h1 className="relative mb-4 font-bold text-4xl text-neutral-900 tracking-tight sm:text-5xl">
-            Meet the People behind our success
-            <svg
-              className="absolute -top-2 -right-8 -z-10 w-24 text-neutral-200"
-              fill="currentColor"
-              height="86"
-              viewBox="0 0 108 86"
-              width="108"
-              xmlns="http://www.w3.org/2000/svg"
+      {/* Mission & Join Our Team Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto px-4 mt-8">
+        {/* Mission Card */}
+        <Card className="relative overflow-hidden group hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300 border border-border/50 bg-card/60 backdrop-blur-sm">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-bl-full -z-10 group-hover:scale-110 transition-transform duration-300" />
+          <CardHeader className="flex flex-row items-center gap-3">
+            <div className="p-2.5 bg-indigo-500/10 text-indigo-500 rounded-lg">
+              <Compass className="h-6 w-6" />
+            </div>
+            <CardTitle className="font-bold text-2xl text-foreground">
+              Our Mission
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
+              At InvertisPrep, we're dedicated to making quality education
+              resources accessible to every student. Our team works tirelessly
+              to provide comprehensive PYQs, syllabus materials, and interactive
+              tools to help students succeed in their exams.
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Join Our Team Card */}
+        <Card className="relative overflow-hidden group hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300 border border-border/50 bg-card/60 backdrop-blur-sm">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 rounded-bl-full -z-10 group-hover:scale-110 transition-transform duration-300" />
+          <CardHeader className="flex flex-row items-center gap-3">
+            <div className="p-2.5 bg-rose-500/10 text-rose-500 rounded-lg">
+              <Briefcase className="h-6 w-6" />
+            </div>
+            <CardTitle className="font-bold text-2xl text-foreground">
+              Join Our Team
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-start gap-4">
+            <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
+              We're always looking for talented individuals who are passionate
+              about education and technology. If you're interested in joining
+              our team, check out our current openings.
+            </p>
+            <a
+              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 px-5 py-2.5 font-semibold text-sm text-white transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/20 hover:scale-[1.02] active:scale-[0.98]"
+              href="https://forms.gle/itpqynriXxkC4bWTA"
+              target="_blank"
+              rel="noopener noreferrer"
             >
-              <path
-                d="M38.8484 16.236L15 43.5793L78.2688 15L18.1218 71L93 34.1172L70.2047 65.2739"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="28"
-              />
-            </svg>
-          </h1>
-        </div>
-
-        {/* Team Marquee */}
-        <div className="relative w-full">
-          <div className="pointer-events-none absolute top-0 left-0 z-10 h-full w-32 bg-gradient-to-r from-white-300 to-transparent" />
-          <div className="pointer-events-none absolute top-0 right-0 z-10 h-full w-32 bg-gradient-to-l from-white-300 to-transparent" />
-
-          <Marquee pauseOnHover>
-            {teamMembers.map((member) => (
-              <div
-                className="group flex w-68 shrink-0 flex-col"
-                key={member.name}
-              >
-                <div className="relative flex h-70 w-full flex-col items-center justify-center overflow-hidden rounded-2xl bg-neutral-100 transition-colors duration-500 group-hover:bg-indigo-50">
-                  <SocialButtons linkedin={member.linkedin} github={member.github} instagram={member.instagram} />
-                  <TeamAvatar name={member.name} image={member.image} />
-                  <div className="absolute bottom-0 w-full bg-gradient-to-t from-black/85 to-transparent p-2 text-center">
-                    <h3 className="font-semibold text-neutral-100/100 text-lg">
-                      {member.name}
-                    </h3>
-                    <p className="text-neutral-100/75 text-sm">{member.role}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </Marquee>
-        </div>
-
-        {/* Mission & Join Our Team */}
-        <div className="flex flex-col gap-12 mt-20 mx-2 md:mx-75">
-          <Card className="text-center h-full w-10/12 mx-auto">
-            <CardHeader>
-              <CardTitle className="font-bold text-3xl">Our Mission</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-neutral-600">
-                At InvertisPrep, we're dedicated to making quality education
-                resources accessible to every student. Our team works
-                tirelessly to provide comprehensive PYQs, syllabus materials,
-                and interactive tools to help students succeed in their
-                exams.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="text-center h-full w-10/12 mx-auto my-8">
-            <CardHeader>
-              <CardTitle className="font-bold text-3xl">Join Our Team</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center">
-              <p className="mb-4 text-neutral-600">
-                We're always looking for talented individuals who are
-                passionate about education and technology. If you're
-                interested in joining our team, check out our current
-                openings.
-              </p>
-              <a className="inline-flex rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2.5 font-medium text-sm text-white transition-colors hover:bg-indigo-700"
-                href="https://forms.gle/itpqynriXxkC4bWTA"
-                target="_blank"
-                rel="noopener noreferrer">
-                View Open Positions
-              </a>
-            </CardContent>
-          </Card>
-        </div>
+              View Open Positions
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </a>
+          </CardContent>
+        </Card>
       </div>
-    </section>
+    </div>
   );
 }

@@ -24,6 +24,7 @@ import type {
   TopUpPacks,
   TransactionMeta,
   TransactionType,
+  InvertisEvent,
 } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -277,6 +278,19 @@ export const userApi = {
   },
 };
 
+export const leaderboardApi = {
+  getRankings: async (type: 'all_time' | 'weekly', department?: string): Promise<APIResponse<any>> => {
+    const params: Record<string, string> = { type };
+    if (department) params.department = department;
+    const { data } = await apiClient.get<APIResponse<any>>('/leaderboard', { params });
+    return data;
+  },
+  getMyStats: async (): Promise<APIResponse<any>> => {
+    const { data } = await apiClient.get<APIResponse<any>>('/leaderboard/me');
+    return data;
+  },
+};
+
 export const resumeApi = {
   list: async (): Promise<APIResponse<Resume[]>> => {
     const { data } = await apiClient.get<APIResponse<Resume[]>>('/resumes');
@@ -314,6 +328,29 @@ export const reportApi = {
 
   updateStatus: async (id: string, status: 'resolved' | 'dismissed'): Promise<APIResponse<Report>> => {
     const { data } = await apiClient.patch<APIResponse<Report>>(`/reports/${id}`, { status });
+    return data;
+  },
+};
+
+// Bug API
+export const bugApi = {
+  create: async (bugData: { title: string; description: string; severity: string; email: string; browser?: string; device?: string }): Promise<APIResponse<any>> => {
+    const { data } = await apiClient.post<APIResponse<any>>('/bugs', bugData);
+    return data;
+  },
+
+  getAll: async (status?: string, severity?: string): Promise<APIResponse<any[]>> => {
+    const { data } = await apiClient.get<APIResponse<any[]>>('/bugs', { params: { status, severity } });
+    return data;
+  },
+
+  updateStatus: async (id: string, status: 'pending' | 'active' | 'resolved' | 'dismissed'): Promise<APIResponse<any>> => {
+    const { data } = await apiClient.patch<APIResponse<any>>(`/bugs/${id}`, { status });
+    return data;
+  },
+
+  delete: async (id: string): Promise<APIResponse<any>> => {
+    const { data } = await apiClient.delete<APIResponse<any>>(`/bugs/${id}`);
     return data;
   },
 };
@@ -371,6 +408,45 @@ export const walletApi = {
       '/wallet/spend-download',
       { resumeId, method }
     );
+    return data;
+  },
+};
+
+// Event API
+export const eventApi = {
+  getAll: async (): Promise<APIResponse<InvertisEvent[]>> => {
+    const { data } = await apiClient.get<APIResponse<InvertisEvent[]>>('/events');
+    return data;
+  },
+
+  getById: async (id: string): Promise<APIResponse<InvertisEvent>> => {
+    const { data } = await apiClient.get<APIResponse<InvertisEvent>>(`/events/${id}`);
+    return data;
+  },
+
+  create: async (eventData: Partial<InvertisEvent>): Promise<APIResponse<InvertisEvent>> => {
+    const { data } = await apiClient.post<APIResponse<InvertisEvent>>('/events', eventData);
+    return data;
+  },
+
+  update: async (id: string, eventData: Partial<InvertisEvent>): Promise<APIResponse<InvertisEvent>> => {
+    const { data } = await apiClient.put<APIResponse<InvertisEvent>>(`/events/${id}`, eventData);
+    return data;
+  },
+
+  delete: async (id: string): Promise<APIResponse<any>> => {
+    const { data } = await apiClient.delete<APIResponse<any>>(`/events/${id}`);
+    return data;
+  },
+
+  uploadImage: async (file: File): Promise<APIResponse<{ url: string }>> => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const { data } = await apiClient.post<APIResponse<{ url: string }>>('/events/upload-image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return data;
   },
 };

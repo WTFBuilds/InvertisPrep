@@ -243,3 +243,24 @@ export interface Resume {
   updatedAt: string;
 }
 export type ResumeDraft = Omit<Resume, '_id' | 'createdAt' | 'updatedAt'>;
+
+// Event types
+export interface InvertisEvent {
+  _id?: string;
+  id: string;
+  title: string;
+  category: string;
+  date: string;
+  time: string;
+  venue: string;
+  organizer: string;
+  description: string;
+  longDescription: string;
+  image: string;
+  featured?: boolean;
+  registrationOpen: boolean;
+  timeline: string[];
+  rules: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}

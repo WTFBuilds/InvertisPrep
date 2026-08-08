@@ -332,7 +332,7 @@ export default function Navbar() {
   const academicLinks: MenuLink[] = [
     { title: 'PYQ Papers', href: '/pyq', description: 'Browse previous year question papers by department & semester.', icon: <BookOpen /> , badge: 'new'},
     { title: 'Syllabus', href: '/resources/syllabus', description: 'Download syllabus documents for every course.', icon: <FileText />, badge: 'new' },
-    { title: 'Quizzo', href: '/quizz0', description: 'Practice quizzes & timed mock tests.', icon: <Brain />, badge: 'soon' },
+    { title: 'Quizzo', href: '/quizz0', description: 'Practice quizzes & timed mock tests.', icon: <Brain />, badge: 'new' },
   ];
 
   const careerLinks: MenuLink[] = [
@@ -343,8 +343,8 @@ export default function Navbar() {
 
   const communityLinks: MenuLink[] = [
     { title: 'Societies & Clubs', href: '/coming-soon/societies', description: 'Discover and join campus societies.', icon: <Users />, badge: 'soon' },
-    { title: 'Events', href: '/coming-soon/events', description: 'Calendar of fests, talks & workshops.', icon: <CalendarDays />, badge: 'soon' },
-    { title: 'Leaderboard', href: '/coming-soon/leaderboard', description: 'See top contributors & rank up.', icon: <Trophy />, badge: 'soon' },
+    { title: 'Events', href: '/events', description: 'Calendar of fests, talks & workshops.', icon: <CalendarDays />, badge: 'new' },
+    { title: 'Leaderboard', href: '/leaderboard', description: 'See top contributors & rank up.', icon: <Trophy />, badge: 'new' },
     { title: 'Our Team', href: '/our-team', description: 'Meet the people behind InvertisPrep.', icon: <Users />, badge: 'new' },
   ];
 
