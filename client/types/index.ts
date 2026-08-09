@@ -149,7 +149,7 @@ export interface CreateSessionDTO {
 }
 
 // PYQ types
-export type ExamType = 'mid-term' | 'end-term' | 'sessional';
+export type ExamType = 'mid-term' | 'end-term';
 
 export interface PYQPaper {
   _id: string;

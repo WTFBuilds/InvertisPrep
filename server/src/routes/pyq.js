@@ -13,14 +13,15 @@ import {
 } from '../controllers/pyqController.js';
 import { authenticateJWT, isAdmin, isSuperAdmin } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
+import { uploadLimiter } from '../middleware/rateLimit.js';
 
 const router = Router();
 
 // Specific routes (must come before parameter routes)
 router.get('/', getPYQs);
 router.get('/upload-count', authenticateJWT, getDailyUploadCount);
-router.post('/upload', authenticateJWT, isAdmin, upload.single('pdf'), uploadPYQ);
-router.post('/upload-public', authenticateJWT, upload.single('pdf'), uploadPYQPublic);
+router.post('/upload', authenticateJWT, isAdmin, uploadLimiter, upload.single('pdf'), uploadPYQ);
+router.post('/upload-public', authenticateJWT, uploadLimiter, upload.single('pdf'), uploadPYQPublic);
 router.get('/all', authenticateJWT, isAdmin, getAllPYQs);
 
 // Parameter routes with actions

@@ -379,12 +379,15 @@ export const uploadPYQPublic = async (req, res) => {
 // Get daily upload count for the authenticated user (IST-aligned)
 export const getDailyUploadCount = async (req, res) => {
   try {
+    // Max papers a non-admin user can upload per day (default 10)
+    const dailyLimit = parseInt(process.env.DAILY_UPLOAD_LIMIT, 10) || 10;
+
     if (req.user.role === 'admin' || req.user.role === 'super-admin') {
       res.json({ 
         success: true, 
         data: {
           count: 0, 
-          limit: 10,
+          limit: dailyLimit,
           isExempt: true 
         }
       });
@@ -406,7 +409,7 @@ export const getDailyUploadCount = async (req, res) => {
       success: true, 
       data: {
         count, 
-        limit: 10, 
+        limit: dailyLimit, 
         isExempt: false 
       }
     });
