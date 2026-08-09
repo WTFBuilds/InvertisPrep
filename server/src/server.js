@@ -32,13 +32,20 @@ import eventRoutes from './routes/events.js';
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
 
-// CORS Configuration — comma-separated origins from env (e.g. CORS_ORIGINS=a,b,c)
-// Default preserves the previously hard-coded origins (dev + production).
-const corsOrigins = (process.env.CORS_ORIGINS ||
-  'http://localhost:3000,http://localhost:5000,https://invertisprep.vercel.app,https://invertisprepv2.vercel.app')
+// CORS Configuration
+// Default origins always apply; env var CORS_ORIGINS adds extra origins (comma-separated).
+// This avoids production breakage when the env only contains localhost.
+const defaultOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'https://invertisprep.vercel.app',
+  'https://invertisprepv2.vercel.app',
+];
+const extraOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
-  .map((origin) => origin.trim())
+  .map((o) => o.trim())
   .filter(Boolean);
+const corsOrigins = [...new Set([...defaultOrigins, ...extraOrigins])];
 
 // Body size limit for JSON payloads (e.g. "3mb")
 const bodyLimit = process.env.BODY_LIMIT || '3mb';
