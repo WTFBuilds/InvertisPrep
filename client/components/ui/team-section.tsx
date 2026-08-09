@@ -488,8 +488,8 @@ export const TeamSection = React.forwardRef<HTMLDivElement, TeamSectionProps>(
 
         <div className="container relative z-10 mx-auto px-4 md:px-6">
           {/* Header Section */}
-          <div className="flex flex-wrap items-center justify-centerflex w-full flex-col gap-6 md:flex-row md:items-end md:justify-between mb-16 border-b border-border/40 pb-8">
-            <div className="space-y-3 flex flex-wrap items-center justify-center">
+          <div className="mb-14 flex w-full flex-col items-center border-b border-border/40 pb-8 text-center">
+            <div className="max-w-3xl space-y-3">
               <h2 className="text-2xl font-bold tracking-tight sm:text-2xl md:text-4xl lg:text-5xl text-foreground">
                 {title}
               </h2>
@@ -500,7 +500,7 @@ export const TeamSection = React.forwardRef<HTMLDivElement, TeamSectionProps>(
           </div>
 
           {/* Team Members Grid */}
-          <div className="mx-auto grid w-100% max-w-6xl grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 justify-center">
+          <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 justify-center">
             {members.map((member, index) => (
               <TeamMemberCard
                 key={index}

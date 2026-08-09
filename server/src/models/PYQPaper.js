@@ -46,7 +46,7 @@ const pyqPaperSchema = new Schema(
     },
     examType: {
       type: String,
-      enum: ['mid-term', 'end-term', 'sessional'],
+      enum: ['mid-term', 'end-term'],
       required: true,
     },
     

@@ -1,15 +1,16 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { Mail, MapPin, Instagram, Linkedin, Twitter, ExternalLink } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Mail, MapPin, Instagram, Linkedin, ExternalLink, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { BackgroundGradient } from '@/components/ui/background-gradient';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Spotlight } from '@/components/ui/spotlight';
+import { GlowCard } from '@/components/ui/glow-card';
 import { ContactForm, FAQGrid } from '@/components/ui/faq-accordion';
 
 const socialLinks = [
-  { name: 'Instagram', icon: Instagram, href: 'https://www.instagram.com/invertisprep.in/', color: 'from-pink-500 to-purple-600' },
-  { name: 'LinkedIn', icon: Linkedin, href: 'https://www.linkedin.com/company/invertisprep/', color: 'from-blue-600 to-blue-700' },
+  { name: 'Instagram', icon: Instagram, href: 'https://www.instagram.com/invertisprep.in/', chipClass: 'bg-pink-100 text-pink-600' },
+  { name: 'LinkedIn', icon: Linkedin, href: 'https://www.linkedin.com/company/invertisprep/', chipClass: 'bg-blue-100 text-blue-700' },
 ];
 
 const contactInfo = [
@@ -18,7 +19,7 @@ const contactInfo = [
     title: 'Email Us',
     value: 'invertisprep@gmail.com',
     href: 'mailto:invertisprep@gmail.com',
-    color: 'from-indigo-500 to-purple-600',
+    chipClass: 'bg-indigo-100 text-indigo-700',
     description: 'Our team typically responds within 24 hours.',
   },
   {
@@ -26,7 +27,7 @@ const contactInfo = [
     title: 'Visit Us',
     value: 'Invertis University, Bareilly',
     href: 'https://maps.google.com/?q=Invertis+University+Bareilly',
-    color: 'from-purple-500 to-pink-600',
+    chipClass: 'bg-purple-100 text-purple-700',
     description: 'Bareilly, Uttar Pradesh, India',
   },
 ];
@@ -38,199 +39,141 @@ const quickLinks = [
   { name: 'Cancellation & Refunds', href: '/cancellation-and-refunds' },
 ];
 
-const container = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 },
-  },
-};
-
-const item = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0 },
-};
-
 export default function ContactPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="relative min-h-screen bg-slate-50">
+      {/* Subtle professional light accent */}
+      <Spotlight
+        className="absolute inset-x-0 top-0 h-80 overflow-hidden"
+        gradientFirst="radial-gradient(68.54% 68.72% at 50% 0%, rgba(99,102,241,0.08) 0%, transparent 50.11%)"
+        gradientSecond="radial-gradient(50% 50% at 50% 50%, rgba(99,102,241,0.04) 0%, transparent 50.11%)"
+        gradientThird="radial-gradient(80% 60% at 50% 0%, rgba(139,92,246,0.06) 0%, transparent 50%)"
+      />
+
       {/* Hero Section */}
-      <BackgroundGradient className="py-20 sm:py-28">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 tracking-tight mb-6">
-              Get in Touch
-            </h1>
-            <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-              Have questions or feedback? We&apos;d love to hear from you.
-              Our team is here to help and typically responds within 24 hours.
-            </p>
-          </motion.div>
-        </div>
-      </BackgroundGradient>
+      <section className="relative mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 sm:py-20 lg:px-8">
+        <Badge variant="indigo" className="mb-3">Get in Touch</Badge>
+        <h1 className="text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">Contact Us</h1>
+        <p className="mx-auto mt-3 max-w-2xl leading-relaxed text-slate-500">
+          Have questions or feedback? We&apos;d love to hear from you. Our team typically responds within 24 hours.
+        </p>
+      </section>
 
       {/* Contact Info Cards */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 relative z-10">
-        <motion.div
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto"
-        >
-          {contactInfo.map((info, idx) => (
-            <motion.div key={idx} variants={item}>
-              <a href={info.href} target="_blank" rel="noopener noreferrer" className="block h-full">
-                <Card className="h-full hover:shadow-xl transition-all duration-300 border-0 shadow-lg group">
-                  <CardContent className="p-8">
-                    <div className="flex items-start gap-5">
-                      <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${info.color} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300`}>
-                        <info.icon className="h-6 w-6 text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-1 flex items-center gap-2">
-                          {info.title}
-                          <ExternalLink className="h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </h3>
-                        <p className="text-gray-900 font-medium truncate">{info.value}</p>
-                        <p className="text-sm text-gray-500 mt-1">{info.description}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </a>
-            </motion.div>
+      <section className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto grid max-w-4xl gap-5 md:grid-cols-2">
+          {contactInfo.map((info) => (
+            <a key={info.title} href={info.href} target="_blank" rel="noopener noreferrer" className="block h-full">
+              <GlowCard className="h-full rounded-2xl border-slate-200 bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+                <div className="flex items-start gap-4">
+                  <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${info.chipClass}`}>
+                    <info.icon className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="flex items-center gap-2 font-bold text-slate-900">
+                      {info.title}
+                      <ExternalLink className="h-3.5 w-3.5 text-slate-300 transition-colors group-hover:text-slate-500" />
+                    </h3>
+                    <p className="mt-0.5 truncate font-medium text-slate-800">{info.value}</p>
+                    <p className="mt-1 text-sm text-slate-400">{info.description}</p>
+                  </div>
+                </div>
+              </GlowCard>
+            </a>
           ))}
-        </motion.div>
+        </div>
       </section>
 
       {/* Main Content */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="grid lg:grid-cols-[1fr_400px] gap-12 lg:gap-16">
+      <section className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+        <div className="grid gap-8 lg:grid-cols-[1fr_360px] lg:gap-12">
           {/* Contact Form */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-              Send us a message
-            </h2>
-            <p className="text-gray-500 mb-8">
-              Fill out the form below and we&apos;ll get back to you as soon as possible.
-            </p>
-            <Card className="border-0 shadow-lg">
-              <CardContent className="p-8">
-                <ContactForm />
-              </CardContent>
-            </Card>
-          </motion.div>
+          <div>
+            <h2 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Send us a message</h2>
+            <p className="mb-6 mt-1 text-slate-500">Fill out the form below and we&apos;ll get back to you as soon as possible.</p>
+            <GlowCard className="rounded-2xl border-slate-200 bg-white p-6 sm:p-8">
+              <ContactForm />
+            </GlowCard>
+          </div>
 
           {/* Sidebar */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="space-y-6"
-          >
+          <div className="space-y-6">
             {/* Quick Links */}
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold">Quick Links</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {quickLinks.map((link, idx) => (
-                    <a
-                      key={idx}
-                      href={link.href}
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors group"
-                    >
-                      <span className="text-sm font-medium text-gray-700 group-hover:text-indigo-600 transition-colors">
-                        {link.name}
-                      </span>
-                      <ExternalLink className="h-4 w-4 text-gray-400 group-hover:text-indigo-500 transition-colors" />
-                    </a>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <GlowCard className="rounded-2xl border-slate-200 bg-white p-6">
+              <h3 className="mb-3 font-bold text-slate-900">Quick Links</h3>
+              <Separator className="mb-3" />
+              <div className="space-y-1">
+                {quickLinks.map((link) => (
+                  <a
+                    key={link.name}
+                    href={link.href}
+                    className="group flex items-center justify-between rounded-lg p-2.5 transition-colors hover:bg-slate-50"
+                  >
+                    <span className="text-sm font-medium text-slate-700 transition-colors group-hover:text-indigo-600">
+                      {link.name}
+                    </span>
+                    <ExternalLink className="h-4 w-4 text-slate-300 transition-colors group-hover:text-indigo-500" />
+                  </a>
+                ))}
+              </div>
+            </GlowCard>
 
             {/* Social Links */}
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold">Connect With Us</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-3">
-                  {socialLinks.map((social, idx) => (
-                    <motion.a
-                      key={idx}
-                      href={social.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors group"
-                      whileHover={{ y: -3 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <social.icon className="h-5 w-5 text-gray-600 group-hover:text-indigo-600 transition-colors" />
-                      <span className="text-xs font-medium text-gray-600 group-hover:text-indigo-600 transition-colors">
-                        {social.name}
-                      </span>
-                    </motion.a>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <GlowCard className="rounded-2xl border-slate-200 bg-white p-6">
+              <h3 className="mb-3 font-bold text-slate-900">Connect With Us</h3>
+              <Separator className="mb-3" />
+              <div className="grid grid-cols-2 gap-3">
+                {socialLinks.map((social) => (
+                  <a
+                    key={social.name}
+                    href={social.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex flex-col items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/60 p-4 transition-all hover:-translate-y-0.5 hover:border-slate-200 hover:shadow-sm"
+                  >
+                    <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${social.chipClass}`}>
+                      <social.icon className="h-4 w-4" />
+                    </span>
+                    <span className="text-xs font-semibold text-slate-600">{social.name}</span>
+                  </a>
+                ))}
+              </div>
+            </GlowCard>
 
             {/* Support Hours */}
-            <Card className="border-0 shadow-lg bg-gradient-to-br from-indigo-50 to-purple-50">
-              <CardContent className="p-6">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Support Hours</h3>
-                <div className="space-y-2 text-sm text-gray-600">
-                  <div className="flex justify-between">
-                    <span>Monday - Friday</span>
-                    <span className="font-medium">9:00 AM - 6:00 PM</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Saturday</span>
-                    <span className="font-medium">10:00 AM - 2:00 PM</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Sunday</span>
-                    <span className="font-medium text-gray-400">Closed</span>
-                  </div>
+            <GlowCard className="rounded-2xl border-slate-200 bg-white p-6">
+              <h3 className="mb-3 flex items-center gap-2 font-bold text-slate-900">
+                <Clock className="h-4 w-4 text-indigo-600" />
+                Support Hours
+              </h3>
+              <Separator className="mb-3" />
+              <div className="space-y-2 text-sm text-slate-600">
+                <div className="flex justify-between">
+                  <span>Monday - Friday</span>
+                  <span className="font-semibold">9:00 AM - 6:00 PM</span>
                 </div>
-                <p className="text-xs text-gray-500 mt-4">
-                  *IST (Indian Standard Time)
-                </p>
-              </CardContent>
-            </Card>
-          </motion.div>
+                <div className="flex justify-between">
+                  <span>Saturday</span>
+                  <span className="font-semibold">10:00 AM - 2:00 PM</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Sunday</span>
+                  <span className="font-medium text-slate-400">Closed</span>
+                </div>
+              </div>
+              <p className="mt-4 text-xs text-slate-400">*IST (Indian Standard Time)</p>
+            </GlowCard>
+          </div>
         </div>
       </section>
 
       {/* FAQ Section */}
-      <section className="bg-gray-50 py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              Frequently Asked Questions
-            </h2>
-            <p className="text-gray-600 text-lg">
-              Quick answers to common questions
-            </p>
-          </motion.div>
-
+      <section className="relative border-t border-slate-100 bg-slate-50/60 py-14">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-10 text-center">
+            <h2 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">Frequently Asked Questions</h2>
+            <p className="mt-2 text-slate-500">Quick answers to common questions</p>
+          </div>
           <FAQGrid
             items={[
               {
@@ -263,41 +206,29 @@ export default function ContactPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <BackgroundGradient className="rounded-3xl">
-            <Card className="border-0 shadow-2xl overflow-hidden">
-              <CardContent className="p-10 sm:p-12 text-center">
-                <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                  Still have questions?
-                </h2>
-                <p className="text-gray-600 mb-8 max-w-lg mx-auto">
-                  Can&apos;t find what you&apos;re looking for? Our support team is ready to help you with anything you need.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Button
-                    asChild
-                    className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-8 py-6 text-base"
-                  >
-                    <a href="mailto:invertisprep@gmail.com">
-                      <Mail className="h-5 w-5 mr-2" />
-                      Email Us Directly
-                    </a>
-                  </Button>
-                  <Button
-                    asChild
-                    variant="outline"
-                    className="px-8 py-6 text-base border-gray-200"
-                  >
-                    <a href="/support">
-                      Visit Help Center
-                    </a>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </BackgroundGradient>
-        </div>
+      <section className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+        <GlowCard className="rounded-3xl border-slate-200 bg-white p-10 text-center sm:p-12">
+          <h2 className="text-3xl font-black tracking-tight text-slate-900">Still have questions?</h2>
+          <p className="mx-auto mt-3 max-w-lg text-slate-500">
+            Can&apos;t find what you&apos;re looking for? Our support team is ready to help you with anything you need.
+          </p>
+          <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
+            <Button
+              asChild
+              className="bg-slate-900 px-8 py-6 text-base font-semibold text-white shadow-sm hover:bg-slate-800"
+            >
+              <a href="mailto:invertisprep@gmail.com">
+                <Mail className="mr-2 h-5 w-5" />
+                Email Us Directly
+              </a>
+            </Button>
+            <Button asChild variant="outline" className="border-slate-300 px-8 py-6 text-base font-semibold text-slate-700 hover:bg-slate-100">
+              <a href="/support">
+                Visit Help Center
+              </a>
+            </Button>
+          </div>
+        </GlowCard>
       </section>
     </div>
   );

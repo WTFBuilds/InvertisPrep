@@ -67,6 +67,7 @@ const teamMembers = [
     role: "Front End Developer",
     image: "/team/member7.jpg",
     linkedin: "https://www.linkedin.com/in/krishukumar72",
+    github: "https://github.com/kkrishu",
     description: "Krishu Kumar is a Front End Developer at InvertisPrep. He works on design implementations, styling consistency, and component libraries to enhance performance across devices.",
   },
 ];
@@ -119,56 +120,68 @@ export default function OurTeamPage() {
       />
 
       {/* Mission & Join Our Team Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto px-4 mt-8">
-        {/* Mission Card */}
-        <Card className="relative overflow-hidden group hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300 border border-border/50 bg-card/60 backdrop-blur-sm">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-bl-full -z-10 group-hover:scale-110 transition-transform duration-300" />
-          <CardHeader className="flex flex-row items-center gap-3">
-            <div className="p-2.5 bg-indigo-500/10 text-indigo-500 rounded-lg">
-              <Compass className="h-6 w-6" />
-            </div>
-            <CardTitle className="font-bold text-2xl text-foreground">
-              Our Mission
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
-              At InvertisPrep, we're dedicated to making quality education
-              resources accessible to every student. Our team works tirelessly
-              to provide comprehensive PYQs, syllabus materials, and interactive
-              tools to help students succeed in their exams.
-            </p>
-          </CardContent>
-        </Card>
+      <div className="mx-auto mt-10 max-w-5xl px-4 pb-16">
+        {/* Section heading for hierarchy */}
+        <div className="mb-10 text-center">
+          <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Our Mission &amp; Open Roles
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
+            What drives us, and how you can become part of the team.
+          </p>
+        </div>
 
-        {/* Join Our Team Card */}
-        <Card className="relative overflow-hidden group hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300 border border-border/50 bg-card/60 backdrop-blur-sm">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 rounded-bl-full -z-10 group-hover:scale-110 transition-transform duration-300" />
-          <CardHeader className="flex flex-row items-center gap-3">
-            <div className="p-2.5 bg-rose-500/10 text-rose-500 rounded-lg">
-              <Briefcase className="h-6 w-6" />
-            </div>
-            <CardTitle className="font-bold text-2xl text-foreground">
-              Join Our Team
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col items-start gap-4">
-            <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
-              We're always looking for talented individuals who are passionate
-              about education and technology. If you're interested in joining
-              our team, check out our current openings.
-            </p>
-            <a
-              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 px-5 py-2.5 font-semibold text-sm text-white transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/20 hover:scale-[1.02] active:scale-[0.98]"
-              href="https://forms.gle/itpqynriXxkC4bWTA"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              View Open Positions
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </a>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 items-stretch gap-8 md:grid-cols-2">
+          {/* Mission Card */}
+          <Card className="group relative h-full overflow-hidden border border-border/50 bg-card/60 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/5">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-bl-full -z-10 group-hover:scale-110 transition-transform duration-300" />
+            <CardHeader className="flex flex-row items-center gap-3">
+              <div className="p-2.5 bg-indigo-500/10 text-indigo-500 rounded-lg">
+                <Compass className="h-6 w-6" />
+              </div>
+              <CardTitle className="font-bold text-2xl text-foreground">
+                Our Mission
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-1 flex-col items-start gap-4">
+              <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
+                At InvertisPrep, we&apos;re dedicated to making quality education
+                resources accessible to every student. Our team works tirelessly
+                to provide comprehensive PYQs, syllabus materials, and interactive
+                tools to help students succeed in their exams.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Join Our Team Card */}
+          <Card className="group relative h-full overflow-hidden border border-border/50 bg-card/60 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/5">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 rounded-bl-full -z-10 group-hover:scale-110 transition-transform duration-300" />
+            <CardHeader className="flex flex-row items-center gap-3">
+              <div className="p-2.5 bg-rose-500/10 text-rose-500 rounded-lg">
+                <Briefcase className="h-6 w-6" />
+              </div>
+              <CardTitle className="font-bold text-2xl text-foreground">
+                Join Our Team
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-1 flex-col items-start gap-4">
+              <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
+                We&apos;re always looking for talented individuals who are passionate
+                about education and technology. If you&apos;re interested in joining
+                our team, check out our current openings.
+              </p>
+              <a
+                className="mt-auto inline-flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 font-semibold text-sm text-white transition-all duration-300 hover:bg-slate-800 hover:scale-[1.02] active:scale-[0.98]"
+                href="https://forms.gle/itpqynriXxkC4bWTA"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                View Open Positions
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </a>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

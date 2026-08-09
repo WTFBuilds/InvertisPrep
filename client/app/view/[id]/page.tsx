@@ -130,7 +130,7 @@ function ViewPDFContent() {
 
   return (
     <div className="min-h-screen bg-slate-900">
-      {pdfBlob && <PDFViewer file={pdfBlob} />}
+      {pdfBlob && <PDFViewer file={pdfBlob} id={id} type={type} />}
     </div>
   );
 }

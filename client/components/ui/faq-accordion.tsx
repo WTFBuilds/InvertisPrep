@@ -206,7 +206,7 @@ export function ContactForm() {
       <motion.button
         type="submit"
         disabled={status === 'submitting'}
-        className="w-full py-3.5 px-6 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+        className="w-full py-3.5 px-6 bg-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
       >

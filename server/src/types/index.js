@@ -58,7 +58,7 @@
  */
 
 /**
- * @typedef {'mid-term' | 'end-term' | 'sessional'} ExamType
+ * @typedef {'mid-term' | 'end-term'} ExamType
  */
 
 /**

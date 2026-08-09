@@ -5,43 +5,59 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { walletApi } from '@/lib/api';
 import { toast } from 'sonner';
-import type { WalletTransaction, TopUpPackId, TopUpPacks, TransactionMeta, TransactionType } from '@/types';
+import type { WalletTransaction, TopUpPackId, TransactionMeta, TransactionType } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { Spotlight } from '@/components/ui/spotlight';
+import { GlowCard } from '@/components/ui/glow-card';
+import { ShinyButton } from '@/components/ui/shiny-button';
 import {
   Coins, Zap, Star, Flame, TrendingUp, TrendingDown, Gift,
-  RefreshCw, ChevronDown, Wallet, ArrowUpRight, ArrowDownRight,
-  Download, Sparkles, Shield, Clock,
+  RefreshCw, ChevronDown, Wallet, ArrowUpRight,
+  Download, Shield, Clock, Check,
 } from 'lucide-react';
 
 // ─── pack definitions (mirrors server PACKS) ────────────────────────────────
 const PACK_META: Record<TopUpPackId, {
-  coins: number; rupees: number; label: string;
-  icon: React.ReactNode; badge?: string; badgeColor?: string;
-  gradient: string; borderColor: string; popular?: boolean;
+  coins: number; rupees: number; label: string; tagline: string;
+  icon: React.ReactNode; badge?: string; badgeVariant?: 'default' | 'secondary' | 'indigo';
+  features: string[]; popular?: boolean;
 }> = {
   starter: {
     coins: 200, rupees: 19.99, label: 'Starter',
+    tagline: 'Try out the QC wallet',
     icon: <Zap className="h-6 w-6" />,
-    gradient: 'from-blue-500/10 to-indigo-500/10',
-    borderColor: 'border-indigo-200 hover:border-indigo-400',
+    features: [
+      '200 QC balance',
+      '1 watermark-free PDF download',
+      'Standard email support',
+    ],
   },
   plus: {
     coins: 600, rupees: 49.99, label: 'Plus',
+    tagline: 'The sweet spot for regular users',
     icon: <Star className="h-6 w-6 fill-current" />,
-    badge: 'Most Popular', badgeColor: 'bg-indigo-600 text-white',
-    gradient: 'from-indigo-500/15 to-purple-500/15',
-    borderColor: 'border-indigo-400 hover:border-indigo-600',
-    popular: true,
+    badge: 'Most Popular', badgeVariant: 'indigo', popular: true,
+    features: [
+      '600 QC balance',
+      '3 watermark-free PDF downloads',
+      'Priority email support',
+    ],
   },
   pro: {
     coins: 1400, rupees: 99.99, label: 'Pro',
+    tagline: 'Maximum value for heavy users',
     icon: <Flame className="h-6 w-6" />,
-    badge: 'Best Value', badgeColor: 'bg-gradient-to-r from-purple-600 to-pink-600 text-white',
-    gradient: 'from-purple-500/10 to-pink-500/10',
-    borderColor: 'border-purple-300 hover:border-purple-500',
+    badge: 'Best Value', badgeVariant: 'default',
+    features: [
+      '1400 QC balance',
+      '7 watermark-free PDF downloads',
+      'Priority email support',
+      'Early access to new features',
+    ],
   },
 };
 
@@ -202,7 +218,7 @@ export default function WalletPage() {
 
   // ── buy a pack ────────────────────────────────────────────────────────────
   const handleBuy = async (packId: TopUpPackId) => {
-    if (!user) return;
+    if (!user || buyingPack !== null) return;
     setBuyingPack(packId);
     try {
       const res = await walletApi.topup(packId);
@@ -227,7 +243,7 @@ export default function WalletPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-indigo-50 via-white to-white">
+      <div className="min-h-screen bg-slate-50">
         <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
           <Skeleton className="mb-8 h-48 w-full rounded-2xl" />
           <div className="grid gap-4 sm:grid-cols-3">
@@ -241,12 +257,20 @@ export default function WalletPage() {
   const hasMore = txMeta ? txPage < txMeta.pages : false;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 via-white to-white">
-      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+    <div className="relative min-h-screen bg-slate-50">
+      {/* Subtle professional light accent */}
+      <Spotlight
+        className="absolute inset-x-0 top-0 h-80 overflow-hidden"
+        gradientFirst="radial-gradient(68.54% 68.72% at 50% 0%, rgba(99,102,241,0.08) 0%, transparent 50.11%)"
+        gradientSecond="radial-gradient(50% 50% at 50% 50%, rgba(99,102,241,0.04) 0%, transparent 50.11%)"
+        gradientThird="radial-gradient(80% 60% at 50% 0%, rgba(139,92,246,0.06) 0%, transparent 50%)"
+      />
+
+      <div className="relative mx-auto max-w-5xl px-4 py-10 sm:px-6">
 
         {/* ── page header ── */}
         <div className="mb-8">
-          <p className="text-sm font-semibold uppercase tracking-widest text-indigo-600">Platform Economy</p>
+          <p className="text-sm font-semibold uppercase tracking-widest text-slate-500">Platform Economy</p>
           <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
             QC Wallet
           </h1>
@@ -254,96 +278,117 @@ export default function WalletPage() {
         </div>
 
         {/* ── balance hero ── */}
-        <div className="relative mb-8 overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-[1px] shadow-xl">
-          <div className="relative rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 px-6 py-8 sm:px-10 sm:py-10">
-            {/* decorative blobs */}
-            <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/5 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-10 -left-10 h-48 w-48 rounded-full bg-white/5 blur-2xl" />
-
-            <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="flex items-center gap-2 text-white/70">
-                  <Wallet className="h-4 w-4" />
-                  <span className="text-sm font-medium">Your QCoins balance</span>
-                </div>
-                <div className="mt-2 flex items-end gap-3">
-                  <span className="text-5xl font-black tabular-nums text-white sm:text-6xl">
-                    {balanceLoaded ? <CoinCounter target={qcoins} /> : '—'}
-                  </span>
-                  <span className="mb-1.5 text-xl font-bold text-white/60">QC</span>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-                    <Shield className="h-3 w-3" />
-                    {freeLeft} free PDF download{freeLeft !== 1 ? 's' : ''} remaining
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-                    <Sparkles className="h-3 w-3" />
-                    200 QC = 1 watermark-free PDF
-                  </span>
-                </div>
+        <GlowCard className="mb-8 overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06),0_10px_30px_-12px_rgba(15,23,42,0.08)]">
+          <div className="absolute inset-x-0 top-0 h-1 bg-slate-900" />
+          <div className="flex flex-col gap-6 px-6 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-10">
+            <div>
+              <div className="flex items-center gap-2 text-slate-500">
+                <Wallet className="h-4 w-4" />
+                <span className="text-sm font-medium">Your QCoins balance</span>
               </div>
-              <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-                <div className="rounded-xl bg-white/10 px-5 py-3 text-center backdrop-blur-sm">
-                  <p className="text-xs font-medium text-white/60 uppercase tracking-wider">Rate</p>
-                  <p className="mt-0.5 text-lg font-black text-white">₹19.99 = 200 QC</p>                </div>
+              <div className="mt-3 flex items-end gap-2">
+                <span className="text-5xl font-black tabular-nums text-slate-900 sm:text-6xl">
+                  {balanceLoaded ? <CoinCounter target={qcoins} /> : '—'}
+                </span>
+                <span className="mb-1.5 text-xl font-bold text-slate-400">QC</span>
               </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                  <Shield className="h-3 w-3" />
+                  {freeLeft} free PDF download{freeLeft !== 1 ? 's' : ''} remaining
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                  <Coins className="h-3 w-3" />
+                  200 QC = 1 watermark-free PDF
+                </span>
+              </div>
+            </div>
+            <div className="shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-5 py-3 text-center">
+              <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Rate</p>
+              <p className="mt-0.5 text-lg font-black text-slate-900">₹19.99 = 200 QC</p>
             </div>
           </div>
-        </div>
+        </GlowCard>
 
-        {/* ── top-up packs ── */}
-        <h2 className="mb-4 text-lg font-bold text-slate-900">Top up QCoins</h2>
-        <div className="mb-10 grid gap-4 sm:grid-cols-3">
-          {(Object.entries(PACK_META) as [TopUpPackId, typeof PACK_META[TopUpPackId]][]).map(([packId, meta]) => (
-            <div
-              key={packId}
-              className={`relative flex flex-col overflow-hidden rounded-2xl border-2 bg-gradient-to-br ${meta.gradient} ${meta.borderColor} p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${meta.popular ? 'shadow-md' : ''}`}
-            >
-              {meta.badge && (
-                <span className={`absolute right-3 top-3 rounded-full px-2.5 py-0.5 text-xs font-bold ${meta.badgeColor}`}>
-                  {meta.badge}
-                </span>
-              )}
-              <div className="mb-4 flex items-center gap-3">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/80 text-indigo-600 shadow-sm">
-                  {meta.icon}
-                </span>
-                <div>
-                  <p className="font-bold text-slate-900">{meta.label}</p>
-                  <p className="text-xs text-slate-500">Pack</p>
-                </div>
-              </div>
-              <div className="flex-1">
-                <p className="text-3xl font-black text-slate-900">
-                  {meta.coins.toLocaleString('en-IN')}
-                  <span className="ml-1 text-base font-bold text-indigo-600">QC</span>
-                </p>
-                {packId === 'plus' && (
-                  <p className="mt-1 text-xs text-emerald-600 font-semibold">+200 bonus vs Starter!</p>
+        {/* ── pricing section ── */}
+        <div className="mb-12">
+          <div className="mx-auto mb-8 max-w-xl text-center">
+            <Badge variant="indigo" className="mb-3">Pricing</Badge>
+            <h2 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+              Top up QCoins
+            </h2>
+            <p className="mt-2 text-sm text-slate-500 sm:text-base">
+              One-time top-ups, no subscriptions. 200 QC unlocks one watermark-free PDF download.
+            </p>
+          </div>
+
+          <div className="grid items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {(Object.entries(PACK_META) as [TopUpPackId, typeof PACK_META[TopUpPackId]][]).map(([packId, meta]) => (
+              <GlowCard
+                key={packId}
+                glowColor={meta.popular ? 'rgba(99, 102, 241, 0.22)' : undefined}
+                contentClassName="flex flex-1 flex-col"
+                className={`relative flex flex-col rounded-2xl border-slate-200 bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${
+                  meta.popular
+                    ? 'border-indigo-200 shadow-[0_16px_40px_-20px_rgba(79,70,229,0.4)] ring-1 ring-indigo-100 lg:scale-[1.02]'
+                    : ''
+                }`}
+              >
+                {meta.badge && (
+                  <div className="absolute right-5 top-5">
+                    <Badge variant={meta.badgeVariant}>{meta.badge}</Badge>
+                  </div>
                 )}
-                {packId === 'pro' && (
-                  <p className="mt-1 text-xs text-purple-600 font-semibold">+800 bonus vs Starter!</p>
-                )}
-              </div>
-              <Separator className="my-4" />
-              <div className="flex items-center justify-between">
-                <span className="text-xl font-black text-slate-900">₹{meta.rupees}</span>
-                <Button
-                  size="sm"
-                  className={`rounded-lg font-bold ${meta.popular ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white'}`}
-                  disabled={buyingPack !== null}
-                  onClick={() => handleBuy(packId)}
-                >
-                  {buyingPack === packId ? (
-                    <span className="flex items-center gap-1.5">
-                      <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Adding…
+
+                <div className="mb-5 flex items-center gap-3">
+                    <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${
+                      meta.popular ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-700'
+                    }`}>
+                      {meta.icon}
                     </span>
-                  ) : 'Buy Now'}
-                </Button>
-              </div>
-            </div>
-          ))}
+                    <div>
+                      <p className="font-bold text-slate-900">{meta.label}</p>
+                      <p className="text-xs text-slate-500">{meta.tagline}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-4xl font-black tracking-tight text-slate-900">₹{meta.rupees}</span>
+                    <span className="text-sm font-medium text-slate-400">one-time</span>
+                  </div>
+                  <p className="mt-1.5 text-sm font-semibold text-slate-600">
+                    {meta.coins.toLocaleString('en-IN')} <span className="font-medium text-slate-400">QC</span>
+                  </p>
+
+                  <Separator className="my-5" />
+
+                  <ul className="mb-6 flex-1 space-y-2.5">
+                    {meta.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-2.5 text-sm text-slate-600">
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                          <Check className="h-3.5 w-3.5" />
+                        </span>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <ShinyButton
+                    isActive
+                    className="w-full"
+                    onClick={() => handleBuy(packId)}
+                  >
+                    {buyingPack === packId ? (
+                      <span className="flex items-center gap-1.5">
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Adding…
+                      </span>
+                    ) : (
+                      `Buy ${meta.label}`
+                    )}
+                  </ShinyButton>
+              </GlowCard>
+            ))}
+          </div>
         </div>
 
         {/* ── transaction history ── */}
@@ -355,7 +400,7 @@ export default function WalletPage() {
                 <p className="mt-0.5 text-xs text-slate-400">{txMeta.total} transaction{txMeta.total !== 1 ? 's' : ''} total</p>
               )}
             </div>
-          <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+            <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
               {(['all', 'credit', 'debit'] as const).map((t) => (
                 <button
                   key={t}
@@ -379,7 +424,7 @@ export default function WalletPage() {
               Array.from({ length: 5 }).map((_, i) => <TxSkeleton key={i} />)
             ) : txs.length === 0 ? (
               <div className="flex flex-col items-center py-16 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-indigo-50 text-indigo-400">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400">
                   <Clock className="h-8 w-8" />
                 </div>
                 <p className="mt-4 font-semibold text-slate-700">No transactions yet</p>
