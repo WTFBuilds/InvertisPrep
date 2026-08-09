@@ -2,9 +2,12 @@
 
 import { use } from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Rocket, Sparkles } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Spotlight } from '@/components/ui/spotlight';
+import { GlowCard } from '@/components/ui/glow-card';
+import { ArrowLeft, Check, Clock } from 'lucide-react';
 
 // Feature catalog — each new "coming soon" feature gets its own entry
 const FEATURES: Record<string, { title: string; tagline: string; description: string; features: string[]; icon: string }> = {
@@ -35,15 +38,15 @@ const FEATURES: Record<string, { title: string; tagline: string; description: st
     icon: '📄',
   },
   'societies': {
-    title: 'Societies & Clubs',
+    title: 'Clubs',
     tagline: 'Find your people on campus',
     description:
-      'Browse every club, society, and student body at Invertis University. See what they do, who runs them, when they meet, and how to join — all in one place.',
+      'Browse every club and student body at Invertis University. See what they do, who runs them, when they meet, and how to join — all in one place.',
     features: [
-      'Directory of all campus societies',
-      'Upcoming society events & recruitments',
+      'Directory of all campus clubs',
+      'Upcoming club events & recruitments',
       'Contact the team directly',
-      'Follow societies you care about',
+      'Follow clubs you care about',
     ],
     icon: '🤝',
   },
@@ -64,7 +67,7 @@ const FEATURES: Record<string, { title: string; tagline: string; description: st
     title: 'Campus Events',
     tagline: 'Never miss what\'s happening',
     description:
-      'A unified calendar of every event at Invertis University — fests, talks, workshops, sports, and society activities. RSVP, add to your calendar, and get reminders.',
+      'A unified calendar of every event at Invertis University — fests, talks, workshops, sports, and club activities. RSVP, add to your calendar, and get reminders.',
     features: [
       'Unified campus event calendar',
       'RSVP & reminders',
@@ -95,76 +98,86 @@ export default function ComingSoonPage({ params }: { params: Promise<{ feature: 
   // Unknown feature slug — fall back to a generic message
   if (!data) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white py-12 flex items-center justify-center px-4">
-        <Card className="max-w-md w-full">
-          <CardHeader>
-            <CardTitle className="text-2xl">Page not found</CardTitle>
-            <CardDescription>This feature doesn&apos;t exist.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link href="/">
-              <Button>
-                <ArrowLeft className="h-4 w-4 mr-2" />
+      <div className="relative min-h-screen bg-slate-50">
+        <Spotlight className="absolute inset-x-0 top-0 h-80 overflow-hidden" />
+        <div className="relative mx-auto flex min-h-screen max-w-md items-center justify-center px-4">
+          <GlowCard className="w-full rounded-2xl border-slate-200 bg-white p-8 text-center">
+            <p className="text-5xl">🤔</p>
+            <h1 className="mt-4 text-2xl font-black tracking-tight text-slate-900">Page not found</h1>
+            <p className="mt-2 text-sm text-slate-500">This feature doesn&apos;t exist.</p>
+            <Link href="/" className="mt-6 inline-block">
+              <Button variant="outline" className="border-slate-300 font-semibold text-slate-700 hover:bg-slate-100">
+                <ArrowLeft className="mr-2 h-4 w-4" />
                 Back home
               </Button>
             </Link>
-          </CardContent>
-        </Card>
+          </GlowCard>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 via-white to-white py-12">
-      <div className="max-w-3xl mx-auto px-4">
+    <div className="relative min-h-screen bg-slate-50">
+      {/* Subtle professional light accent */}
+      <Spotlight
+        className="absolute inset-x-0 top-0 h-80 overflow-hidden"
+        gradientFirst="radial-gradient(68.54% 68.72% at 50% 0%, rgba(99,102,241,0.08) 0%, transparent 50.11%)"
+        gradientSecond="radial-gradient(50% 50% at 50% 50%, rgba(99,102,241,0.04) 0%, transparent 50.11%)"
+        gradientThird="radial-gradient(80% 60% at 50% 0%, rgba(139,92,246,0.06) 0%, transparent 50%)"
+      />
+
+      <div className="relative mx-auto max-w-3xl px-4 py-12 sm:px-6">
         <Link
           href="/"
-          className="inline-flex items-center text-sm text-gray-500 hover:text-indigo-600 transition-colors mb-6"
+          className="mb-6 inline-flex items-center text-sm font-medium text-slate-500 transition-colors hover:text-indigo-600"
         >
-          <ArrowLeft className="h-4 w-4 mr-1.5" />
+          <ArrowLeft className="mr-1.5 h-4 w-4" />
           Back to home
         </Link>
 
-        <Card className="overflow-hidden border-indigo-100 shadow-xl">
-          <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 px-8 py-10 text-white">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/20 backdrop-blur px-3 py-1 text-xs font-semibold tracking-wide">
-                <Rocket className="h-3 w-3" />
-                COMING SOON
+        <GlowCard className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06),0_10px_30px_-12px_rgba(15,23,42,0.08)]">
+          {/* header */}
+          <div className="px-6 pt-8 sm:px-10 sm:pt-10">
+            <Badge variant="indigo" className="mb-5">
+              <Clock className="mr-1 h-3 w-3" />
+              Coming Soon
+            </Badge>
+            <div className="flex items-start gap-4">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-3xl">
+                {data.icon}
               </span>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="text-5xl">{data.icon}</span>
-              <div>
-                <h1 className="text-3xl md:text-4xl font-black tracking-tight">{data.title}</h1>
-                <p className="text-white/80 mt-1">{data.tagline}</p>
+              <div className="min-w-0">
+                <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">{data.title}</h1>
+                <p className="mt-1 text-slate-500">{data.tagline}</p>
               </div>
             </div>
           </div>
 
-          <CardContent className="p-8">
-            <p className="text-gray-600 leading-relaxed mb-6">{data.description}</p>
+          <Separator className="my-6" />
 
-            <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-5">
-              <p className="font-semibold text-indigo-900 flex items-center gap-1.5 mb-3">
-                <Sparkles className="h-4 w-4" />
-                What you&apos;ll get
-              </p>
-              <ul className="space-y-2">
+          <div className="px-6 pb-8 sm:px-10 sm:pb-10">
+            <p className="leading-relaxed text-slate-600">{data.description}</p>
+
+            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50/60 p-5">
+              <p className="mb-3 font-semibold text-slate-900">What you&apos;ll get</p>
+              <ul className="space-y-2.5">
                 {data.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-indigo-800">
-                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-indigo-500 shrink-0" />
+                  <li key={f} className="flex items-start gap-2.5 text-sm text-slate-600">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                      <Check className="h-3 w-3" strokeWidth={3} />
+                    </span>
                     {f}
                   </li>
                 ))}
               </ul>
             </div>
 
-            <p className="text-center text-sm text-gray-400 mt-8">
+            <p className="mt-8 text-center text-sm text-slate-400">
               We&apos;re working hard to ship this. Check back soon! 🚀
             </p>
-          </CardContent>
-        </Card>
+          </div>
+        </GlowCard>
       </div>
     </div>
   );

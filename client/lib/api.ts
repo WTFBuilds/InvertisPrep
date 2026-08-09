@@ -364,6 +364,32 @@ export const pdfApi = {
     });
     return data;
   },
+
+  download: async (id: string, type: 'pyq' | 'syllabus' = 'pyq'): Promise<{ blob: Blob; filename: string }> => {
+    const res = await apiClient.get(`/pdf/download/${id}`, {
+      params: { type },
+      responseType: 'blob',
+    });
+
+    // Extract filename from Content-Disposition:
+    //   attachment; filename="fallback.pdf"; filename*=UTF-8''%20encoded%20name.pdf
+    let filename = 'paper.pdf';
+    const header = res.headers['content-disposition'] as string | undefined;
+    if (header) {
+      const starMatch = /filename\*=UTF-8''([^;]+)/i.exec(header);
+      const plainMatch = /filename="?([^";]+)"?/i.exec(header);
+      const raw = starMatch?.[1] ?? plainMatch?.[1];
+      if (raw) {
+        try {
+          filename = decodeURIComponent(raw);
+        } catch {
+          filename = raw;
+        }
+      }
+    }
+
+    return { blob: res.data, filename };
+  },
 };
 
 // Wallet API

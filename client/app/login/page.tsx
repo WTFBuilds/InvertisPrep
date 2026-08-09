@@ -8,6 +8,19 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { optimizeAvatar } from '@/lib/avatar';
+
+// Warm the browser cache for the avatar URL so the navbar shows the user's
+// picture instantly after redirect instead of fetching it on the next page.
+const preloadAvatar = (url?: string) => {
+  const src = optimizeAvatar(url);
+  if (!src) return;
+  if (typeof window !== 'undefined') {
+    const img = new window.Image();
+    img.referrerPolicy = 'no-referrer';
+    img.src = src;
+  }
+};
 
 export default function LoginPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -75,6 +88,7 @@ export default function LoginPage() {
             localStorage.setItem('token', response.data.token);
             localStorage.setItem('user', JSON.stringify(response.data.user));
             updateUser(response.data.user);
+            preloadAvatar(response.data.user.picture);
 
             if (isWebViewAuthFlow && typeof window !== 'undefined') {
               const callbackUrl = new URL('invertisprep://auth/callback');

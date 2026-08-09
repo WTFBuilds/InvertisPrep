@@ -297,7 +297,6 @@ export default function UploadPage() {
                     <option value="">Select Exam Type</option>
                     <option value="mid-term">Mid-Term</option>
                     <option value="end-term">End-Term</option>
-                    <option value="sessional">Sessional</option>
                   </select>
                 </div>
 

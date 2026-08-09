@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { pdfjs, Document, Page } from 'react-pdf';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2, AlertCircle, Maximize, Minimize } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2, AlertCircle, Share2, Check, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { pdfApi } from '@/lib/api';
+import { pyqApi } from '@/lib/api';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -14,14 +16,18 @@ if (typeof window !== 'undefined') {
 
 interface PDFViewerProps {
   file: Blob | string;
+  id?: string;
+  type?: 'pyq' | 'syllabus';
 }
 
-export default function PDFViewer({ file }: PDFViewerProps) {
+export default function PDFViewer({ file, id, type }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(1.0);
   const [fileUrl, setFileUrl] = useState<string>('');
   const [containerWidth, setContainerWidth] = useState<number>(0);
+  const [copied, setCopied] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Handle responsiveness
@@ -80,6 +86,31 @@ export default function PDFViewer({ file }: PDFViewerProps) {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
+
+  const handleDownload = async () => {
+    if (!id || downloading) return;
+    try {
+      setDownloading(true);
+      // Track download for PYQ papers
+      if (type === 'pyq') {
+        pyqApi.trackDownload(id).catch(() => {});
+      }
+      const result = await pdfApi.download(id, type || 'pyq');
+      // Robust to both old server (raw Blob) and new (Blob + filename)
+      const blob = result instanceof Blob ? result : result.blob;
+      const filename = result instanceof Blob ? 'paper.pdf' : result.filename;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Download failed. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="flex flex-col items-center bg-slate-900 min-h-screen select-none relative" ref={containerRef}>
@@ -140,6 +171,40 @@ export default function PDFViewer({ file }: PDFViewerProps) {
           >
             Reset
           </Button>
+
+          <div className="h-6 w-px bg-white/10 mx-1 hidden sm:block" />
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleDownload}
+            disabled={downloading || !id}
+            className="text-white hover:bg-white/10 h-10 w-10 sm:h-9 sm:w-9 disabled:opacity-40"
+            title="Download PDF"
+          >
+            {downloading
+              ? <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+              : <Download className="h-4 w-4 sm:h-5 sm:w-5" />}
+          </Button>
+
+          <div className="h-6 w-px bg-white/10 mx-1 hidden sm:block" />
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              navigator.clipboard.writeText(window.location.href);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+            className="text-white hover:bg-white/10 h-10 w-10 sm:h-9 sm:w-9"
+            title="Share paper link"
+          >
+            {copied ? <Check className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" /> : <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />}
+          </Button>
+          {copied && (
+            <span className="text-[11px] text-emerald-400 font-medium select-none pointer-events-none">Copied!</span>
+          )}
         </div>
       </div>
 

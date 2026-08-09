@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/accordion';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { optimizeAvatar } from '@/lib/avatar';
 import {
   ChevronDown,
   LogOut,
@@ -64,14 +65,14 @@ const SOCIAL_LINKS = {
 // ============================================================
 function SoonBadge() {
   return (
-    <span className="ml-1.5 inline-flex items-center rounded-full border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider leading-none text-zinc-500">
+    <span className="ml-1.5 inline-flex items-center rounded-md border border-red-300 bg-red-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider leading-none text-red-700">
       Soon
     </span>
   );
 }
 function NewBadge() {
   return (
-    <span className="ml-1.5 inline-flex items-center rounded-full border border-zinc-200 bg-zinc-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider leading-none text-zinc-800">
+    <span className="ml-1.5 inline-flex items-center rounded-md border border-green-300 bg-green-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider leading-none text-green-700">
       New
     </span>
   );
@@ -336,13 +337,13 @@ export default function Navbar() {
   ];
 
   const careerLinks: MenuLink[] = [
-    { title: 'ATS Score Checker', href: '/coming-soon/ats-score', description: 'Check how your resume scores against ATS filters.', icon: <Target />, badge: 'new' },
+    { title: 'ATS Score Checker', href: '/coming-soon/ats-score', description: 'Check how your resume scores against ATS filters.', icon: <Target />, badge: 'soon' },
     { title: 'Resume Builder', href: user ? '/resumes' : '/resume-builder', description: 'Create, manage and export ATS-friendly resumes.', icon: <FileCheck2 />, badge: 'new' },
     { title: 'Career Hub', href: '/coming-soon/career', description: 'Internships, jobs & hackathons for students.', icon: <Briefcase />, badge: 'soon' },
   ];
 
   const communityLinks: MenuLink[] = [
-    { title: 'Societies & Clubs', href: '/coming-soon/societies', description: 'Discover and join campus societies.', icon: <Users />, badge: 'soon' },
+    { title: 'Clubs', href: '/coming-soon/societies', description: 'Discover and join campus clubs.', icon: <Users />, badge: 'soon' },
     { title: 'Events', href: '/events', description: 'Calendar of fests, talks & workshops.', icon: <CalendarDays />, badge: 'new' },
     { title: 'Leaderboard', href: '/leaderboard', description: 'See top contributors & rank up.', icon: <Trophy />, badge: 'new' },
     { title: 'Our Team', href: '/our-team', description: 'Meet the people behind InvertisPrep.', icon: <Users />, badge: 'new' },
@@ -379,13 +380,18 @@ export default function Navbar() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link href="/" className="flex shrink-0 items-center" aria-label="InvertisPrep home">
-          <span
-            className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-xl sm:text-2xl font-black tracking-tight text-transparent"
-            style={{ fontFamily: 'Inter, sans-serif' }}
-          >
-            INVERTISPREP
-          </span>
-        </Link>
+  <span
+    className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-xl sm:text-2xl tracking-tighter text-transparent"
+    style={{
+      fontFamily: 'Inter, sans-serif',
+      fontWeight: 900,
+      WebkitTextStroke: '0.6px currentColor',
+      paintOrder: 'stroke fill',
+    }}
+  >
+    INVERTISPREP&nbsp;
+  </span>
+</Link>
 
         {/* ---------- Desktop nav ---------- */}
         <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-center">
@@ -473,7 +479,14 @@ export default function Navbar() {
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2.5 rounded-full border border-zinc-200 bg-white px-1.5 py-1.5 pr-3 shadow-sm transition-all hover:bg-zinc-50 hover:border-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50">
                     <Avatar className="h-7 w-7 ring-1 ring-zinc-200/50">
-                      {user.picture && <AvatarImage src={user.picture} alt={user.name || 'User'} className="object-cover" />}
+                      {user.picture && (
+                        <AvatarImage
+                          src={optimizeAvatar(user.picture)}
+                          alt={user.name || 'User'}
+                          referrerPolicy="no-referrer"
+                          className="object-cover"
+                        />
+                      )}
                       <AvatarFallback className="bg-zinc-100 text-zinc-700 text-[10px] font-bold">
                         {user.name ? getInitials(user.name) : user.email ? getInitials(user.email) : 'U'}
                       </AvatarFallback>
@@ -487,7 +500,14 @@ export default function Navbar() {
                 <DropdownMenuContent className="w-64" align="end">
                   <div className="flex items-center gap-3 p-2">
                     <Avatar className="h-10 w-10 ring-1 ring-zinc-200">
-                      {user.picture && <AvatarImage src={user.picture} alt={user.name || 'User'} className="object-cover" />}
+                      {user.picture && (
+                        <AvatarImage
+                          src={optimizeAvatar(user.picture)}
+                          alt={user.name || 'User'}
+                          referrerPolicy="no-referrer"
+                          className="object-cover"
+                        />
+                      )}
                       <AvatarFallback className="bg-zinc-100 text-zinc-700 text-xs font-bold">
                         {user.name ? getInitials(user.name) : user.email ? getInitials(user.email) : 'U'}
                       </AvatarFallback>
@@ -509,7 +529,7 @@ export default function Navbar() {
                       <Wallet className="mr-2 h-4 w-4 text-slate-500" />
                       <span className="flex-1">QCWallet</span>
                       {user.qcoins !== undefined && (
-                        <span className="ml-auto flex items-center gap-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                        <span className="ml-auto flex items-center gap-0.5 rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-bold text-white">
                           {user.qcoins.toLocaleString('en-IN')} QC
                         </span>
                       )}
@@ -665,7 +685,14 @@ function MobileMenu({
         {user ? (
           <div className="flex flex-col items-center gap-3 pt-2 text-center">
             <Avatar className="h-16 w-16 ring-1 ring-zinc-200 shadow-sm">
-              {user.picture && <AvatarImage src={user.picture} alt={user.name || 'User'} className="object-cover" />}
+              {user.picture && (
+                <AvatarImage
+                  src={optimizeAvatar(user.picture)}
+                  alt={user.name || 'User'}
+                  referrerPolicy="no-referrer"
+                  className="object-cover"
+                />
+              )}
               <AvatarFallback className="bg-zinc-100 text-zinc-700 text-lg font-bold">
                 {user.name ? getInitials(user.name) : user.email ? getInitials(user.email) : 'U'}
               </AvatarFallback>
@@ -723,16 +750,13 @@ function MobileMenu({
               onClick={onNavigate}
               className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-zinc-100 hover:text-zinc-900 group"
             >
-              <Wallet className="size-4 text-zinc-400 group-hover:text-zinc-800 transition-colors" /> QCWallet
-
               <Wallet className="size-4 text-zinc-400 group-hover:text-zinc-800 transition-colors" />
               <span className="flex-1">QCWallet</span>
               {user?.qcoins !== undefined && (
-                <span className="flex items-center gap-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 px-2.5 py-0.5 text-[10px] font-bold text-white">
+                <span className="flex items-center gap-0.5 rounded-full bg-slate-900 px-2.5 py-0.5 text-[10px] font-bold text-white">
                   {user.qcoins.toLocaleString('en-IN')} QC
                 </span>
               )}
-
             </Link>
             <Link
               href="/academic-progress"
