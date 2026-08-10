@@ -6,6 +6,7 @@ import { LogOut } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { AppSidebar, adminNavItems } from "@/components/app-sidebar"
+import Navbar from "@/components/Navbar"
 import {
   SidebarInset,
   SidebarProvider,
@@ -21,22 +22,29 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
 
+// SRT (Support & Resource Team) sees every admin page except User Management
+const srtHiddenItems = ["/admin/users"]
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { logout } = useAuth()
+  const { user, logout } = useAuth()
 
   // Login page renders standalone (no sidebar)
   if (pathname === "/admin/login") {
     return <>{children}</>;
   }
 
-  const currentItem = adminNavItems.find((item) => item.url === pathname)
-
+  const visibleItems = adminNavItems.filter(
+    (item) => user?.role !== "srt" || !srtHiddenItems.includes(item.url)
+  )
+  const currentItem = visibleItems.find((item) => item.url === pathname)
   return (
     <ProtectedRoute>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>
+          {/* Site navbar — shared chrome for admin pages too */}
+          <Navbar />
           {/* Top Header */}
           <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
             <SidebarTrigger className="-ml-1" />

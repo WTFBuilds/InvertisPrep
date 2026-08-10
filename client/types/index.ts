@@ -1,5 +1,5 @@
 // User types
-export type UserRole = 'student' | 'admin' | 'super-admin';
+export type UserRole = 'student' | 'srt' | 'admin' | 'super-admin';
 
 export interface User {
   id: string;
@@ -292,6 +292,7 @@ export interface UserStats {
   total: number;
   active: number;
   admins: number;
+  srt: number;
   superAdmins: number;
   banned: number;
 }
@@ -340,4 +341,31 @@ export interface AdminUserDetail {
     description: string;
     createdAt: string;
   }[];
+}
+
+export type SponsorTier = 'supporter' | 'benefactor' | 'patron';
+
+export interface Sponsor {
+  _id: string;
+  name: string;
+  batch: string;
+  email: string;
+  message: string;
+  tier: SponsorTier;
+  amount: number;
+  isFeatured: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSponsorDTO {
+  name: string;
+  batch?: string;
+  email?: string;
+  message?: string;
+  tier: SponsorTier;
+  amount?: number;
+  isFeatured?: boolean;
+  isActive?: boolean;
 }

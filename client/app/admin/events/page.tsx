@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useAuth } from '@/contexts/AuthContext';
 import { eventApi } from '@/lib/api';
 import type { InvertisEvent } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -25,6 +27,9 @@ import {
 } from 'lucide-react';
 
 export default function AdminEventsPage() {
+  const { user } = useAuth();
+  // SRT can view events but cannot create, edit or delete
+  const canModify = user?.role !== 'srt';
   const [events, setEvents] = useState<InvertisEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -218,7 +223,7 @@ export default function AdminEventsPage() {
           </h1>
           <p className="text-xs text-slate-450 mt-1">Configure, add and manage campus events, fests, Hackathons and fests.</p>
         </div>
-        {!showForm && (
+        {canModify && !showForm && (
           <Button onClick={() => setShowForm(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md transition-all">
             + Create Event
           </Button>
@@ -587,20 +592,24 @@ export default function AdminEventsPage() {
                           )}
                         </td>
                         <td className="p-4 pr-6 text-right space-x-1">
-                          <button
-                            onClick={() => handleEdit(event)}
-                            className="p-2 hover:bg-indigo-50 text-slate-500 hover:text-indigo-650 rounded-xl transition-colors"
-                            title="Edit"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(event.id)}
-                            className="p-2 hover:bg-red-50 text-slate-500 hover:text-red-650 rounded-xl transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {canModify && (
+                            <>
+                              <button
+                                onClick={() => handleEdit(event)}
+                                className="p-2 hover:bg-indigo-50 text-slate-500 hover:text-indigo-650 rounded-xl transition-colors"
+                                title="Edit"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(event.id)}
+                                className="p-2 hover:bg-red-50 text-slate-500 hover:text-red-650 rounded-xl transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
                         </td>
                       </tr>
                     ))}

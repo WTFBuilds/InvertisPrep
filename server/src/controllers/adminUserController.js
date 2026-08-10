@@ -8,7 +8,7 @@ import { Transaction } from '../models/Transaction.js';
 import { PointsLog } from '../models/PointsLog.js';
 import { calculateUserBadges } from '../utils/badges.js';
 
-const VALID_ROLES = ['student', 'admin', 'super-admin'];
+const VALID_ROLES = ['student', 'srt', 'admin', 'super-admin'];
 
 // Escape user input before building a RegExp for search
 const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -85,17 +85,18 @@ export const listUsers = async (req, res) => {
 
 export const getUserStats = async (_req, res) => {
   try {
-    const [total, active, admins, superAdmins, banned] = await Promise.all([
+    const [total, active, admins, srt, superAdmins, banned] = await Promise.all([
       User.countDocuments(),
       User.countDocuments({ isActive: true }),
       User.countDocuments({ role: 'admin', isActive: true }),
+      User.countDocuments({ role: 'srt', isActive: true }),
       User.countDocuments({ role: 'super-admin', isActive: true }),
       User.countDocuments({ isActive: false }),
     ]);
 
     res.json({
       success: true,
-      data: { total, active, admins, superAdmins, banned },
+      data: { total, active, admins, srt, superAdmins, banned },
     });
   } catch (error) {
     console.error('User stats error:', error);

@@ -30,6 +30,8 @@ import type {
   AdminUserListMeta,
   UserStats,
   AdminUserDetail,
+  Sponsor,
+  CreateSponsorDTO,
 } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -159,9 +161,36 @@ export const branchApi = {
   },
 };
 
+// Sponsor API
+export const sponsorApi = {
+  getAll: async (): Promise<APIResponse<Sponsor[]>> => {
+    const { data } = await apiClient.get<APIResponse<Sponsor[]>>('/sponsors');
+    return data;
+  },
+
+  getAllAdmin: async (): Promise<APIResponse<Sponsor[]>> => {
+    const { data } = await apiClient.get<APIResponse<Sponsor[]>>('/sponsors/all');
+    return data;
+  },
+
+  create: async (sponsor: CreateSponsorDTO): Promise<APIResponse<Sponsor>> => {
+    const { data } = await apiClient.post<APIResponse<Sponsor>>('/sponsors', sponsor);
+    return data;
+  },
+
+  update: async (id: string, updates: Partial<Sponsor>): Promise<APIResponse<Sponsor>> => {
+    const { data } = await apiClient.put<APIResponse<Sponsor>>(`/sponsors/${id}`, updates);
+    return data;
+  },
+
+  delete: async (id: string): Promise<APIResponse> => {
+    const { data } = await apiClient.delete<APIResponse>(`/sponsors/${id}`);
+    return data;
+  },
+};
+
 // Session API
-export const sessionApi = {
-  getAll: async (): Promise<APIResponse<Session[]>> => {
+export const sessionApi = {  getAll: async (): Promise<APIResponse<Session[]>> => {
     const { data } = await apiClient.get<APIResponse<Session[]>>('/sessions');
     return data;
   },

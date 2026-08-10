@@ -40,6 +40,7 @@ import { UserDetailDialog } from '@/components/admin/user-detail-dialog';
 const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: 'all', label: 'All roles' },
   { value: 'student', label: 'Students' },
+  { value: 'srt', label: 'SRT' },
   { value: 'admin', label: 'Admins' },
   { value: 'super-admin', label: 'Super Admins' },
 ];
@@ -66,6 +67,8 @@ const roleBadge = (role: UserRole) => {
       return <Badge className="bg-slate-900 text-white">Super Admin</Badge>;
     case 'admin':
       return <Badge variant="indigo">Admin</Badge>;
+    case 'srt':
+      return <Badge className="bg-teal-600 text-white">SRT</Badge>;
     default:
       return <Badge variant="outline">Student</Badge>;
   }
@@ -236,11 +239,12 @@ export default function AdminUsersPage() {
       )}
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {[
           { label: 'Total Users', value: stats?.total, icon: Users, tint: 'bg-slate-100 text-slate-700' },
           { label: 'Active', value: stats?.active, icon: UserRound, tint: 'bg-emerald-100 text-emerald-600' },
           { label: 'Admins', value: stats?.admins, icon: ShieldAlert, tint: 'bg-indigo-100 text-indigo-600' },
+          { label: 'SRT', value: stats?.srt, icon: ShieldAlert, tint: 'bg-teal-100 text-teal-600' },
           { label: 'Super Admins', value: stats?.superAdmins, icon: ShieldAlert, tint: 'bg-slate-900 text-white' },
           { label: 'Banned', value: stats?.banned, icon: ShieldAlert, tint: 'bg-rose-100 text-rose-600' },
         ].map((s) => (
@@ -406,6 +410,7 @@ export default function AdminUsersPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="student">Student</SelectItem>
+                          <SelectItem value="srt">SRT</SelectItem>
                           <SelectItem value="admin">Admin</SelectItem>
                           <SelectItem value="super-admin">Super Admin</SelectItem>
                         </SelectContent>

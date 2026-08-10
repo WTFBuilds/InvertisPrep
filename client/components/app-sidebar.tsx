@@ -16,6 +16,7 @@ import {
   CalendarDays,
   ShieldCheck,
   Users,
+  HandCoins,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -44,16 +45,22 @@ export const adminNavItems = [
   { title: "Reports", url: "/admin/reports", icon: Flag },
   { title: "Bug Reports", url: "/admin/bugs", icon: Bug },
   { title: "Events", url: "/admin/events", icon: CalendarDays },
+  { title: "Sponsors", url: "/admin/sponsors", icon: HandCoins },
 ]
+
+// SRT (Support & Resource Team) sees every admin page except User Management
+const srtHiddenItems = ["/admin/users"]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const { user, logout } = useAuth()
 
-  const items = adminNavItems.map((item) => ({
-    ...item,
-    isActive: pathname === item.url,
-  }))
+  const items = adminNavItems
+    .filter((item) => user?.role !== "srt" || !srtHiddenItems.includes(item.url))
+    .map((item) => ({
+      ...item,
+      isActive: pathname === item.url,
+    }))
 
   return (
     <Sidebar collapsible="icon" {...props}>

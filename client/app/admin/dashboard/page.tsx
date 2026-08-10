@@ -85,6 +85,9 @@ const branchName = (b: PYQPaper['branchId']) => (typeof b === 'string' ? b : b.n
 export default function AdminDashboard() {
   const { user } = useAuth();
 
+  // SRT has no user management access — hide user-related stats and fetches
+  const isSrt = user?.role === 'srt';
+
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [papers, setPapers] = useState<PYQPaper[]>([]);
   const [paperTotal, setPaperTotal] = useState(0);
@@ -106,11 +109,14 @@ export default function AdminDashboard() {
     const fetchAll = async () => {
       let failed = false;
 
+      // SRT has no user management access — skip adminUserApi calls (they'd 403)
       const [u, p, un, r, b, e, nu, lb] = await Promise.all([
-        adminUserApi.stats().catch(() => {
-          failed = true;
-          return null;
-        }),
+        isSrt
+          ? Promise.resolve(null)
+          : adminUserApi.stats().catch(() => {
+              failed = true;
+              return null;
+            }),
         pyqApi.getAll({ page: 1, limit: 100 }).catch(() => {
           failed = true;
           return null;
@@ -131,10 +137,12 @@ export default function AdminDashboard() {
           failed = true;
           return null;
         }),
-        adminUserApi.list({ sort: 'newest', limit: 5 }).catch(() => {
-          failed = true;
-          return null;
-        }),
+        isSrt
+          ? Promise.resolve(null)
+          : adminUserApi.list({ sort: 'newest', limit: 5 }).catch(() => {
+              failed = true;
+              return null;
+            }),
         leaderboardApi.getRankings('all_time').catch(() => {
           failed = true;
           return null;
@@ -171,7 +179,13 @@ export default function AdminDashboard() {
   const activeEvents = events.filter((ev) => ev.registrationOpen);
 
   const roleLabel =
-    user?.role === 'super-admin' ? 'Super Admin' : user?.role === 'admin' ? 'Admin' : 'Viewer';
+    user?.role === 'super-admin'
+      ? 'Super Admin'
+      : user?.role === 'admin'
+        ? 'Admin'
+        : user?.role === 'srt'
+          ? 'SRT'
+          : 'Viewer';
 
   const firstName = user?.name?.split(' ')[0] || 'Admin';
   const today = new Date().toLocaleDateString('en-IN', {
@@ -182,14 +196,19 @@ export default function AdminDashboard() {
   });
 
   const statCards = [
-    {
-      label: 'Total Users',
-      value: userStats?.total,
-      sub: userStats ? `${userStats.active} active · ${userStats.banned} banned` : '—',
-      icon: Users,
-      href: '/admin/users',
-      tint: 'bg-indigo-100 text-indigo-600',
-    },
+    // SRT has no user management access — no Total Users card for them
+    ...(!isSrt
+      ? [
+          {
+            label: 'Total Users',
+            value: userStats?.total,
+            sub: userStats ? `${userStats.active} active · ${userStats.banned} banned` : '—',
+            icon: Users,
+            href: '/admin/users',
+            tint: 'bg-indigo-100 text-indigo-600',
+          },
+        ]
+      : []),
     {
       label: 'Papers',
       value: paperTotal,
@@ -437,62 +456,64 @@ export default function AdminDashboard() {
 
       {/* Recent activity */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Newest users */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <UserPlus className="h-4 w-4 text-indigo-500" />
-              <h3 className="text-sm font-bold text-slate-800">Newest Users</h3>
+        {/* Newest users (hidden for SRT — no user management access) */}
+        {!isSrt && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <UserPlus className="h-4 w-4 text-indigo-500" />
+                <h3 className="text-sm font-bold text-slate-800">Newest Users</h3>
+              </div>
+              <Link
+                href="/admin/users"
+                className="flex items-center gap-1 text-xs font-bold text-slate-700 transition-colors hover:text-indigo-600"
+              >
+                View all <ArrowRight className="h-3 w-3" />
+              </Link>
             </div>
-            <Link
-              href="/admin/users"
-              className="flex items-center gap-1 text-xs font-bold text-slate-700 transition-colors hover:text-indigo-600"
-            >
-              View all <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
-          <div className="space-y-2">
-            {loading &&
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <Skeleton className="h-8 w-8 rounded-full" />
-                  <div className="flex-1 space-y-1.5">
-                    <Skeleton className="h-3.5 w-32" />
-                    <Skeleton className="h-3 w-44" />
+            <div className="space-y-2">
+              {loading &&
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-3.5 w-32" />
+                      <Skeleton className="h-3 w-44" />
+                    </div>
                   </div>
-                </div>
-              ))}
-            {!loading &&
-              newestUsers.map((u) => (
-                <div key={u.id} className="flex items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-slate-50">
-                  <Avatar className="h-8 w-8">
-                    {u.picture && <AvatarImage src={u.picture} alt={u.name} />}
-                    <AvatarFallback className="bg-indigo-100 text-indigo-700">
-                      {initials(u.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-slate-800">{u.name}</p>
-                    <p className="truncate text-xs text-slate-400">{u.email}</p>
+                ))}
+              {!loading &&
+                newestUsers.map((u) => (
+                  <div key={u.id} className="flex items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-slate-50">
+                    <Avatar className="h-8 w-8">
+                      {u.picture && <AvatarImage src={u.picture} alt={u.name} />}
+                      <AvatarFallback className="bg-indigo-100 text-indigo-700">
+                        {initials(u.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-slate-800">{u.name}</p>
+                      <p className="truncate text-xs text-slate-400">{u.email}</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[11px] font-semibold"
+                      onClick={() => {
+                        setDetailUserId(u.id);
+                        setDetailOpen(true);
+                      }}
+                    >
+                      View
+                    </Button>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-[11px] font-semibold"
-                    onClick={() => {
-                      setDetailUserId(u.id);
-                      setDetailOpen(true);
-                    }}
-                  >
-                    View
-                  </Button>
-                </div>
-              ))}
-            {!loading && newestUsers.length === 0 && (
-              <p className="py-6 text-center text-xs text-slate-400">No users yet.</p>
-            )}
+                ))}
+              {!loading && newestUsers.length === 0 && (
+                <p className="py-6 text-center text-xs text-slate-400">No users yet.</p>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Leaderboard */}
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -547,12 +568,14 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* User detail dialog */}
-      <UserDetailDialog
-        userId={detailUserId}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-      />
+      {/* User detail dialog (SRT has no user management access) */}
+      {!isSrt && (
+        <UserDetailDialog
+          userId={detailUserId}
+          open={detailOpen}
+          onOpenChange={setDetailOpen}
+        />
+      )}
     </div>
   );
 }

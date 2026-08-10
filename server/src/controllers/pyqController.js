@@ -386,7 +386,7 @@ export const getDailyUploadCount = async (req, res) => {
     // Max papers a non-admin user can upload per day (default 10)
     const dailyLimit = parseInt(process.env.DAILY_UPLOAD_LIMIT, 10) || 10;
 
-    if (req.user.role === 'admin' || req.user.role === 'super-admin') {
+    if (req.user.role === 'admin' || req.user.role === 'super-admin' || req.user.role === 'srt') {
       res.json({ 
         success: true, 
         data: {

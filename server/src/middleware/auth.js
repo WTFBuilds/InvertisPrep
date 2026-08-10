@@ -68,6 +68,26 @@ export const isAdmin = (req, res, next) => {
   next();
 };
 
+// Staff = admin, super-admin, or SRT. Used for read / upload / verify access.
+// Delete and edit operations must keep using isAdmin so SRT stays read-only except verify/upload.
+export const isStaff = (req, res, next) => {
+  if (!req.user) {
+    res.status(401).json({ success: false, message: 'Authentication required' });
+    return;
+  }
+
+  if (
+    req.user.role !== 'admin' &&
+    req.user.role !== 'super-admin' &&
+    req.user.role !== 'srt'
+  ) {
+    res.status(403).json({ success: false, message: 'Staff access required' });
+    return;
+  }
+
+  next();
+};
+
 export const isSuperAdmin = (req, res, next) => {
   if (!req.user) {
     res.status(401).json({ success: false, message: 'Authentication required' });

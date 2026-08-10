@@ -9,12 +9,12 @@ import { authenticateJWT, isAdmin } from '../middleware/auth.js';
 
 const router = Router();
 
-// All routes require admin authentication
-router.use(authenticateJWT, isAdmin);
-
+// Public routes
 router.get('/', getAllBranches);
-router.post('/', createBranch);
-router.put('/:id', updateBranch);
-router.delete('/:id', deleteBranch);
+
+// Admin routes
+router.post('/', authenticateJWT, isAdmin, createBranch);
+router.put('/:id', authenticateJWT, isAdmin, updateBranch);
+router.delete('/:id', authenticateJWT, isAdmin, deleteBranch);
 
 export default router;

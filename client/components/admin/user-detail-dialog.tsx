@@ -65,6 +65,8 @@ const roleBadge = (role: string) => {
       return <Badge className="bg-slate-900 text-white">Super Admin</Badge>;
     case 'admin':
       return <Badge variant="indigo">Admin</Badge>;
+    case 'srt':
+      return <Badge className="bg-teal-600 text-white">SRT</Badge>;
     default:
       return <Badge variant="outline">Student</Badge>;
   }

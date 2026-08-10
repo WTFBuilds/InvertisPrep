@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useAuth } from '@/contexts/AuthContext';
 import { pyqApi, pdfApi } from '@/lib/api';
 import type { PYQPaper, User, ExamType } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,9 @@ import Link from 'next/link';
 export default function PapersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
+  // SRT can view/verify/upload but cannot edit or delete papers
+  const canModify = user?.role !== 'srt';
   const [papers, setPapers] = useState<PYQPaper[]>([]);
   const [filteredPapers, setFilteredPapers] = useState<PYQPaper[]>([]);
   const [loading, setLoading] = useState(true);
@@ -442,7 +446,9 @@ export default function PapersPage() {
             <div className="flex items-center gap-2">
               <Button size="sm" onClick={selectAllOnPage}>{selected.length === filteredPapers.length ? 'Unselect' : 'Select All'}</Button>
               <Button size="sm" onClick={handleBulkVerify} disabled={selected.length===0}>Verify Selected</Button>
-              <Button size="sm" variant="destructive" onClick={handleBulkDelete} disabled={selected.length===0}>Delete Selected</Button>
+              {canModify && (
+                <Button size="sm" variant="destructive" onClick={handleBulkDelete} disabled={selected.length===0}>Delete Selected</Button>
+              )}
             </div>
           </div>
         </div>
@@ -488,12 +494,16 @@ export default function PapersPage() {
                       <Button size="sm" variant="outline" onClick={() => handleDownload(paper)}>
                         Download
                       </Button>
-                      <Button size="sm" variant="secondary" onClick={() => handleEdit(paper)}>
-                        Edit
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDelete(paper._id)}>
-                        Delete
-                      </Button>
+                      {canModify && (
+                        <>
+                          <Button size="sm" variant="secondary" onClick={() => handleEdit(paper)}>
+                            Edit
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleDelete(paper._id)}>
+                            Delete
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
