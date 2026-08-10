@@ -1,34 +1,44 @@
-## Goal
-On the PDF viewer header, add **Download** and **Share** buttons, and upgrade the watermark on all served PDFs to the resume-builder style (diagonal gradient "INVERTISPREP" tiles + "Made with www.invertisprep.in" footer), plus a small bottom-left user trace line.
+## Add "SRT" role (Support & Resource Team)
 
-## Server changes
+**Permissions:** view all admin pages (read-only) · verify papers · upload papers + syllabus · NO delete/edit/ban anywhere · NO user management. Regular admin/super-admin permissions are unchanged, except verify is extended to staff roles so SRT can do it.
 
-### 1. `server/src/controllers/pdfController.js`
-- Extract a shared `applyWatermark(pdfDoc, user, action)` helper (currently the watermark logic is inline in `viewPDF`):
-  - **Brand tiles (resume-builder style):** embed `HelveticaBold`, draw repeated "INVERTISPREP" tiles in a staggered grid across each page, rotated `degrees(-35)`, letter-spacing simulated by advancing each character along the rotated baseline (~1.5pt). Alternate tile colors to mimic the CSS gradient: indigo `#6366f1`, fuchsia `#a855f7`, pink `#ec4899` at opacity ~0.12.
-  - **Footer:** "Made with www.invertisprep.in" bottom-right, slate `#94a3b8`, ~9pt, opacity ~0.55 (matches `.resume-watermark`).
-  - **User trace (kept):** small bottom-left line `{action} by {user email} • InvertisPrep`, ~7-8pt, slate, opacity ~0.45 (replaces the old gray diagonal text).
-- `viewPDF`: use the shared helper, keep `Content-Disposition: inline`.
-- New `downloadPDF` handler: same model lookup + Cloudinary fetch + watermark, then send with `Content-Disposition: attachment; filename="<sanitized fileName>"` (sanitize to `[a-zA-Z0-9._-]`, fallback `document.pdf`).
+### Server (Express + Mongoose)
 
-### 2. `server/src/routes/pdf.js`
-- Add `router.get('/download/:id', authenticateJWT, downloadPDF);`
+1. **`server/src/models/User.js`** — add `'srt'` to the `role` enum.
+2. **`server/src/middleware/auth.js`** — add `isStaff` = admin | super-admin | **srt** (read/upload/verify gate). `isAdmin` (admin|super-admin) stays for delete/edit/user-control ops → SRT is automatically blocked from those.
+3. **`server/src/routes/pyq.js`**:
+   - `GET /all` → `isStaff` (was isAdmin) — SRT can view papers
+   - `POST /upload` → `isStaff` — SRT can upload
+   - `PATCH /:id/verify` → `isStaff` (was isSuperAdmin) — SRT (and admins) can verify
+   - `PUT /:id`, `DELETE /:id` → keep `isAdmin` — **no edit/delete for SRT**
+4. **`server/src/routes/syllabus.js`** — `POST /upload` → `isStaff` (SRT can upload syllabus); `DELETE /:id` stays `isAdmin`.
+5. **`server/src/routes/reports.js`** — `GET /` → `isStaff` (view); `PATCH /:id` stays `isAdmin` (SRT can't resolve).
+6. **`server/src/routes/bugs.js`** — `GET /` → `isStaff` (view); `PATCH`/`DELETE` stay `isAdmin`.
+7. **`server/src/controllers/pyqController.js`** — `getDailyUploadCount`: exempt SRT from the daily upload limit (like admin/super-admin).
+8. **`server/src/controllers/adminUserController.js`** — `VALID_ROLES` add `'srt'` (so super-admins can assign it).
+9. **`server/src/types/index.js`** — `UserRole` JSDoc typedef add `'srt'`.
 
-## Client changes
+### Client (Next.js)
 
-### 3. `client/lib/api.ts`
-- Add `pdfApi.download(id, type)` → GET `/pdf/download/:id` (`responseType: 'blob'`), parse filename from the `Content-Disposition` header, return `{ blob, filename }`.
+10. **`client/types/index.ts`** — `UserRole` add `'srt'`.
+11. **`client/components/ProtectedRoute.tsx`** — allow `srt` into `/admin` (currently admin|super-admin only).
+12. **`client/components/app-sidebar.tsx`** — keep all nav items EXCEPT **Users**, which is hidden when role is `srt`.
+13. **`client/app/admin/layout.tsx`** — use the same role-filtered nav list for the breadcrumb.
+14. **`client/app/admin/dashboard/page.tsx`** — role label shows "SRT"; hide the **Total Users** stat card and **Newest Users** panel for SRT; skip the `adminUserApi` fetches when role is `srt` (they'd 403 and trigger a misleading warning).
+15. **`client/app/admin/papers/page.tsx`** — for SRT: hide **Edit**, **Delete**, and **Delete Selected** buttons (View/Verify/Download/Select All/Verify Selected stay).
+16. **`client/app/admin/syllabus/page.tsx`** — keep upload, hide delete for SRT.
+17. **`client/app/admin/reports/page.tsx`**, **`bugs/page.tsx`**, **`events/page.tsx`**, **`departments/page.tsx`**, **`branches/page.tsx`**, **`sessions/page.tsx`** — hide their modify/delete controls for SRT (view-only). Shared pattern: `const canModify = user?.role !== 'srt'`.
+18. **`client/app/admin/users/page.tsx`** — add `SRT` to the role filter options + `roleBadge` (page itself stays blocked for SRT via server 403 + hidden nav).
+19. **`client/components/admin/user-detail-dialog.tsx`** — add SRT to `roleBadge`.
+20. **`client/app/profile/page.tsx`** — role label shows "SRT".
+21. **`client/components/Navbar.tsx`** — show the admin Dashboard link for `srt` too.
 
-### 4. `client/components/PDFViewer.tsx`
-- Extend props with optional `id?: string`, `type?: 'pyq' | 'syllabus'`, `title?: string`.
-- In the sticky toolbar (after the Reset button): add a divider + **Download** and **Share** ghost buttons (icon + label on sm+, icon-only on mobile, white/10 hover like existing buttons).
-  - **Download:** disable + busy state while fetching; if `type === 'pyq'`, fire-and-forget `pyqApi.trackDownload(id)` (matches existing download tracking); call `pdfApi.download` → object URL → programmatic `<a download={filename}>` click → revoke; on error `alert(...)` (matches the pattern already used on the PYQ list page).
-  - **Share:** use `navigator.share({ title, url })` when available (secure context), otherwise `navigator.clipboard.writeText(url)` with transient "Copied" feedback (icon swap → revert after 2s, same pattern as `app/events/[id]/page.tsx`). URL = current viewer URL (includes `?type=`).
+### Notes
+- Verify becomes available to **admin, super-admin, SRT** (a natural consequence of SRT verifying — admins keep it).
+- No migration needed — the enum change is additive; `authenticateJWT` already re-reads role from DB each request, so role changes take effect immediately.
+- New SRT accounts: assign the `srt` role via the existing Users page (super-admin).
 
-### 5. `client/app/view/[id]/page.tsx`
-- Pass `id` and `type` through: `<PDFViewer file={pdfBlob} id={id} type={type} />`.
-
-## Notes
-- No new dependencies: server already uses `pdf-lib`; client uses existing `axios`, `lucide-react` icons (`Download`, `Share`, `Check`).
-- Syllabus downloads skip download-count tracking (no endpoint exists for syllabus).
-- Works for both `pyq` and `syllabus` types since both flows hit the same PDF routes.
+### Verify
+- `node --check` on changed server files
+- `npx tsc --noEmit` + eslint on changed client files
+- Restart required (server model/route changes)

@@ -27,6 +27,8 @@ import walletRoutes from './routes/wallet.js';
 import bugRoutes from './routes/bugs.js';
 import leaderboardRoutes from './routes/leaderboard.js';
 import eventRoutes from './routes/events.js';
+import adminUserRoutes from './routes/adminUsers.js';
+import sponsorRoutes from './routes/sponsors.js';
 
 // Initialize Express app
 const app = express();
@@ -116,6 +118,8 @@ const initApp = async () => {
   app.use('/api/bugs', bugRoutes);
   app.use('/api/leaderboard', leaderboardRoutes);
   app.use('/api/events', eventRoutes);
+  app.use('/api/admin/users', adminUserRoutes);
+  app.use('/api/sponsors', sponsorRoutes);
 
   // Error handling
   app.use(notFound);

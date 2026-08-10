@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useAuth } from '@/contexts/AuthContext';
 import { departmentApi } from '@/lib/api';
 import type { Department, CreateDepartmentDTO } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import Link from 'next/link';
 
 export default function DepartmentsPage() {
+  const { user } = useAuth();
+  // SRT can view departments but cannot create, edit or delete
+  const canModify = user?.role !== 'srt';
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -158,7 +162,7 @@ export default function DepartmentsPage() {
           </Alert>
         )}
 
-        {!showForm && (
+        {canModify && !showForm && (
           <Button onClick={() => setShowForm(true)} className="mb-6">
             + Add New Department
           </Button>
@@ -321,14 +325,16 @@ export default function DepartmentsPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => handleEdit(dept)}>
-                        Edit
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDelete(dept._id)}>
-                        Delete
-                      </Button>
-                    </div>
+                    {canModify && (
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => handleEdit(dept)}>
+                          Edit
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleDelete(dept._id)}>
+                          Delete
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
