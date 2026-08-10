@@ -1,34 +1,40 @@
-## Goal
-On the PDF viewer header, add **Download** and **Share** buttons, and upgrade the watermark on all served PDFs to the resume-builder style (diagonal gradient "INVERTISPREP" tiles + "Made with www.invertisprep.in" footer), plus a small bottom-left user trace line.
+## Redesign Admin Dashboard (`client/app/admin/dashboard/page.tsx`)
 
-## Server changes
+The current page is 10 giant "Manage" link cards (all duplicated in the sidebar) + 6 bare counts — low-value. Replace it with a real admin dashboard surfaced from **existing endpoints only** (no server changes).
 
-### 1. `server/src/controllers/pdfController.js`
-- Extract a shared `applyWatermark(pdfDoc, user, action)` helper (currently the watermark logic is inline in `viewPDF`):
-  - **Brand tiles (resume-builder style):** embed `HelveticaBold`, draw repeated "INVERTISPREP" tiles in a staggered grid across each page, rotated `degrees(-35)`, letter-spacing simulated by advancing each character along the rotated baseline (~1.5pt). Alternate tile colors to mimic the CSS gradient: indigo `#6366f1`, fuchsia `#a855f7`, pink `#ec4899` at opacity ~0.12.
-  - **Footer:** "Made with www.invertisprep.in" bottom-right, slate `#94a3b8`, ~9pt, opacity ~0.55 (matches `.resume-watermark`).
-  - **User trace (kept):** small bottom-left line `{action} by {user email} • InvertisPrep`, ~7-8pt, slate, opacity ~0.45 (replaces the old gray diagonal text).
-- `viewPDF`: use the shared helper, keep `Content-Disposition: inline`.
-- New `downloadPDF` handler: same model lookup + Cloudinary fetch + watermark, then send with `Content-Disposition: attachment; filename="<sanitized fileName>"` (sanitize to `[a-zA-Z0-9._-]`, fallback `document.pdf`).
+### Layout
 
-### 2. `server/src/routes/pdf.js`
-- Add `router.get('/download/:id', authenticateJWT, downloadPDF);`
+**1. Header**
+- Greeting: "Good {morning/afternoon/evening}, {admin name}" + role badge + today's date (en-IN)
+- Primary CTA: "Upload Paper" button → `/admin/upload`
 
-## Client changes
+**2. Stat cards (6, clickable, with sub-counts)**
+- **Total Users** (adminUserApi.stats) — sub: "X active · Y banned" → `/admin/users`
+- **Papers** (pyqApi.getAll total) — sub: "X verified" → `/admin/papers`
+- **Pending Review** — count of unverified papers → `/admin/papers`
+- **Pending Reports** (reportApi.getAll('pending')) → `/admin/reports`
+- **Open Bugs** (bugApi.getAll('pending')) → `/admin/bugs`
+- **Active Events** (eventApi.getAll, registrationOpen count) → `/admin/events`
 
-### 3. `client/lib/api.ts`
-- Add `pdfApi.download(id, type)` → GET `/pdf/download/:id` (`responseType: 'blob'`), parse filename from the `Content-Disposition` header, return `{ blob, filename }`.
+**3. "Needs Attention" panel** (the actionable core)
+- Three columns: **Unverified papers** (top 5, title + dept/branch/year), **Pending reports** (top 5, paper + reason), **Open bugs** (top 5, title + severity badge)
+- Each column has "View all →" link to its management page
+- Red/amber severity accents
 
-### 4. `client/components/PDFViewer.tsx`
-- Extend props with optional `id?: string`, `type?: 'pyq' | 'syllabus'`, `title?: string`.
-- In the sticky toolbar (after the Reset button): add a divider + **Download** and **Share** ghost buttons (icon + label on sm+, icon-only on mobile, white/10 hover like existing buttons).
-  - **Download:** disable + busy state while fetching; if `type === 'pyq'`, fire-and-forget `pyqApi.trackDownload(id)` (matches existing download tracking); call `pdfApi.download` → object URL → programmatic `<a download={filename}>` click → revoke; on error `alert(...)` (matches the pattern already used on the PYQ list page).
-  - **Share:** use `navigator.share({ title, url })` when available (secure context), otherwise `navigator.clipboard.writeText(url)` with transient "Copied" feedback (icon swap → revert after 2s, same pattern as `app/events/[id]/page.tsx`). URL = current viewer URL (includes `?type=`).
+**4. Recent activity row (2 columns)**
+- **Newest users** — top 5 from adminUserApi.list({sort:'newest'}) — avatar, name, email, joined date, View → user dialog
+- **Leaderboard top 5** — leaderboardApi.getRankings('all_time') — rank, name, course, points
 
-### 5. `client/app/view/[id]/page.tsx`
-- Pass `id` and `type` through: `<PDFViewer file={pdfBlob} id={id} type={type} />`.
+**5. Quick actions strip**
+- Compact pill buttons (not giant cards): Departments, Branches, Sessions, Syllabus, Bug Reports, Events — each linking to its page
 
-## Notes
-- No new dependencies: server already uses `pdf-lib`; client uses existing `axios`, `lucide-react` icons (`Download`, `Share`, `Check`).
-- Syllabus downloads skip download-count tracking (no endpoint exists for syllabus).
-- Works for both `pyq` and `syllabus` types since both flows hit the same PDF routes.
+### Implementation notes
+- Single `Promise.all` fetch with per-call `.catch` fallbacks (dashboard stays usable if one endpoint fails) — matches existing pattern
+- Skeleton placeholders while loading; inline error strip if everything fails
+- White/light theme consistent with the app (slate-900 headings, slate borders, rounded-2xl/3xl)
+- Reuses Badge, Avatar, Button, Card, Skeleton from shadcn
+- No new files, no server changes — pure rewrite of dashboard/page.tsx
+
+### Verify
+- `npx tsc --noEmit` clean
+- `npx eslint app/admin/dashboard/page.tsx` — only pre-existing warnings (no new errors; the `any` in the papers-total cast will be replaced with a typed approach)

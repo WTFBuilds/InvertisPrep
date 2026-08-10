@@ -1,17 +1,25 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { pyqApi } from '@/lib/api';
+import { pyqApi, pdfApi } from '@/lib/api';
 import type { PYQPaper, User, ExamType } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import Link from 'next/link';
 
 export default function PapersPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [papers, setPapers] = useState<PYQPaper[]>([]);
   const [filteredPapers, setFilteredPapers] = useState<PYQPaper[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +29,9 @@ export default function PapersPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [query, setQuery] = useState('');
+  const [verificationFilter, setVerificationFilter] = useState<'all' | 'verified' | 'unverified'>(
+    searchParams.get('verified') === 'unverified' ? 'unverified' : 'all'
+  );
   const [selected, setSelected] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState({
@@ -34,7 +45,14 @@ export default function PapersPage() {
   const fetchPapers = async (opts?: { page?: number; limit?: number }) => {
     try {
       setLoading(true);
-      const res = await pyqApi.getAll({ page: opts?.page ?? page, limit: opts?.limit ?? pageSize });
+      const params: Record<string, unknown> = {
+        page: opts?.page ?? page,
+        limit: opts?.limit ?? pageSize,
+      };
+      // Server-side verification filter so unverified papers from any page are returned
+      if (verificationFilter === 'verified') params.verified = 'true';
+      else if (verificationFilter === 'unverified') params.verified = 'false';
+      const res = await pyqApi.getAll(params);
       setPapers(res.data || []);
       setFilteredPapers(res.data || []);
       setTotal(typeof (res as any).total === 'number' ? (res as any).total : (res.count ?? (res.data?.length || 0)));
@@ -45,14 +63,20 @@ export default function PapersPage() {
     }
   };
 
-  const filterPapers = (searchTerm: string, papersToFilter: PYQPaper[]) => {
-    if (!searchTerm.trim()) {
-      return papersToFilter;
-    }
-
-    const term = searchTerm.toLowerCase();
-
+  const filterPapers = (
+    searchTerm: string,
+    verification: 'all' | 'verified' | 'unverified',
+    papersToFilter: PYQPaper[]
+  ) => {
     return papersToFilter.filter((paper) => {
+      // Verification status filter
+      if (verification === 'verified' && !paper.verified) return false;
+      if (verification === 'unverified' && paper.verified) return false;
+
+      if (!searchTerm.trim()) {
+        return true;
+      }
+      const term = searchTerm.toLowerCase();
       // Search in subject name and code
       if (
         paper.subjectName.toLowerCase().includes(term) ||
@@ -100,19 +124,19 @@ export default function PapersPage() {
   };
 
   useEffect(() => {
-    const filtered = filterPapers(query, papers);
+    const filtered = filterPapers(query, verificationFilter, papers);
     setFilteredPapers(filtered);
     setPage(1);
-  }, [query, papers]);
+  }, [query, verificationFilter, papers]);
 
   useEffect(() => {
     fetchPapers({ page, limit: pageSize });
   }, []);
 
   useEffect(() => {
-    // refetch when page or pageSize changes
+    // refetch when page, pageSize, or verification filter changes
     fetchPapers({ page, limit: pageSize });
-  }, [page, pageSize]);
+  }, [page, pageSize, verificationFilter]);
 
   const handleVerify = async (id: string) => {
     try {
@@ -202,12 +226,28 @@ export default function PapersPage() {
     }
   };
 
+  const handleView = (paper: PYQPaper) => {
+    // Count the view, then open the protected PDF viewer so the admin can review before verifying
+    pyqApi.trackView(paper._id).catch(() => {});
+    router.push(`/view/${paper._id}?type=pyq`);
+  };
+
   const handleDownload = async (paper: PYQPaper) => {
     try {
-      await pyqApi.trackDownload(paper._id);
-      router.push(`/view/${paper._id}?type=pyq`);
+      const { blob, filename } = await pdfApi.download(paper._id, 'pyq');
+      // Trigger browser download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      // Track download for stats (fire and forget)
+      pyqApi.trackDownload(paper._id).catch(() => {});
     } catch (err: unknown) {
-      setError('Failed to track download');
+      setError('Failed to download paper');
     }
   };
 
@@ -372,7 +412,10 @@ export default function PapersPage() {
         )}
 
         <div className="mb-4 text-sm text-muted-foreground flex items-center justify-between">
-          <div>Total Papers: {total} {query && `(${filteredPapers.length} shown)`}</div>
+          <div>
+            Total Papers: {total}{' '}
+            {(query || verificationFilter !== 'all') && `(${filteredPapers.length} shown)`}
+          </div>
           <div className="flex items-center gap-2">
             <form onSubmit={handleSearch} className="flex items-center gap-2">
               <input 
@@ -383,6 +426,19 @@ export default function PapersPage() {
               />
               <Button type="submit" size="sm">Search</Button>
             </form>
+            <Select
+              value={verificationFilter}
+              onValueChange={(v) => setVerificationFilter(v as 'all' | 'verified' | 'unverified')}
+            >
+              <SelectTrigger className="h-8 w-[150px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All papers</SelectItem>
+                <SelectItem value="verified">Verified only</SelectItem>
+                <SelectItem value="unverified">Unverified only</SelectItem>
+              </SelectContent>
+            </Select>
             <div className="flex items-center gap-2">
               <Button size="sm" onClick={selectAllOnPage}>{selected.length === filteredPapers.length ? 'Unselect' : 'Select All'}</Button>
               <Button size="sm" onClick={handleBulkVerify} disabled={selected.length===0}>Verify Selected</Button>
@@ -421,6 +477,9 @@ export default function PapersPage() {
                       </div>
                     </div>
                     <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => handleView(paper)}>
+                        View
+                      </Button>
                       {!paper.verified && (
                         <Button size="sm" variant="default" onClick={() => handleVerify(paper._id)}>
                           ✓ Verify

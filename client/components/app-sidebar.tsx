@@ -15,6 +15,7 @@ import {
   Bug,
   CalendarDays,
   ShieldCheck,
+  Users,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -33,6 +34,7 @@ import { useAuth } from "@/contexts/AuthContext"
 
 export const adminNavItems = [
   { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
+  { title: "Users", url: "/admin/users", icon: Users },
   { title: "Departments", url: "/admin/departments", icon: Building2 },
   { title: "Branches", url: "/admin/branches", icon: GitBranch },
   { title: "Sessions", url: "/admin/sessions", icon: Calendar },

@@ -25,6 +25,11 @@ import type {
   TransactionMeta,
   TransactionType,
   InvertisEvent,
+  UserRole,
+  AdminUser,
+  AdminUserListMeta,
+  UserStats,
+  AdminUserDetail,
 } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -274,6 +279,51 @@ export const userApi = {
   },
   unfollow: async (id: string): Promise<APIResponse<void>> => {
     const { data } = await apiClient.post<APIResponse<void>>(`/users/${id}/unfollow`);
+    return data;
+  },
+};
+
+// Admin User Management API
+export const adminUserApi = {
+  list: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    role?: UserRole | 'all';
+    status?: 'active' | 'banned' | 'all';
+    sort?: 'newest' | 'oldest' | 'name' | 'points' | 'lastLogin';
+  }): Promise<APIResponse<AdminUser[]> & { meta?: AdminUserListMeta }> => {
+    const query: Record<string, unknown> = {};
+    if (params?.page) query.page = params.page;
+    if (params?.limit) query.limit = params.limit;
+    if (params?.search) query.search = params.search;
+    if (params?.role && params.role !== 'all') query.role = params.role;
+    if (params?.status && params.status !== 'all') query.status = params.status;
+    if (params?.sort && params.sort !== 'newest') query.sort = params.sort;
+    const { data } = await apiClient.get<APIResponse<AdminUser[]> & { meta?: AdminUserListMeta }>(
+      '/admin/users',
+      { params: query }
+    );
+    return data;
+  },
+
+  stats: async (): Promise<APIResponse<UserStats>> => {
+    const { data } = await apiClient.get<APIResponse<UserStats>>('/admin/users/stats');
+    return data;
+  },
+
+  get: async (id: string): Promise<APIResponse<AdminUserDetail>> => {
+    const { data } = await apiClient.get<APIResponse<AdminUserDetail>>(`/admin/users/${id}`);
+    return data;
+  },
+
+  updateRole: async (id: string, role: UserRole): Promise<APIResponse> => {
+    const { data } = await apiClient.patch<APIResponse>(`/admin/users/${id}/role`, { role });
+    return data;
+  },
+
+  updateStatus: async (id: string, isActive: boolean): Promise<APIResponse> => {
+    const { data } = await apiClient.patch<APIResponse>(`/admin/users/${id}/status`, { isActive });
     return data;
   },
 };

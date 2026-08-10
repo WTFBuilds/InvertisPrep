@@ -264,3 +264,80 @@ export interface InvertisEvent {
   createdAt?: string;
   updatedAt?: string;
 }
+
+// Admin user management types
+export interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  picture: string | null;
+  role: UserRole;
+  isActive: boolean;
+  studentId: string;
+  course: string;
+  points: number;
+  qcoins: number;
+  lastLogin: string;
+  joinedAt: string;
+}
+
+export interface AdminUserListMeta {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+}
+
+export interface UserStats {
+  total: number;
+  active: number;
+  admins: number;
+  superAdmins: number;
+  banned: number;
+}
+
+export interface AdminUserDetail {
+  user: AdminUser & {
+    phoneNumber: string;
+    freeDownloadsLeft: number;
+    followers: number;
+    following: number;
+    rank: number;
+  };
+  stats: {
+    verifiedUploads: number;
+    totalUploads: number;
+    syllabusUploads: number;
+    reportsFiled: number;
+    reportsPending: number;
+    bugsFiled: number;
+  };
+  badges: {
+    id: string;
+    name: string;
+    description: string;
+    icon: string;
+    color: string;
+    requirement: string;
+    current: number;
+    target: number;
+    completed: boolean;
+  }[];
+  transactions: {
+    id: string;
+    type: string;
+    category: string;
+    coins: number;
+    rupees?: number | null;
+    description: string;
+    balanceAfter: number;
+    createdAt: string;
+  }[];
+  activity: {
+    id: string;
+    type: string;
+    points: number;
+    description: string;
+    createdAt: string;
+  }[];
+}
