@@ -20,39 +20,23 @@ const emptyExperience = (): ResumeExperience => ({ company: '', role: '', descri
 const emptyProject = (): ResumeProject => ({ name: '', url: '', description: '', achievements: [''], startDate: '', endDate: '' });
 const emptyLink = (): ResumeLink => ({ label: '', url: '' });
 
+// Blank starter resume — every field is empty so users start from a clean slate
+// (no demo data that could accidentally be exported as someone else's info).
 export function createStarterResume(): ResumeDraft {
   return {
-    title: 'ATS Friendly Resume',
+    title: 'Untitled Resume',
     personal: {
-      name: 'Ahqaf Ali', headline: 'Developer', email: 'beddylea@gmail.com',
-      phone: '+1-555-0100', location: 'San Francisco, CA',
-      links: [
-        { label: 'GitHub', url: 'github.com/ahqafcoder' },
-        { label: 'LinkedIn', url: 'linkedin.com/in/bedivere-lea' },
-        { label: 'Instagram', url: 'instagram.com/ahqafali0403' },
-      ],
+      name: '', headline: '', email: '', phone: '', location: '',
+      links: [],
     },
-    summary: 'Resourceful Developer with 11 years of experience in designing and developing user interfaces, testing and training employees. Skilled at utilizing a wide variety of tools and programs to provide effective applications.',
-    education: [
-      { institution: 'New York University', degree: 'Bachelor of Computer Science', startDate: '2020-08', endDate: '2024-07' },
-    ],
-    experience: [
-      { company: 'Torph TTC', role: 'Developer', description: 'Torph TTC is a global software company that offers user interface UI development tools and components for a range of developer applications across all platforms.', achievements: ['Created and maintained 10 web applications for numerous national and foreign clients.', 'Ensured user interfaces and user experience met at least 80% of users expectations.', 'Created and analyzed 500 unit test cases.', "Developed Python scripts to automate image noise-reduction, improving research analysis time by 40%.", 'Established and led a team of 10 people, covering every key role in the early stages.'], startDate: '2023-02', endDate: '2023-02' },
-      { company: 'Reilty Group', role: 'Front End Web Developer', description: 'Reilty Group is an industry-leading provider of online gambling software and solutions.', achievements: ['Increased the reach of users to the platform by 35% through mobile web installation.', 'Delivered 30 web solutions.', 'Replaced one full-time developer with part-time employment, achieving over 60% productivity gain.', 'Worked with more than four teams and provided end-to-end client solutions.'], startDate: '2023-02', endDate: '2023-03' },
-      { company: 'HellX', role: 'Python Developer', description: 'Heller is a software editor specialized in logistics management.', achievements: ['Developed automation systems that saved over $50,000 annually.', 'Joined as the tenth employee and worked directly with major customers.', 'Delivered ahead of schedule, reducing project cost by 20%.', 'Reduced database size by nearly 50% and improved performance by 20%.', 'Reduced delivery time of goods by 50%.'], startDate: '2023-02', endDate: '2023-03' },
-    ],
+    summary: '',
+    education: [],
+    experience: [],
     projects: [],
-    skillGroups: [
-      { title: 'Technical Skills', items: ['JavaScript', 'Python', 'Web Services', 'C++', 'HTML5', 'CSS', 'SQL', 'User Interface', 'Creativity'] },
-      { title: 'Soft Skills', items: ['Collaboration', 'Problem-solving', 'Communication', 'Time management', 'Result-oriented'] },
-      { title: 'Additional Skills', items: ['Public Speaking', 'Writing', 'Research'] },
-    ],
-    achievements: [
-      'Winner - Smart India Hackathon (SIH) 2025 | December 2025',
-      'Technical Designer Award - Fashion Show | May 2026',
-    ],
-    languages: ['English', 'Hindi'],
-    certifications: ['Certified Web Professional-Web Developer', 'Java Development Certified Professional'],
+    skillGroups: [],
+    achievements: [],
+    languages: [],
+    certifications: [],
   };
 }
 

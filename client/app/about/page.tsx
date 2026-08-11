@@ -190,7 +190,7 @@ export default function AboutPage() {
                   className="object-contain"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
-                    target.src = '/logo.png';
+                    target.src = '/logo.jpeg';
                   }}
                 />
               </GlowCard>
