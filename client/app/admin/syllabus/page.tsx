@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -24,6 +25,9 @@ interface Syllabus {
 
 export default function SyllabusManagementPage() {
   const router = useRouter();
+  const { user } = useAuth();
+  // SRT can upload/view syllabus but cannot delete
+  const canModify = user?.role !== 'srt';
   const [syllabus, setSyllabus] = useState<Syllabus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -322,15 +326,17 @@ export default function SyllabusManagementPage() {
                                   </Button>
                                 </>
                               )}
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleDelete(item._id)}
-                                className="flex items-center gap-1"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                                Delete
-                              </Button>
+                              {canModify && (
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleDelete(item._id)}
+                                  className="flex items-center gap-1"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                  Delete
+                                </Button>
+                              )}
                             </div>
                           </td>
                         </tr>

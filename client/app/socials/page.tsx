@@ -1,78 +1,47 @@
 'use client';
 
-import React, { useRef, useState } from "react";
-import Link from "next/link";
-import { motion, useMotionTemplate, useMotionValue } from "framer-motion";
+import { useState } from 'react';
+import { motion, Variants } from 'framer-motion';
 import {
-  Github,
-  Twitter,
-  Youtube,
   Linkedin,
   Instagram,
   ArrowUpRight,
-  Globe,
   Copy,
   Check,
-  Compass,
-  Terminal,
-  ExternalLink,
-  MessageSquare,
-  Send
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+  Mail,
+  MessageCircle,
+} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Spotlight } from '@/components/ui/spotlight';
+import { GlowCard } from '@/components/ui/glow-card';
 
-// Official Discord logo SVG Path
+// Official Discord logo SVG Path (no lucide equivalent)
 const DiscordIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 127.14 96.36" fill="currentColor" {...props}>
     <path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,53.22,6.83,77.19,77.19,0,0,0,49.88,0,105.15,105.15,0,0,0,19.44,8.07C3.66,31.58-1.86,54.65,1,77.53A105.73,105.73,0,0,0,32,96.36a77.7,77.7,0,0,0,6.63-10.85,68.43,68.43,0,0,1-10.5-5c.88-.65,1.72-1.33,2.53-2a75.76,75.76,0,0,0,72.9,0c.8.71,1.65,1.39,2.53,2a68.43,68.43,0,0,1-10.5,5,77.7,77.7,0,0,0,6.63,10.85,105.73,105.73,0,0,0,31.58-18.83C129,54.65,122.68,31.58,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.83,46,53.83,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.07,46,96.07,53,91,65.69,84.69,65.69Z" />
   </svg>
 );
 
-// 21st.dev inspired Card with Mouse Spotlight Effect
-interface SpotlightCardProps {
-  children: React.ReactNode;
-  className?: string;
-}
+const fadeInUp: Variants = {
+  hidden: { opacity: 0, y: 40 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
+  },
+};
 
-function SpotlightCard({ children, className }: SpotlightCardProps) {
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-
-  function handleMouseMove({ currentTarget, clientX, clientY }: React.MouseEvent) {
-    const { left, top } = currentTarget.getBoundingClientRect();
-    mouseX.set(clientX - left);
-    mouseY.set(clientY - top);
-  }
-
-  return (
-    <div
-      onMouseMove={handleMouseMove}
-      className={cn(
-        "group relative rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-950/40 p-6 md:p-8 overflow-hidden backdrop-blur-md transition-all duration-300 hover:border-zinc-400 dark:hover:border-zinc-700 hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-white/5",
-        className
-      )}
-    >
-      {/* Background Spotlight Radial Gradient */}
-      <motion.div
-        className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 transition duration-300 group-hover:opacity-100"
-        style={{
-          background: useMotionTemplate`
-            radial-gradient(
-              300px circle at ${mouseX}px ${mouseY}px,
-              var(--spotlight-color),
-              transparent 80%
-            )
-          `,
-        }}
-      />
-      <div className="relative z-10 h-full flex flex-col justify-between">{children}</div>
-    </div>
-  );
-}
+const staggerContainer: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.12 },
+  },
+};
 
 export default function SocialsPage() {
   const [copied, setCopied] = useState(false);
-  const emailAddress = "contact@invertisprep.com";
+  const emailAddress = 'invertisprep@gmail.com';
 
   const handleCopy = () => {
     navigator.clipboard.writeText(emailAddress);
@@ -82,232 +51,172 @@ export default function SocialsPage() {
 
   const socialLinks = [
     {
-      title: "GitHub",
-      description: "Explore our open source templates, quiz engines, and study planners. Contribute to the future of learning.",
-      handle: "@AhqafCoder",
-      stat: "450+ Stars",
-      link: "https://github.com",
-      icon: Github,
-      actionText: "Fork & Star",
-    },
-    {
-      title: "YouTube",
-      description: "Watch structured course tutorials, solution walkthroughs, and exam preparation live streams.",
-      handle: "InvertisPrep Official",
-      stat: "12.5k+ Subs",
-      link: "https://youtube.com",
-      icon: Youtube,
-      actionText: "Subscribe",
-    },
-    {
-      title: "Telegram",
-      description: "Get instant notifications, study sheets, daily practice papers, and exam syllabus announcements.",
-      handle: "@InvertisPrep",
-      stat: "9.2k+ Students",
-      link: "https://telegram.org",
-      icon: Send,
-      actionText: "Join Channel",
-    },
-    {
-      title: "LinkedIn",
-      description: "Follow InvertisPrep for professional updates, corporate announcements, and creator milestones.",
-      handle: "InvertisPrep",
-      stat: "3.1k+ Network",
-      link: "https://linkedin.com",
+      title: 'LinkedIn',
+      handle: 'InvertisPrep',
+      description:
+        'Follow InvertisPrep for professional updates, university news, corporate announcements, and creator milestones.',
+      stat: 'Network',
+      link: 'https://www.linkedin.com/company/invertisprep/',
       icon: Linkedin,
-      actionText: "Connect",
+      chipClass: 'bg-blue-100 text-blue-700',
+      glowColor: 'rgba(37, 99, 235, 0.12)',
+      actionText: 'Connect',
+      soon: false,
     },
     {
-      title: "Instagram",
-      description: "Take a look behind the scenes, read quick infographics, daily tips, and visual feature walk-throughs.",
-      handle: "@invertisprep",
-      stat: "18.4k+ Reach",
-      link: "https://instagram.com",
+      title: 'Instagram',
+      handle: '@invertisprep.in',
+      description:
+        'Take a look behind the scenes, read quick infographics, daily tips, and visual feature walk-throughs.',
+      stat: 'Community',
+      link: 'https://www.instagram.com/invertisprep.in/',
       icon: Instagram,
-      actionText: "Follow Us",
+      chipClass: 'bg-pink-100 text-pink-600',
+      glowColor: 'rgba(236, 72, 153, 0.12)',
+      actionText: 'Follow Us',
+      soon: false,
     },
     {
-      title: "X",
-      description: "Follow us for product updates, engineering logs, feature polls, and fast customer queries.",
-      handle: "@InvertisPrep",
-      stat: "1.5k+ Readers",
-      link: "https://x.com",
-      icon: Twitter,
-      actionText: "Follow",
+      title: 'Discord',
+      handle: 'InvertisPrep Server',
+      description:
+        'Join our community server for instant doubts, study rooms, announcements, and open source collaboration.',
+      stat: 'Coming Soon',
+      link: '#',
+      icon: DiscordIcon,
+      chipClass: 'bg-indigo-100 text-indigo-600',
+      glowColor: 'rgba(99, 102, 241, 0.12)',
+      actionText: 'Join Waitlist',
+      soon: true,
     },
   ];
 
-  const words = "CONNECT WITH US".split(" ");
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.08,
-      },
-    },
-  };
-
-  const wordVariants = {
-    hidden: { opacity: 0, y: 15 },
-    show: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        type: "spring" as const,
-        stiffness: 100,
-        damping: 15
-      }
-    },
-  };
-
   return (
-    <div className="relative min-h-screen bg-zinc-50 dark:bg-black text-black dark:text-zinc-100 font-sans overflow-hidden py-16 md:py-8">
-      {/* 21st.dev CSS custom properties */}
-      <style jsx global>{`
-        :root {
-          --spotlight-color: rgba(0, 0, 0, 0.035);
-        }
-        .dark {
-          --spotlight-color: rgba(255, 255, 255, 0.06);
-        }
-      `}</style>
+    <div className="relative min-h-screen bg-slate-50">
+      <Spotlight
+        className="absolute inset-x-0 top-0 h-80 overflow-hidden"
+        gradientFirst="radial-gradient(68.54% 68.72% at 50% 0%, rgba(99,102,241,0.08) 0%, transparent 50.11%)"
+        gradientSecond="radial-gradient(50% 50% at 50% 50%, rgba(99,102,241,0.04) 0%, transparent 50.11%)"
+        gradientThird="radial-gradient(80% 60% at 50% 0%, rgba(139,92,246,0.06) 0%, transparent 50%)"
+      />
 
-      {/* Blueprint Grid Lines (Draws itself on render) */}
-      <div className="absolute inset-0 z-0 pointer-events-none opacity-20 dark:opacity-10">
-        {/* Vertical lines */}
-        {Array.from({ length: 5 }).map((_, i) => (
-          <motion.div
-            key={`v-line-${i}`}
-            initial={{ scaleY: 0 }}
-            animate={{ scaleY: 1 }}
-            transition={{ duration: 1.8, ease: [0.16, 1, 0.3, 1], delay: i * 0.15 }}
-            className="absolute top-0 bottom-0 w-[1px] bg-zinc-300 dark:bg-zinc-800 origin-top"
-            style={{ left: `${i * 25}%` }}
-          />
-        ))}
-        {/* Horizontal lines */}
-        {Array.from({ length: 4 }).map((_, i) => (
-          <motion.div
-            key={`h-line-${i}`}
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ duration: 1.8, ease: [0.16, 1, 0.3, 1], delay: i * 0.2 }}
-            className="absolute left-0 right-0 h-[1px] bg-zinc-300 dark:bg-zinc-800 origin-left"
-            style={{ top: `${i * 33.3}%` }}
-          />
-        ))}
-      </div>
+      {/* Hero */}
+      <section className="relative mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8">
+        <p className="text-sm font-semibold uppercase tracking-widest text-slate-500">Community</p>
+        <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-900 sm:text-5xl">Connect With Us</h1>
+        <p className="mt-3 max-w-2xl leading-relaxed text-slate-500">
+          Join our core communities to ask doubts, stay updated on schedule changes, access free study resources,
+          and be part of the InvertisPrep journey.
+        </p>
+      </section>
 
-      <div className="container relative z-10 mx-auto px-4 max-w-6xl">
-
-        {/* Header Block */}
-        <div className="max-w-3xl mb-16">
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="show"
-            className="text-4xl md:text-6xl lg:text-6xl font-black uppercase leading-none mb-6"
-          >
-            {words.map((word, idx) => (
-              <span key={idx} className="inline-block mr-4 overflow-hidden">
-                <motion.span variants={wordVariants} className="inline-block">
-                  {word}
-                </motion.span>
-              </span>
-            ))}
-          </motion.div>
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.8 }}
-            className="text-zinc-500 dark:text-zinc-400 text-base md:text-lg font-medium leading-relaxed tracking-tight"
-          >
-            Connect with our core communities. Ask doubts, stay updated on schedule alterations, access free study resources, and contribute to open source developments.
-          </motion.p>
-        </div>
-
-        {/* Links Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-          {socialLinks.map((item, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 * idx + 0.3 }}
-            >
-              <SpotlightCard className="h-full">
-                <div className="flex justify-between items-start gap-4 mb-6">
-                  <div className="p-3 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-black dark:text-white">
+      {/* Social Cards */}
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <motion.div
+          variants={staggerContainer}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-80px' }}
+          className="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 lg:grid-cols-3"
+        >
+          {socialLinks.map((item) => (
+            <motion.div key={item.title} variants={fadeInUp} className="h-full">
+              <GlowCard
+                glowColor={item.glowColor}
+                className={`flex h-full flex-col rounded-3xl border-slate-200 bg-white p-6 transition-all duration-300 sm:p-7 ${
+                  item.soon ? 'opacity-90' : 'hover:-translate-y-1'
+                }`}
+              >
+                {/* Top row: icon chip + status badge */}
+                <div className="mb-6 flex items-start justify-between gap-4">
+                  <span className={`flex h-12 w-12 items-center justify-center rounded-xl ${item.chipClass}`}>
                     <item.icon className="h-6 w-6" />
-                  </div>
-                  <span className="text-xs font-semibold px-2.5 py-1 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md font-mono text-zinc-500">
-                    {item.stat}
                   </span>
+                  {item.soon ? (
+                    <Badge variant="warning">Coming Soon</Badge>
+                  ) : (
+                    <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      Active
+                    </span>
+                  )}
                 </div>
 
+                {/* Body */}
                 <div className="mb-6 flex-1">
-                  <h4 className="font-bold text-lg text-black dark:text-white uppercase tracking-tight mb-2">
-                    {item.title}
-                  </h4>
-                  <p className="text-xs font-mono text-zinc-500 font-semibold mb-3">
-                    {item.handle}
-                  </p>
-                  <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">
-                    {item.description}
-                  </p>
+                  <h3 className="text-lg font-bold tracking-tight text-slate-900">{item.title}</h3>
+                  <p className="mb-3 text-xs font-semibold text-slate-400">{item.handle}</p>
+                  <p className="text-sm leading-relaxed text-slate-500">{item.description}</p>
                 </div>
 
-                <Link
-                  href={item.link}
-                  target="_blank"
-                  className="flex justify-between items-center w-full border-t border-zinc-200 dark:border-zinc-800 pt-4 mt-auto text-xs font-semibold uppercase tracking-wider text-black dark:text-white hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors group/item"
-                >
-                  <span>{item.actionText}</span>
-                  <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover/item:translate-x-1 group-hover/item:-translate-y-1" />
-                </Link>
-              </SpotlightCard>
+                {/* CTA — same outer dimensions so buttons align perfectly */}
+                {item.soon ? (
+                  <div className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900/60 px-5 py-3 text-sm font-semibold text-white/60 shadow-sm cursor-not-allowed">
+                    <MessageCircle className="h-4 w-4" />
+                    Soon on Discord
+                  </div>
+                ) : (
+                  <a
+                    href={item.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-slate-800"
+                  >
+                    {item.actionText}
+                    <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                  </a>
+                )}
+              </GlowCard>
             </motion.div>
           ))}
-        </div>
+        </motion.div>
+      </section>
 
-        {/* Copy Mail Clipboard CTA & Footer */}
-        <div className="flex flex-col items-center justify-center border-t border-zinc-200 dark:border-zinc-800 pt-16 gap-10">
-          <div className="text-center max-w-md">
-            <h4 className="font-bold text-lg uppercase tracking-wider mb-2">Business Inquiries</h4>
-            <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-6">
-              For partnerships, branding issues, or institutional queries, copy our official mail.
-            </p>
-
-            <button
-              onClick={handleCopy}
-              className={cn(
-                "w-full flex justify-between items-center bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900/50 dark:hover:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-6 py-4 rounded-xl font-mono text-sm tracking-tight transition-all duration-200 group",
-                copied && "border-emerald-500/50 dark:border-emerald-500/50 bg-emerald-500/5 dark:bg-emerald-500/5"
-              )}
-            >
-              <span className={cn("text-zinc-600 dark:text-zinc-300", copied && "text-emerald-500 dark:text-emerald-400")}>
-                {emailAddress}
+      {/* Business Inquiries */}
+      <section className="mx-auto max-w-7xl px-4 pb-16 pt-4 sm:px-6 lg:px-8">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-80px' }}
+          variants={fadeInUp}
+        >
+          <GlowCard glowColor="rgba(168, 85, 247, 0.1)" className="overflow-hidden rounded-3xl border-slate-200 bg-white">
+            <div className="flex flex-col items-center gap-6 px-6 py-12 text-center sm:px-12">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600">
+                <Mail className="h-6 w-6" />
               </span>
+              <h2 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Business Inquiries</h2>
+              <p className="max-w-md text-sm leading-relaxed text-slate-500">
+                For partnerships, branding issues, or institutional queries, copy our official mail.
+              </p>
 
-              <span className="flex items-center gap-1.5 text-xs text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-200 transition-colors">
-                {copied ? (
-                  <>
-                    <Check className="h-4 w-4 text-emerald-500" />
-                    <span className="text-emerald-500 font-semibold">COPIED</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-4 w-4" />
-                    <span>COPY</span>
-                  </>
-                )}
-              </span>
-            </button>
-          </div>
-        </div>
-      </div>
+              <button
+                onClick={handleCopy}
+                className={`flex w-full max-w-lg items-center justify-between gap-3 rounded-xl border px-6 py-4 text-left font-mono text-sm tracking-tight transition-all duration-200 ${
+                  copied
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-600'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-indigo-200 hover:bg-white hover:shadow-sm'
+                }`}
+              >
+                <span className="truncate">{emailAddress}</span>
+                <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold">
+                  {copied ? (
+                    <>
+                      <Check className="h-4 w-4 text-emerald-500" />
+                      <span className="text-emerald-600">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4 text-slate-400" />
+                      <span className="text-slate-500">Copy</span>
+                    </>
+                  )}
+                </span>
+              </button>
+            </div>
+          </GlowCard>
+        </motion.div>
+      </section>
     </div>
   );
 }

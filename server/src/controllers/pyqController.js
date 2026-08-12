@@ -113,7 +113,7 @@ export const getPYQs = async (req, res) => {
 // Get all PYQs (admin only)
 export const getAllPYQs = async (req, res) => {
   try {
-    const { page = '1', limit = '100' } = req.query;
+    const { page = '1', limit = '100', verified } = req.query;
     const pageNum = Math.max(parseInt(page.toString(), 10) || 1, 1);
     // allow client to request a larger page size but cap it to avoid excessive load
     const pageSize = Math.min(Math.max(parseInt(limit.toString(), 10) || 100, 1), 1000);
@@ -122,6 +122,10 @@ export const getAllPYQs = async (req, res) => {
 
     // Filter to only show active papers
     const filter = { isActive: true };
+
+    // Optional admin filter: verified=true → verified only, verified=false → unverified only
+    if (verified === 'true') filter.verified = true;
+    else if (verified === 'false') filter.verified = false;
 
     const [total, papers] = await Promise.all([
       PYQPaper.countDocuments(filter),
@@ -379,12 +383,15 @@ export const uploadPYQPublic = async (req, res) => {
 // Get daily upload count for the authenticated user (IST-aligned)
 export const getDailyUploadCount = async (req, res) => {
   try {
-    if (req.user.role === 'admin' || req.user.role === 'super-admin') {
+    // Max papers a non-admin user can upload per day (default 10)
+    const dailyLimit = parseInt(process.env.DAILY_UPLOAD_LIMIT, 10) || 10;
+
+    if (req.user.role === 'admin' || req.user.role === 'super-admin' || req.user.role === 'srt') {
       res.json({ 
         success: true, 
         data: {
           count: 0, 
-          limit: 10,
+          limit: dailyLimit,
           isExempt: true 
         }
       });
@@ -406,7 +413,7 @@ export const getDailyUploadCount = async (req, res) => {
       success: true, 
       data: {
         count, 
-        limit: 10, 
+        limit: dailyLimit, 
         isExempt: false 
       }
     });

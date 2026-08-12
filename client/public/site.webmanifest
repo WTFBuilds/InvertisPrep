@@ -1,6 +1,7 @@
 {
-  "name": "InvertisPrep",
+  "name": "InvertisPrep – Invertis University PYQ Papers & Free Resume Builder",
   "short_name": "InvertisPrep",
+  "description": "Free previous year question papers (PYQ) for Invertis University with a free ATS-friendly resume builder.",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",
@@ -13,8 +14,8 @@
       "type": "image/png"
     }
   ],
-  "theme_color": "#4f46e5", 
+  "theme_color": "#4f46e5",
   "background_color": "#ffffff",
   "display": "standalone",
   "start_url": "/"
-} 
+}

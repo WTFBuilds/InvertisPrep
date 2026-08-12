@@ -47,6 +47,7 @@ export default function StudentUploadPage() {
   });
   const [file, setFile] = useState<File | null>(null);
   const [uploadCount, setUploadCount] = useState<number | null>(null);
+  const [uploadLimit, setUploadLimit] = useState<number>(10);
   const [isExempt, setIsExempt] = useState(false);
 
   const fetchUploadCount = async () => {
@@ -54,6 +55,7 @@ export default function StudentUploadPage() {
       const res = await pyqApi.getDailyUploadCount();
       if (res.success && res.data) {
         setUploadCount(res.data.count);
+        setUploadLimit(res.data.limit || 10);
         setIsExempt(res.data.isExempt);
       }
     } catch (err) {
@@ -231,7 +233,7 @@ export default function StudentUploadPage() {
             <Info className="h-4 w-4" />
             {isExempt 
               ? 'Daily Upload Limit: Unlimited' 
-              : `Daily Uploads: ${uploadCount !== null ? uploadCount : 0}/10 papers`
+              : `Daily Uploads: ${uploadCount !== null ? uploadCount : 0}/${uploadLimit} papers`
             }
           </div>
         </div>
@@ -392,7 +394,6 @@ export default function StudentUploadPage() {
                     <option value="">Select Exam Type</option>
                     <option value="mid-term">Mid-Term</option>
                     <option value="end-term">End-Term</option>
-                    <option value="sessional">Sessional</option>
                   </select>
                 </div>
 

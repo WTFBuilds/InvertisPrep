@@ -9,6 +9,10 @@ import { resumeApi, walletApi } from '@/lib/api';
 import type { Resume, ResumeDraft, ResumeEducation, ResumeExperience, ResumeLink, ResumeProject } from '@/types';
 import { CheckCircle2, Clock, Coins, CreditCard, Download, FileUp, Gift, LayoutDashboard, Loader2, Plus, Printer, Save, Shield, Sparkles, Trash2, Wallet } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Spotlight } from '@/components/ui/spotlight';
 import { SavePromptModal } from './SavePromptModal';
 
 const emptyEducation = (): ResumeEducation => ({ institution: '', degree: '', startDate: '', endDate: '' });
@@ -16,39 +20,23 @@ const emptyExperience = (): ResumeExperience => ({ company: '', role: '', descri
 const emptyProject = (): ResumeProject => ({ name: '', url: '', description: '', achievements: [''], startDate: '', endDate: '' });
 const emptyLink = (): ResumeLink => ({ label: '', url: '' });
 
+// Blank starter resume — every field is empty so users start from a clean slate
+// (no demo data that could accidentally be exported as someone else's info).
 export function createStarterResume(): ResumeDraft {
   return {
-    title: 'ATS Friendly Resume',
+    title: 'Untitled Resume',
     personal: {
-      name: 'Ahqaf Ali', headline: 'Developer', email: 'beddylea@gmail.com',
-      phone: '+1-555-0100', location: 'San Francisco, CA',
-      links: [
-        { label: 'GitHub', url: 'github.com/ahqafcoder' },
-        { label: 'LinkedIn', url: 'linkedin.com/in/bedivere-lea' },
-        { label: 'Instagram', url: 'instagram.com/ahqafali0403' },
-      ],
+      name: '', headline: '', email: '', phone: '', location: '',
+      links: [],
     },
-    summary: 'Resourceful Developer with 11 years of experience in designing and developing user interfaces, testing and training employees. Skilled at utilizing a wide variety of tools and programs to provide effective applications.',
-    education: [
-      { institution: 'New York University', degree: 'Bachelor of Computer Science', startDate: '2020-08', endDate: '2024-07' },
-    ],
-    experience: [
-      { company: 'Torph TTC', role: 'Developer', description: 'Torph TTC is a global software company that offers user interface UI development tools and components for a range of developer applications across all platforms.', achievements: ['Created and maintained 10 web applications for numerous national and foreign clients.', 'Ensured user interfaces and user experience met at least 80% of users expectations.', 'Created and analyzed 500 unit test cases.', "Developed Python scripts to automate image noise-reduction, improving research analysis time by 40%.", 'Established and led a team of 10 people, covering every key role in the early stages.'], startDate: '2023-02', endDate: '2023-02' },
-      { company: 'Reilty Group', role: 'Front End Web Developer', description: 'Reilty Group is an industry-leading provider of online gambling software and solutions.', achievements: ['Increased the reach of users to the platform by 35% through mobile web installation.', 'Delivered 30 web solutions.', 'Replaced one full-time developer with part-time employment, achieving over 60% productivity gain.', 'Worked with more than four teams and provided end-to-end client solutions.'], startDate: '2023-02', endDate: '2023-03' },
-      { company: 'HellX', role: 'Python Developer', description: 'Heller is a software editor specialized in logistics management.', achievements: ['Developed automation systems that saved over $50,000 annually.', 'Joined as the tenth employee and worked directly with major customers.', 'Delivered ahead of schedule, reducing project cost by 20%.', 'Reduced database size by nearly 50% and improved performance by 20%.', 'Reduced delivery time of goods by 50%.'], startDate: '2023-02', endDate: '2023-03' },
-    ],
+    summary: '',
+    education: [],
+    experience: [],
     projects: [],
-    skillGroups: [
-      { title: 'Technical Skills', items: ['JavaScript', 'Python', 'Web Services', 'C++', 'HTML5', 'CSS', 'SQL', 'User Interface', 'Creativity'] },
-      { title: 'Soft Skills', items: ['Collaboration', 'Problem-solving', 'Communication', 'Time management', 'Result-oriented'] },
-      { title: 'Additional Skills', items: ['Public Speaking', 'Writing', 'Research'] },
-    ],
-    achievements: [
-      'Winner - Smart India Hackathon (SIH) 2025 | December 2025',
-      'Technical Designer Award - Fashion Show | May 2026',
-    ],
-    languages: ['English', 'Hindi'],
-    certifications: ['Certified Web Professional-Web Developer', 'Java Development Certified Professional'],
+    skillGroups: [],
+    achievements: [],
+    languages: [],
+    certifications: [],
   };
 }
 
@@ -608,57 +596,115 @@ function DownloadModal({
   );
 }
 
+// Shared editor input styling — shadcn Input plus a clean indigo focus ring
+const inputClass = 'bg-white focus-visible:border-indigo-400 focus-visible:ring-indigo-100';
+const textareaClass = 'w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100';
+
 function ResumeEditor({ resume, update, updatePersonal }: { resume: Resume; update: (patch: Partial<Resume>) => void; updatePersonal: (patch: Partial<Resume['personal']>) => void }) {
   const setArray = <K extends 'education' | 'experience' | 'projects' | 'skillGroups' | 'achievements' | 'languages' | 'certifications'>(key: K, value: Resume[K]) => update({ [key]: value } as Partial<Resume>);
-  const field = 'w-full rounded-md border border-fuchsia-100 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100';
-  return <aside className="no-print resume-editor rounded-xl bg-gradient-to-b from-fuchsia-600 to-purple-700 p-4 shadow-lg sm:p-5">
-    <div className="mb-5"><label className="editor-label">Resume title</label><input className={field} value={resume.title} onChange={(e) => update({ title: e.target.value })} placeholder="My Resume" /></div>
-    <EditorSection title="Personal information">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <EditorInput label="Full name" value={resume.personal.name} onChange={(value) => updatePersonal({ name: value })} />
-        <EditorInput label="Professional title" value={resume.personal.headline} onChange={(value) => updatePersonal({ headline: value })} />
-        <EditorInput label="Phone" value={resume.personal.phone} onChange={(value) => updatePersonal({ phone: value })} />
-        <EditorInput label="Email" type="email" value={resume.personal.email} onChange={(value) => updatePersonal({ email: value })} />
-        <EditorInput label="Location" value={resume.personal.location} onChange={(value) => updatePersonal({ location: value })} />
+  return <aside className="no-print resume-editor relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    {/* top accent line */}
+    <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500" />
+    <Spotlight
+      className="absolute inset-0 overflow-hidden"
+      gradientFirst="radial-gradient(68.54% 68.72% at 50% 0%, rgba(99,102,241,0.10) 0%, transparent 50.11%)"
+      gradientSecond="radial-gradient(50% 50% at 50% 50%, rgba(99,102,241,0.05) 0%, transparent 50.11%)"
+      gradientThird="radial-gradient(80% 60% at 50% 0%, rgba(139,92,246,0.08) 0%, transparent 50%)"
+    />
+    <div className="relative p-4 sm:p-5">
+      <div className="mb-5">
+        <Label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Resume title</Label>
+        <Input className={`mt-1.5 ${inputClass}`} value={resume.title} onChange={(e) => update({ title: e.target.value })} placeholder="My Resume" />
       </div>
-    </EditorSection>
-    <EditorSection title="Social links" action={() => updatePersonal({ links: [emptyLink(), ...resume.personal.links] })}>
-      {resume.personal.links.map((link, index) => <div className="mb-3 grid grid-cols-[1fr_1fr_auto] gap-2" key={link._id || index}>
-        <input className={field} placeholder="GitHub" value={link.label} onChange={(e) => updatePersonal({ links: resume.personal.links.map((entry, i) => i === index ? { ...entry, label: e.target.value } : entry) })} />
-        <input className={field} placeholder="github.com/name" value={link.url} onChange={(e) => updatePersonal({ links: resume.personal.links.map((entry, i) => i === index ? { ...entry, url: e.target.value } : entry) })} />
-        <RemoveButton onClick={() => updatePersonal({ links: resume.personal.links.filter((_, i) => i !== index) })} />
-      </div>)}
-    </EditorSection>
-    <EditorSection title="Summary"><textarea className={`${field} min-h-28`} value={resume.summary} onChange={(e) => update({ summary: e.target.value })} placeholder="Write a concise, achievement-focused professional summary." /></EditorSection>
-    <EditorSection title="Education" action={() => setArray('education', [emptyEducation(), ...resume.education])}>
-      {resume.education.map((item, index) => <div key={item._id || index} className="editor-card"><div className="grid gap-2 sm:grid-cols-2">
-        <EditorInput compact placeholder="University / school" value={item.institution} onChange={(institution) => setArray('education', resume.education.map((entry, i) => i === index ? { ...entry, institution } : entry))} />
-        <EditorInput compact placeholder="Degree / course" value={item.degree} onChange={(degree) => setArray('education', resume.education.map((entry, i) => i === index ? { ...entry, degree } : entry))} />
-        <EditorInput compact type="month" value={item.startDate} onChange={(startDate) => setArray('education', resume.education.map((entry, i) => i === index ? { ...entry, startDate } : entry))} />
-        <EditorInput compact type="month" value={item.endDate} onChange={(endDate) => setArray('education', resume.education.map((entry, i) => i === index ? { ...entry, endDate } : entry))} />
-      </div><RemoveButton onClick={() => setArray('education', resume.education.filter((_, i) => i !== index))} /></div>)}
-    </EditorSection>
-    <EditorSection title="Work experience" action={() => setArray('experience', [emptyExperience(), ...resume.experience])}>
-      {resume.experience.map((item, index) => <ExperienceEditor key={item._id || index} item={item} onChange={(next) => setArray('experience', resume.experience.map((entry, i) => i === index ? next : entry))} onRemove={() => setArray('experience', resume.experience.filter((_, i) => i !== index))} />)}
-    </EditorSection>
-    <EditorSection title="Projects" action={() => setArray('projects', [emptyProject(), ...resume.projects])}>
-      {resume.projects.map((item, index) => <ProjectEditor key={item._id || index} item={item} onChange={(next) => setArray('projects', resume.projects.map((entry, i) => i === index ? next : entry))} onRemove={() => setArray('projects', resume.projects.filter((_, i) => i !== index))} />)}
-    </EditorSection>
-    <EditorSection title="Skills" action={() => setArray('skillGroups', [{ title: 'New Skill Group', items: [] }, ...resume.skillGroups])}>
-      {resume.skillGroups.map((group, index) => <div className="editor-card" key={group._id || index}><div className="flex gap-2"><input className={field} value={group.title} onChange={(e) => setArray('skillGroups', resume.skillGroups.map((entry, i) => i === index ? { ...entry, title: e.target.value } : entry))} /><RemoveButton onClick={() => setArray('skillGroups', resume.skillGroups.filter((_, i) => i !== index))} /></div><TagEditor values={group.items} onChange={(items) => setArray('skillGroups', resume.skillGroups.map((entry, i) => i === index ? { ...entry, items } : entry))} /></div>)}
-    </EditorSection>
-    <EditorSection title="Achievements"><TagEditor values={resume.achievements} onChange={(achievements) => setArray('achievements', achievements)} /></EditorSection>
-    <EditorSection title="Languages"><TagEditor values={resume.languages} onChange={(languages) => setArray('languages', languages)} /></EditorSection>
-    <EditorSection title="Certifications"><TagEditor values={resume.certifications} onChange={(certifications) => setArray('certifications', certifications)} /></EditorSection>
+      <EditorSection title="Personal information">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <EditorInput label="Full name" value={resume.personal.name} onChange={(value) => updatePersonal({ name: value })} />
+          <EditorInput label="Professional title" value={resume.personal.headline} onChange={(value) => updatePersonal({ headline: value })} />
+          <EditorInput label="Phone" value={resume.personal.phone} onChange={(value) => updatePersonal({ phone: value })} />
+          <EditorInput label="Email" type="email" value={resume.personal.email} onChange={(value) => updatePersonal({ email: value })} />
+          <EditorInput label="Location" value={resume.personal.location} onChange={(value) => updatePersonal({ location: value })} />
+        </div>
+      </EditorSection>
+      <EditorSection title="Social links" action={() => updatePersonal({ links: [emptyLink(), ...resume.personal.links] })}>
+        {resume.personal.links.map((link, index) => <div className="mb-3 grid grid-cols-[1fr_1fr_auto] items-center gap-2" key={link._id || index}>
+          <Input className={inputClass} placeholder="GitHub" value={link.label} onChange={(e) => updatePersonal({ links: resume.personal.links.map((entry, i) => i === index ? { ...entry, label: e.target.value } : entry) })} />
+          <Input className={inputClass} placeholder="github.com/name" value={link.url} onChange={(e) => updatePersonal({ links: resume.personal.links.map((entry, i) => i === index ? { ...entry, url: e.target.value } : entry) })} />
+          <RemoveButton onClick={() => updatePersonal({ links: resume.personal.links.filter((_, i) => i !== index) })} />
+        </div>)}
+      </EditorSection>
+      <EditorSection title="Summary"><textarea className={`${textareaClass} min-h-28`} value={resume.summary} onChange={(e) => update({ summary: e.target.value })} placeholder="Write a concise, achievement-focused professional summary." /></EditorSection>
+      <EditorSection title="Education" action={() => setArray('education', [emptyEducation(), ...resume.education])}>
+        {resume.education.map((item, index) => <div key={item._id || index} className="editor-card"><div className="grid gap-2 sm:grid-cols-2">
+          <EditorInput compact placeholder="University / school" value={item.institution} onChange={(institution) => setArray('education', resume.education.map((entry, i) => i === index ? { ...entry, institution } : entry))} />
+          <EditorInput compact placeholder="Degree / course" value={item.degree} onChange={(degree) => setArray('education', resume.education.map((entry, i) => i === index ? { ...entry, degree } : entry))} />
+          <EditorInput compact type="month" value={item.startDate} onChange={(startDate) => setArray('education', resume.education.map((entry, i) => i === index ? { ...entry, startDate } : entry))} />
+          <EditorInput compact type="month" value={item.endDate} onChange={(endDate) => setArray('education', resume.education.map((entry, i) => i === index ? { ...entry, endDate } : entry))} />
+        </div><RemoveButton onClick={() => setArray('education', resume.education.filter((_, i) => i !== index))} /></div>)}
+      </EditorSection>
+      <EditorSection title="Work experience" action={() => setArray('experience', [emptyExperience(), ...resume.experience])}>
+        {resume.experience.map((item, index) => <ExperienceEditor key={item._id || index} item={item} onChange={(next) => setArray('experience', resume.experience.map((entry, i) => i === index ? next : entry))} onRemove={() => setArray('experience', resume.experience.filter((_, i) => i !== index))} />)}
+      </EditorSection>
+      <EditorSection title="Projects" action={() => setArray('projects', [emptyProject(), ...resume.projects])}>
+        {resume.projects.map((item, index) => <ProjectEditor key={item._id || index} item={item} onChange={(next) => setArray('projects', resume.projects.map((entry, i) => i === index ? next : entry))} onRemove={() => setArray('projects', resume.projects.filter((_, i) => i !== index))} />)}
+      </EditorSection>
+      <EditorSection title="Skills" action={() => setArray('skillGroups', [{ title: 'New Skill Group', items: [] }, ...resume.skillGroups])}>
+        {resume.skillGroups.map((group, index) => <div className="editor-card" key={group._id || index}><div className="flex gap-2"><Input className={inputClass} value={group.title} onChange={(e) => setArray('skillGroups', resume.skillGroups.map((entry, i) => i === index ? { ...entry, title: e.target.value } : entry))} /><RemoveButton onClick={() => setArray('skillGroups', resume.skillGroups.filter((_, i) => i !== index))} /></div><TagEditor values={group.items} onChange={(items) => setArray('skillGroups', resume.skillGroups.map((entry, i) => i === index ? { ...entry, items } : entry))} /></div>)}
+      </EditorSection>
+      <EditorSection title="Achievements"><TagEditor values={resume.achievements} onChange={(achievements) => setArray('achievements', achievements)} /></EditorSection>
+      <EditorSection title="Languages"><TagEditor values={resume.languages} onChange={(languages) => setArray('languages', languages)} /></EditorSection>
+      <EditorSection title="Certifications"><TagEditor values={resume.certifications} onChange={(certifications) => setArray('certifications', certifications)} /></EditorSection>
+    </div>
   </aside>;
 }
 
-function EditorSection({ title, children, action }: { title: string; children: React.ReactNode; action?: () => void }) { return <section className="mb-6"><div className="mb-2 flex items-center justify-between"><h2 className="text-base font-bold text-white">{title}</h2>{action && <button type="button" onClick={action} className="rounded bg-fuchsia-800 p-1.5 text-white hover:bg-fuchsia-900" aria-label={`Add ${title}`}><Plus size={16}/></button>}</div>{children}</section>; }
-function EditorInput({ label, compact, ...props }: { label?: string; compact?: boolean; value: string; onChange: (value: string) => void; type?: string; placeholder?: string }) { return <label className={label ? 'editor-label' : ''}>{label}<input className={`mt-1 w-full rounded-md border border-fuchsia-100 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-fuchsia-400 ${compact ? '' : ''}`} {...props} onChange={(e) => props.onChange(e.target.value)} /></label>; }
-function RemoveButton({ onClick }: { onClick: () => void }) { return <button type="button" onClick={onClick} className="h-9 self-start rounded bg-fuchsia-800 p-2 text-white hover:bg-fuchsia-900" aria-label="Remove"><Trash2 size={16}/></button>; }
-function TagEditor({ values, onChange }: { values: string[]; onChange: (values: string[]) => void }) { return <div className="mt-2 space-y-2">{values.map((value, index) => <div className="flex gap-2" key={index}><input className="w-full rounded-md border border-fuchsia-100 bg-white px-3 py-2 text-sm text-slate-900 outline-none" value={value} placeholder="Add an item" onChange={(e) => onChange(values.map((entry, i) => i === index ? e.target.value : entry))}/><RemoveButton onClick={() => onChange(values.filter((_, i) => i !== index))}/></div>)}<button type="button" onClick={() => onChange(['', ...values])} className="inline-flex items-center gap-1 rounded bg-fuchsia-800 px-2 py-1.5 text-xs font-semibold text-white hover:bg-fuchsia-900"><Plus size={14}/> Add item</button></div>; }
-function ExperienceEditor({ item, onChange, onRemove }: { item: ResumeExperience; onChange: (item: ResumeExperience) => void; onRemove: () => void }) { return <div className="editor-card"><div className="grid gap-2 sm:grid-cols-2"><EditorInput compact placeholder="Company" value={item.company} onChange={(company) => onChange({ ...item, company })}/><EditorInput compact placeholder="Role" value={item.role} onChange={(role) => onChange({ ...item, role })}/><EditorInput compact type="month" value={item.startDate} onChange={(startDate) => onChange({ ...item, startDate })}/><EditorInput compact type="month" value={item.endDate} onChange={(endDate) => onChange({ ...item, endDate })}/></div><textarea className="mt-2 min-h-20 w-full rounded-md border border-fuchsia-100 bg-white px-3 py-2 text-sm text-slate-900 outline-none" value={item.description} placeholder="Company or role description (optional)" onChange={(e) => onChange({ ...item, description: e.target.value })}/><p className="mt-2 text-xs font-semibold text-white">Achievements — one item per line</p><textarea className="mt-1 min-h-24 w-full rounded-md border border-fuchsia-100 bg-white px-3 py-2 text-sm text-slate-900 outline-none" value={item.achievements.join('\n')} onChange={(e) => onChange({ ...item, achievements: e.target.value.split('\n') })}/><RemoveButton onClick={onRemove}/></div>; }
-function ProjectEditor({ item, onChange, onRemove }: { item: ResumeProject; onChange: (item: ResumeProject) => void; onRemove: () => void }) { return <div className="editor-card"><div className="grid gap-2 sm:grid-cols-2"><EditorInput compact placeholder="Project name" value={item.name} onChange={(name) => onChange({ ...item, name })}/><EditorInput compact placeholder="Project URL" value={item.url} onChange={(url) => onChange({ ...item, url })}/><EditorInput compact type="month" value={item.startDate} onChange={(startDate) => onChange({ ...item, startDate })}/><EditorInput compact type="month" value={item.endDate} onChange={(endDate) => onChange({ ...item, endDate })}/></div><textarea className="mt-2 min-h-20 w-full rounded-md border border-fuchsia-100 bg-white px-3 py-2 text-sm text-slate-900 outline-none" value={item.description} placeholder="Project description" onChange={(e) => onChange({ ...item, description: e.target.value })}/><p className="mt-2 text-xs font-semibold text-white">Achievements — one item per line</p><textarea className="mt-1 min-h-24 w-full rounded-md border border-fuchsia-100 bg-white px-3 py-2 text-sm text-slate-900 outline-none" value={item.achievements.join('\n')} onChange={(e) => onChange({ ...item, achievements: e.target.value.split('\n') })}/><RemoveButton onClick={onRemove}/></div>; }
+function EditorSection({ title, children, action }: { title: string; children: React.ReactNode; action?: () => void }) {
+  return (
+    <section className="mb-6">
+      <div className="mb-2.5 flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wider text-slate-600">
+          <span className="h-3.5 w-1 rounded-full bg-gradient-to-b from-indigo-500 to-violet-500" />
+          {title}
+        </h2>
+        {action && (
+          <Button type="button" onClick={action} variant="outline" size="sm" className="h-7 gap-1 border-slate-200 px-2 text-xs font-semibold text-slate-600 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600">
+            <Plus size={14} /> Add
+          </Button>
+        )}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function EditorInput({ label, compact, ...props }: { label?: string; compact?: boolean; value: string; onChange: (value: string) => void; type?: string; placeholder?: string }) {
+  return (
+    <label className="block">
+      {label && <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</span>}
+      <Input className={`${inputClass} ${compact ? 'h-8 text-sm' : ''}`} {...props} onChange={(e) => props.onChange(e.target.value)} />
+    </label>
+  );
+}
+
+function RemoveButton({ onClick }: { onClick: () => void }) {
+  return <Button type="button" onClick={onClick} size="icon-sm" variant="ghost" aria-label="Remove" className="text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 size={15} /></Button>;
+}
+
+function TagEditor({ values, onChange }: { values: string[]; onChange: (values: string[]) => void }) {
+  return (
+    <div className="mt-2 space-y-2">
+      {values.map((value, index) => <div className="flex gap-2" key={index}><Input className={inputClass} value={value} placeholder="Add an item" onChange={(e) => onChange(values.map((entry, i) => i === index ? e.target.value : entry))} /><RemoveButton onClick={() => onChange(values.filter((_, i) => i !== index))} /></div>)}
+      <Button type="button" onClick={() => onChange(['', ...values])} variant="outline" size="sm" className="gap-1 border-slate-200 text-xs font-semibold text-slate-600 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"><Plus size={14} /> Add item</Button>
+    </div>
+  );
+}
+
+function ExperienceEditor({ item, onChange, onRemove }: { item: ResumeExperience; onChange: (item: ResumeExperience) => void; onRemove: () => void }) {
+  return <div className="editor-card"><div className="grid gap-2 sm:grid-cols-2"><EditorInput compact placeholder="Company" value={item.company} onChange={(company) => onChange({ ...item, company })} /><EditorInput compact placeholder="Role" value={item.role} onChange={(role) => onChange({ ...item, role })} /><EditorInput compact type="month" value={item.startDate} onChange={(startDate) => onChange({ ...item, startDate })} /><EditorInput compact type="month" value={item.endDate} onChange={(endDate) => onChange({ ...item, endDate })} /></div><textarea className={`${textareaClass} mt-2 min-h-20`} value={item.description} placeholder="Company or role description (optional)" onChange={(e) => onChange({ ...item, description: e.target.value })} /><p className="mt-2 text-xs font-semibold text-slate-600">Achievements — one item per line</p><textarea className={`${textareaClass} mt-1 min-h-24`} value={item.achievements.join('\n')} onChange={(e) => onChange({ ...item, achievements: e.target.value.split('\n') })} /><RemoveButton onClick={onRemove} /></div>;
+}
+
+function ProjectEditor({ item, onChange, onRemove }: { item: ResumeProject; onChange: (item: ResumeProject) => void; onRemove: () => void }) {
+  return <div className="editor-card"><div className="grid gap-2 sm:grid-cols-2"><EditorInput compact placeholder="Project name" value={item.name} onChange={(name) => onChange({ ...item, name })} /><EditorInput compact placeholder="Project URL" value={item.url} onChange={(url) => onChange({ ...item, url })} /><EditorInput compact type="month" value={item.startDate} onChange={(startDate) => onChange({ ...item, startDate })} /><EditorInput compact type="month" value={item.endDate} onChange={(endDate) => onChange({ ...item, endDate })} /></div><textarea className={`${textareaClass} mt-2 min-h-20`} value={item.description} placeholder="Project description" onChange={(e) => onChange({ ...item, description: e.target.value })} /><p className="mt-2 text-xs font-semibold text-slate-600">Achievements — one item per line</p><textarea className={`${textareaClass} mt-1 min-h-24`} value={item.achievements.join('\n')} onChange={(e) => onChange({ ...item, achievements: e.target.value.split('\n') })} /><RemoveButton onClick={onRemove} /></div>;
+}
 
 function ResumePreview({ resume }: { resume: Resume }) {
   const p = resume.personal;

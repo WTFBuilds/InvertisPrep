@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Department } from '../models/Department.js';
 import { Branch } from '../models/Branch.js';
 
@@ -75,8 +76,11 @@ export const updateDepartment = async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
+    // Match by _id (ObjectId) when possible, else by the slug `id` field
+    const query = mongoose.isValidObjectId(id) ? { _id: id } : { id };
+
     const department = await Department.findOneAndUpdate(
-      { id },
+      query,
       { $set: updates },
       { new: true, runValidators: true }
     );
@@ -98,9 +102,12 @@ export const deleteDepartment = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Match by _id (ObjectId) when possible, else by the slug `id` field
+    const query = mongoose.isValidObjectId(id) ? { _id: id } : { id };
+
     // Soft delete
     const department = await Department.findOneAndUpdate(
-      { id },
+      query,
       { $set: { isActive: false } },
       { new: true }
     );

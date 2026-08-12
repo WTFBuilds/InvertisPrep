@@ -25,6 +25,13 @@ import type {
   TransactionMeta,
   TransactionType,
   InvertisEvent,
+  UserRole,
+  AdminUser,
+  AdminUserListMeta,
+  UserStats,
+  AdminUserDetail,
+  Sponsor,
+  CreateSponsorDTO,
 } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -154,9 +161,36 @@ export const branchApi = {
   },
 };
 
+// Sponsor API
+export const sponsorApi = {
+  getAll: async (): Promise<APIResponse<Sponsor[]>> => {
+    const { data } = await apiClient.get<APIResponse<Sponsor[]>>('/sponsors');
+    return data;
+  },
+
+  getAllAdmin: async (): Promise<APIResponse<Sponsor[]>> => {
+    const { data } = await apiClient.get<APIResponse<Sponsor[]>>('/sponsors/all');
+    return data;
+  },
+
+  create: async (sponsor: CreateSponsorDTO): Promise<APIResponse<Sponsor>> => {
+    const { data } = await apiClient.post<APIResponse<Sponsor>>('/sponsors', sponsor);
+    return data;
+  },
+
+  update: async (id: string, updates: Partial<Sponsor>): Promise<APIResponse<Sponsor>> => {
+    const { data } = await apiClient.put<APIResponse<Sponsor>>(`/sponsors/${id}`, updates);
+    return data;
+  },
+
+  delete: async (id: string): Promise<APIResponse> => {
+    const { data } = await apiClient.delete<APIResponse>(`/sponsors/${id}`);
+    return data;
+  },
+};
+
 // Session API
-export const sessionApi = {
-  getAll: async (): Promise<APIResponse<Session[]>> => {
+export const sessionApi = {  getAll: async (): Promise<APIResponse<Session[]>> => {
     const { data } = await apiClient.get<APIResponse<Session[]>>('/sessions');
     return data;
   },
@@ -278,6 +312,51 @@ export const userApi = {
   },
 };
 
+// Admin User Management API
+export const adminUserApi = {
+  list: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    role?: UserRole | 'all';
+    status?: 'active' | 'banned' | 'all';
+    sort?: 'newest' | 'oldest' | 'name' | 'points' | 'lastLogin';
+  }): Promise<APIResponse<AdminUser[]> & { meta?: AdminUserListMeta }> => {
+    const query: Record<string, unknown> = {};
+    if (params?.page) query.page = params.page;
+    if (params?.limit) query.limit = params.limit;
+    if (params?.search) query.search = params.search;
+    if (params?.role && params.role !== 'all') query.role = params.role;
+    if (params?.status && params.status !== 'all') query.status = params.status;
+    if (params?.sort && params.sort !== 'newest') query.sort = params.sort;
+    const { data } = await apiClient.get<APIResponse<AdminUser[]> & { meta?: AdminUserListMeta }>(
+      '/admin/users',
+      { params: query }
+    );
+    return data;
+  },
+
+  stats: async (): Promise<APIResponse<UserStats>> => {
+    const { data } = await apiClient.get<APIResponse<UserStats>>('/admin/users/stats');
+    return data;
+  },
+
+  get: async (id: string): Promise<APIResponse<AdminUserDetail>> => {
+    const { data } = await apiClient.get<APIResponse<AdminUserDetail>>(`/admin/users/${id}`);
+    return data;
+  },
+
+  updateRole: async (id: string, role: UserRole): Promise<APIResponse> => {
+    const { data } = await apiClient.patch<APIResponse>(`/admin/users/${id}/role`, { role });
+    return data;
+  },
+
+  updateStatus: async (id: string, isActive: boolean): Promise<APIResponse> => {
+    const { data } = await apiClient.patch<APIResponse>(`/admin/users/${id}/status`, { isActive });
+    return data;
+  },
+};
+
 export const leaderboardApi = {
   getRankings: async (type: 'all_time' | 'weekly', department?: string): Promise<APIResponse<any>> => {
     const params: Record<string, string> = { type };
@@ -363,6 +442,32 @@ export const pdfApi = {
       responseType: 'blob',
     });
     return data;
+  },
+
+  download: async (id: string, type: 'pyq' | 'syllabus' = 'pyq'): Promise<{ blob: Blob; filename: string }> => {
+    const res = await apiClient.get(`/pdf/download/${id}`, {
+      params: { type },
+      responseType: 'blob',
+    });
+
+    // Extract filename from Content-Disposition:
+    //   attachment; filename="fallback.pdf"; filename*=UTF-8''%20encoded%20name.pdf
+    let filename = 'paper.pdf';
+    const header = res.headers['content-disposition'] as string | undefined;
+    if (header) {
+      const starMatch = /filename\*=UTF-8''([^;]+)/i.exec(header);
+      const plainMatch = /filename="?([^";]+)"?/i.exec(header);
+      const raw = starMatch?.[1] ?? plainMatch?.[1];
+      if (raw) {
+        try {
+          filename = decodeURIComponent(raw);
+        } catch {
+          filename = raw;
+        }
+      }
+    }
+
+    return { blob: res.data, filename };
   },
 };
 
