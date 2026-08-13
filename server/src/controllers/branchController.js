@@ -1,9 +1,19 @@
 import { Branch } from '../models/Branch.js';
+import { getCache, setCache, delCache } from '../utils/cache.js';
 
 // Get all branches (admin only)
 export const getAllBranches = async (_req, res) => {
   try {
-    const branches = await Branch.find().sort({ departmentId: 1, name: 1 });
+    const cacheKey = 'branches:all';
+    const cached = getCache(cacheKey);
+    if (cached) {
+      console.log(`[Cache] HIT for ${cacheKey}`);
+      return res.json({ success: true, data: cached });
+    }
+    
+    console.log(`[Cache] MISS for ${cacheKey}`);
+    const branches = await Branch.find().sort({ departmentId: 1, name: 1 }).lean();
+    setCache(cacheKey, branches, 5 * 60 * 1000); // 5 minutes TTL
     res.json({ success: true, data: branches });
   } catch (error) {
     console.error('Get all branches error:', error);
@@ -35,6 +45,8 @@ export const createBranch = async (req, res) => {
       isActive: true,
     });
 
+    delCache('branches:all');
+    delCache(`branches:${departmentId}`);
     res.status(201).json({ success: true, data: branch });
   } catch (error) {
     console.error('Create branch error:', error);
@@ -55,6 +67,9 @@ export const updateBranch = async (req, res) => {
       return;
     }
 
+    delCache('branches:all');
+    delCache(`branches:${branch.departmentId}`);
+
     res.json({ success: true, data: branch });
   } catch (error) {
     console.error('Update branch error:', error);
@@ -73,6 +88,9 @@ export const deleteBranch = async (req, res) => {
       res.status(404).json({ success: false, message: 'Branch not found' });
       return;
     }
+
+    delCache('branches:all');
+    delCache(`branches:${branch.departmentId}`);
 
     res.json({ success: true, message: 'Branch deleted successfully' });
   } catch (error) {

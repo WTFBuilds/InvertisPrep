@@ -4,13 +4,14 @@ dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import fs from 'fs';
 import { connectDB } from './config/database.js';
 import { configureCloudinary } from './config/cloudinary.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
-import { apiLimiter, authLimiter, uploadLimiter, pdfLimiter } from './middleware/rateLimit.js';
+import { apiLimiter, authLimiter, uploadLimiter, pdfLimiter, readLimiter, writeLimiter } from './middleware/rateLimit.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -92,6 +93,17 @@ const initApp = async () => {
 
   // General API rate limit — applied to every /api request
   app.use('/api', apiLimiter);
+  
+  // Read-optimized routes get higher limits
+  app.use('/api/departments', readLimiter);
+  app.use('/api/branches', readLimiter);
+  app.use('/api/sessions', readLimiter);
+  app.use('/api/syllabus', readLimiter);
+  app.use('/api/pyq', readLimiter);
+  app.use('/api/events', readLimiter);
+  app.use('/api/sponsors', readLimiter);
+  app.use('/api/users', readLimiter);
+  app.use('/api/leaderboard', readLimiter);
 
   // Resume drafts can include a deliberately small base64 profile photo.
   app.use(express.json({ limit: bodyLimit }));
@@ -120,6 +132,19 @@ const initApp = async () => {
   app.use('/api/events', eventRoutes);
   app.use('/api/admin/users', adminUserRoutes);
   app.use('/api/sponsors', sponsorRoutes);
+
+  // Apply write limiter to mutation-heavy routes
+  app.use('/api/departments', writeLimiter);
+  app.use('/api/branches', writeLimiter);
+  app.use('/api/sessions', writeLimiter);
+  app.use('/api/pyq', writeLimiter);
+  app.use('/api/syllabus', writeLimiter);
+  app.use('/api/reports', writeLimiter);
+  app.use('/api/resumes', writeLimiter);
+  app.use('/api/wallet', writeLimiter);
+  app.use('/api/bugs', writeLimiter);
+  app.use('/api/admin/users', writeLimiter);
+  app.use('/api/sponsors', writeLimiter);
 
   // Error handling
   app.use(notFound);

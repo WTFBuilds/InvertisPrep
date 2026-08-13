@@ -1,16 +1,26 @@
 import mongoose from 'mongoose';
 import { Department } from '../models/Department.js';
 import { Branch } from '../models/Branch.js';
+import { getCache, setCache, delCache } from '../utils/cache.js';
 
 // Get single department by ID (public)
 export const getDepartmentById = async (req, res) => {
   try {
     const { id } = req.params;
-    const department = await Department.findById(id);
+    const cacheKey = `department:${id}`;
+    const cached = getCache(cacheKey);
+    if (cached) {
+      console.log(`[Cache] HIT for ${cacheKey}`);
+      return res.json({ success: true, data: cached });
+    }
+    
+    console.log(`[Cache] MISS for ${cacheKey}`);
+    const department = await Department.findById(id).lean();
     if (!department || !department.isActive) {
       res.status(404).json({ success: false, message: 'Department not found' });
       return;
     }
+    setCache(cacheKey, department, 5 * 60 * 1000); // 5 minutes TTL
     res.json({ success: true, data: department });
   } catch (error) {
     console.error('Get department by ID error:', error);
@@ -21,7 +31,16 @@ export const getDepartmentById = async (req, res) => {
 // Get all departments (public)
 export const getDepartments = async (_req, res) => {
   try {
-    const departments = await Department.find({ isActive: true }).sort({ name: 1 });
+    const cacheKey = 'departments:all';
+    const cached = getCache(cacheKey);
+    if (cached) {
+      console.log(`[Cache] HIT for ${cacheKey}`);
+      return res.json({ success: true, data: cached });
+    }
+    
+    console.log(`[Cache] MISS for ${cacheKey}`);
+    const departments = await Department.find({ isActive: true }).sort({ name: 1 }).lean();
+    setCache(cacheKey, departments, 5 * 60 * 1000); // 5 minutes TTL
     res.json({ success: true, data: departments });
   } catch (error) {
     console.error('Get departments error:', error);
@@ -63,6 +82,7 @@ export const createDepartment = async (req, res) => {
       isActive: true,
     });
 
+    delCache('departments:all');
     res.status(201).json({ success: true, data: department });
   } catch (error) {
     console.error('Create department error:', error);
@@ -89,6 +109,9 @@ export const updateDepartment = async (req, res) => {
       res.status(404).json({ success: false, message: 'Department not found' });
       return;
     }
+
+    delCache('departments:all');
+    delCache(`department:${id}`);
 
     res.json({ success: true, data: department });
   } catch (error) {
@@ -117,6 +140,10 @@ export const deleteDepartment = async (req, res) => {
       return;
     }
 
+    delCache('departments:all');
+    delCache(`department:${id}`);
+    delCache(`branches:${id}`);
+
     res.json({ success: true, message: 'Department deleted successfully' });
   } catch (error) {
     console.error('Delete department error:', error);
@@ -128,9 +155,16 @@ export const deleteDepartment = async (req, res) => {
 export const getBranchesByDepartment = async (req, res) => {
   try {
     const { departmentId } = req.params;
-
-    const branches = await Branch.find({ departmentId, isActive: true }).sort({ name: 1 });
-
+    const cacheKey = `branches:${departmentId}`;
+    const cached = getCache(cacheKey);
+    if (cached) {
+      console.log(`[Cache] HIT for ${cacheKey}`);
+      return res.json({ success: true, data: cached });
+    }
+    
+    console.log(`[Cache] MISS for ${cacheKey}`);
+    const branches = await Branch.find({ departmentId, isActive: true }).sort({ name: 1 }).lean();
+    setCache(cacheKey, branches, 5 * 60 * 1000); // 5 minutes TTL
     res.json({ success: true, data: branches });
   } catch (error) {
     console.error('Get branches by department error:', error);
