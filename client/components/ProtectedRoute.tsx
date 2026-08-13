@@ -8,11 +8,14 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
 
+  const isStaffRole = (role?: string) =>
+    role === 'admin' || role === 'super-admin' || role === 'srt';
+
   useEffect(() => {
     if (!loading) {
       if (!user) {
         router.push('/admin/login');
-      } else if (user.role !== 'admin' && user.role !== 'super-admin') {
+      } else if (!isStaffRole(user.role)) {
         router.push('/');
       }
     }
@@ -29,7 +32,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user || (user.role !== 'admin' && user.role !== 'super-admin')) {
+  if (!user || !isStaffRole(user.role)) {
     return null;
   }
 

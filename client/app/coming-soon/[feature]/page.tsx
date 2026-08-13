@@ -24,19 +24,6 @@ const FEATURES: Record<string, { title: string; tagline: string; description: st
     ],
     icon: '🎯',
   },
-  'resume-builder': {
-    title: 'Resume Builder',
-    tagline: 'A resume that gets you interviews',
-    description:
-      'Build a clean, recruiter-ready resume with professionally designed templates optimized for ATS. Fill in once, export to multiple polished formats, and tweak per role in minutes.',
-    features: [
-      'ATS-friendly templates',
-      'One-click PDF export',
-      'Per-role resume variants',
-      'Live preview as you type',
-    ],
-    icon: '📄',
-  },
   'societies': {
     title: 'Clubs',
     tagline: 'Find your people on campus',

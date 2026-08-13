@@ -1,6 +1,16 @@
-# Allow all web crawlers to access all content
+# Allow all web crawlers to access public content
 User-agent: *
 Allow: /
- 
+
+# Private / user-specific areas — not for search engines
+Disallow: /admin/
+Disallow: /api/
+Disallow: /profile/
+Disallow: /resumes
+Disallow: /wallet
+Disallow: /view/
+Disallow: /login
+Disallow: /auth/
+
 # Sitemap location
-Sitemap: https://invertisprep.vercel.app/sitemap.xml 
+Sitemap: https://www.invertisprep.in/sitemap.xml

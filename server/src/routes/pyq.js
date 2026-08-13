@@ -11,7 +11,7 @@ import {
   updatePYQ,
   deletePYQ,
 } from '../controllers/pyqController.js';
-import { authenticateJWT, isAdmin, isSuperAdmin } from '../middleware/auth.js';
+import { authenticateJWT, isAdmin, isStaff, isSuperAdmin } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 import { uploadLimiter } from '../middleware/rateLimit.js';
 
@@ -20,14 +20,17 @@ const router = Router();
 // Specific routes (must come before parameter routes)
 router.get('/', getPYQs);
 router.get('/upload-count', authenticateJWT, getDailyUploadCount);
-router.post('/upload', authenticateJWT, isAdmin, uploadLimiter, upload.single('pdf'), uploadPYQ);
+// Staff (admin, super-admin, SRT) can upload papers; SRT gets no delete/edit access below
+router.post('/upload', authenticateJWT, isStaff, uploadLimiter, upload.single('pdf'), uploadPYQ);
 router.post('/upload-public', authenticateJWT, uploadLimiter, upload.single('pdf'), uploadPYQPublic);
-router.get('/all', authenticateJWT, isAdmin, getAllPYQs);
+// Staff can view the full paper list (admin panel + SRT review)
+router.get('/all', authenticateJWT, isStaff, getAllPYQs);
 
 // Parameter routes with actions
 router.post('/:id/download', trackDownload);
 router.post('/:id/view', trackView);
-router.patch('/:id/verify', authenticateJWT, isSuperAdmin, verifyPYQ);
+// Staff (incl. SRT) can verify papers; SRT cannot edit/delete
+router.patch('/:id/verify', authenticateJWT, isStaff, verifyPYQ);
 router.put('/:id', authenticateJWT, isAdmin, updatePYQ);
 router.delete('/:id', authenticateJWT, isAdmin, deletePYQ);
 

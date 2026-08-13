@@ -223,7 +223,7 @@ export default function ProfilePage() {
 
               <h2 className="mt-5 text-xl font-bold leading-tight text-slate-900">{user.name}</h2>
               <Badge variant="indigo" className="mt-2 uppercase tracking-wider">
-                {user.role === 'student' ? 'Student' : user.role === 'super-admin' ? 'Super Admin' : 'Admin'}
+                {user.role === 'student' ? 'Student' : user.role === 'super-admin' ? 'Super Admin' : user.role === 'srt' ? 'SRT' : 'Admin'}
               </Badge>
 
               {/* followers / following */}
