@@ -101,7 +101,8 @@ export const getPYQs = async (req, res) => {
       .populate('sessionId', 'name startYear endYear')
       .populate('uploadedBy', 'name email picture')
       .sort({ year: -1, downloads: -1 })
-      .limit(100);
+      .limit(100)
+      .lean();
 
     res.json({ success: true, count: pyqs.length, data: pyqs });
   } catch (error) {
@@ -136,7 +137,8 @@ export const getAllPYQs = async (req, res) => {
         .populate('uploadedBy', 'name email picture')
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(pageSize),
+        .limit(pageSize)
+        .lean(),
     ]);
 
     res.json({ success: true, count: papers.length, total, page: pageNum, pageSize, data: papers });
