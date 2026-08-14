@@ -28,6 +28,8 @@ import walletRoutes from './routes/wallet.js';
 import bugRoutes from './routes/bugs.js';
 import leaderboardRoutes from './routes/leaderboard.js';
 import eventRoutes from './routes/events.js';
+import dns from 'dns';
+dns.setServers(['1.1.1.1', '8.8.8.8']);
 
 // Initialize Express app
 const app = express();

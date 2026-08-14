@@ -208,6 +208,10 @@ export default function EventsPage() {
   const [likedEvents, setLikedEvents] = useState<Record<string, boolean>>({});
 
   const giveawaysContainerRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+  const touchEndY = useRef<number | null>(null);
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -248,6 +252,40 @@ export default function EventsPage() {
     if (billboardEvents.length === 0) return;
     setActiveIndex((prev) => (prev === billboardEvents.length - 1 ? 0 : prev + 1));
   }, [billboardEvents.length]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+    touchStartY.current = e.targetTouches[0].clientY;
+    touchEndX.current = null;
+    touchEndY.current = null;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+    touchEndY.current = e.targetTouches[0].clientY;
+  };
+
+  const handleTouchEnd = () => {
+    if (
+      touchStartX.current === null ||
+      touchStartY.current === null ||
+      touchEndX.current === null ||
+      touchEndY.current === null
+    ) return;
+
+    const diffX = touchStartX.current - touchEndX.current;
+    const diffY = touchStartY.current - touchEndY.current;
+    const minSwipeDistance = 50;
+
+    // Check if horizontal swipe is more pronounced than vertical swipe
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > minSwipeDistance) {
+      if (diffX > 0) {
+        handleNext();
+      } else {
+        handlePrev();
+      }
+    }
+  };
 
   // Auto-play slideshow for the hero billboard
   useEffect(() => {
@@ -294,7 +332,12 @@ export default function EventsPage() {
 
       {/* 1. FULL WIDTH SCREEN HERO BILLBOARD */}
       <div className="relative w-full z-10">
-        <div className="relative w-full aspect-[21/9] min-h-[350px] sm:min-h-[500px] bg-slate-100 flex items-end">
+        <div
+          className="relative w-full aspect-[21/9] min-h-[350px] sm:min-h-[500px] bg-slate-100 flex items-end"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           {activeEvent && (
             <>
               <AnimatePresence mode="wait">
@@ -323,14 +366,14 @@ export default function EventsPage() {
               {/* Navigation Chevron Controls (Floating Left and Right) */}
               <button
                 onClick={handlePrev}
-                className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/55 hover:bg-slate-900 text-white border border-white/10 transition-all duration-300 z-30"
+                className="hidden sm:block absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/55 hover:bg-slate-900 text-white border border-white/10 transition-all duration-300 z-30"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
 
               <button
                 onClick={handleNext}
-                className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/55 hover:bg-slate-900 text-white border border-white/10 transition-all duration-300 z-30"
+                className="hidden sm:block absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/55 hover:bg-slate-900 text-white border border-white/10 transition-all duration-300 z-30"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -359,7 +402,7 @@ export default function EventsPage() {
               </div>
 
               {/* Billboard Text Content */}
-              <div className="relative p-8 sm:p-14 md:p-20 z-20 w-full max-w-7xl mx-auto px-6 sm:px-12 md:px-16 text-left space-y-4">
+              <div className="relative pt-8 pb-16 sm:pt-14 sm:pb-20 md:pt-20 md:pb-24 z-20 w-full max-w-7xl mx-auto px-6 sm:px-12 md:px-16 text-left space-y-4">
                 <motion.div
                   key={`text-${activeEvent.id}`}
                   initial={{ opacity: 0, y: 15 }}
@@ -447,14 +490,14 @@ export default function EventsPage() {
               </div>
 
               {/* Carousel Indicators / Dot Navigation */}
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex gap-2">
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex gap-4">
                 {billboardEvents.map((_, idx) => (
                   <button
                     key={idx}
                     onClick={() => setActiveIndex(idx)}
                     className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${activeIndex === idx
-                        ? 'bg-indigo-600 w-8'
-                        : 'bg-white/40 hover:bg-white/70'
+                      ? 'bg-indigo-600 w-8'
+                      : 'bg-white/40 hover:bg-white/70'
                       }`}
                     aria-label={`Go to slide ${idx + 1}`}
                   />
