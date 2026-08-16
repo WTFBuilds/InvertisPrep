@@ -477,11 +477,17 @@ The BullMQ queue auto-disables (synchronous fallback) if `REDIS_URL` is unset.
 ### Client (`client/.env`)
 | Key | Purpose |
 |---|---|
-| `NEXT_PUBLIC_API_URL` | Main server base (`http://localhost:5000/api`) |
-| `NEXT_PUBLIC_PDF_API_URL` | PDF service base (`http://localhost:5002/api`) |
+| `API_URL` | Main server base — **server-only**, used by the Next.js rewrite (never in the browser bundle) |
+| `PDF_API_URL` | PDF service base — server-only, same |
 | `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | NextAuth (Google handshake only) |
 
-> 🔒 Never commit real secrets. `.env` files are gitignored; `.env.example`
+> 🔒 **No `NEXT_PUBLIC_*` URL variables.** The browser calls same-origin
+> `/backend/*` and `/pdfapi/*`; `next.config.ts` rewrites proxy them to the
+> real backends using server-only env vars. Backend URLs never appear in the
+> browser bundle, CORS becomes a non-issue, and the refresh cookie is
+> first-party (no cross-site cookie problems).
+>
+> Never commit real secrets. `.env` files are gitignored; `.env.example`
 > files carry placeholders only.
 
 ---
@@ -544,8 +550,10 @@ cd ../client && npm install && npm run dev      # :3000
 
 ## Deployment
 
-- **Client** → **Vercel** (`invertisprepv2.vercel.app`). Set the three
-  `NEXT_PUBLIC_*` vars plus NextAuth vars.
+- **Client** → **Vercel** (`invertisprepv2.vercel.app`). Set `API_URL` and
+  `PDF_API_URL` (server-only, **without** `NEXT_PUBLIC_` prefix) plus the
+  NextAuth vars — the rewrites are evaluated at build time, so a redeploy is
+  required after changing them.
 - **Main server** → long-running host (**Render/Railway/VPS**): `npm start`,
   with all env vars above; `NODE_ENV=production`, `TRUST_PROXY=1` behind a proxy.
 - **PDF service** → separate Render service: `npm start`, shared
