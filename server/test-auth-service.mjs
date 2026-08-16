@@ -5,7 +5,7 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 import { authService } from './src/services/authService.js';
 import { User } from './src/models/User.js';
-import { getRedis } from '@invertisprep/shared';
+import { getRedis } from './src/shared/redisClient.js';
 
 const assert = (name, cond) => {
   console.log(`${cond ? '✅' : '❌'} ${name}`);

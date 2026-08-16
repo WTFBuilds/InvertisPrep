@@ -5,7 +5,7 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 import { User } from './src/models/User.js';
 import { authService } from './src/services/authService.js';
-import { getRedis } from '@invertisprep/shared';
+import { getRedis } from './src/shared/redisClient.js';
 
 const formatUser = (user) => ({
   id: user._id, email: user.email, name: user.name, role: user.role,

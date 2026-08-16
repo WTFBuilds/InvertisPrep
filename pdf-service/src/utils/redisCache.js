@@ -1,4 +1,4 @@
-import { getRedis } from '@invertisprep/shared';
+import { getRedis } from '../shared/redisClient.js';
 
 const CACHE_TTL = 24 * 60 * 60; // 24 hours
 const PREFIX = 'pdf:watermarked:';

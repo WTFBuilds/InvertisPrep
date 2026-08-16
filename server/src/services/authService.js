@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { getRedis } from '@invertisprep/shared';
+import { getRedis } from '../shared/redisClient.js';
 import { User } from '../models/User.js';
 
 // Read the secret lazily (at call time), NOT at module load.
