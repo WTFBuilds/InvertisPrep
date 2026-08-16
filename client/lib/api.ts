@@ -34,8 +34,12 @@ import type {
   CreateSponsorDTO,
 } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-const PDF_SERVICE_URL = process.env.NEXT_PUBLIC_PDF_API_URL || 'http://localhost:5002/api';
+// Same-origin proxy paths — next.config.ts rewrites forward these to the
+// backend services (main server + PDF microservice) using SERVER-ONLY env
+// vars. No NEXT_PUBLIC_* URLs are exposed in the browser bundle, and cookies
+// (refresh token) work naturally as first-party.
+const API_URL = '/backend';
+const PDF_SERVICE_URL = '/pdfapi';
 
 // Create axios instance for main API
 // withCredentials: the refresh cookie is set by the backend on a different
