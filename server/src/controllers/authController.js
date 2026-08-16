@@ -1,7 +1,8 @@
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import { User } from '../models/User.js';
 import { verifyGoogleToken } from '../services/googleAuthService.js';
+import { authService } from '../services/authService.js';
 
 // Centralised user shape so every response stays consistent
 const formatUser = (user) => ({
@@ -21,7 +22,10 @@ const formatUser = (user) => ({
 
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    // Coerce to plain strings — blocks NoSQL operator injection (e.g. {"$gt": ""})
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const password = typeof req.body.password === 'string' ? req.body.password : '';
+    const rememberMe = req.body.rememberMe === true;
 
     if (!email || !password) {
       res.status(400).json({ success: false, message: 'Email and password are required' });
@@ -46,26 +50,39 @@ export const login = async (req, res) => {
     user.lastLogin = new Date();
     await user.save();
 
-    // Generate JWT
-    const payload = {
-      id: user._id.toString(),
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      picture: user.picture || null,
-    };
+    // Generate tokens via authService (with Redis session)
+    const { accessToken, refreshToken } = await authService.login(user, rememberMe);
 
-    const token = jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-    });
+    // Set refresh token as httpOnly cookie
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000,
+    };
+    res.cookie('refreshToken', refreshToken, cookieOptions);
+
+    // Update session metadata
+    await authService.updateSessionMeta(
+      user._id.toString(),
+      req.headers['user-agent'],
+      req.ip
+    );
 
     res.json({
       success: true,
-      token,
+      token: accessToken,
       user: formatUser(user),
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error during login' });
+    console.error('Login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during login',
+      details: process.env.NODE_ENV === 'development'
+        ? `${error?.name || 'Error'}: ${error?.message || 'unknown'}`
+        : undefined
+    });
   }
 };
 
@@ -177,37 +194,98 @@ export const googleLogin = async (req, res) => {
       return;
     }
 
-    // Generate JWT
-    const payload = {
-      id: user._id.toString(),
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      picture: user.picture || null,
-    };
+    // Also create Redis session for consistency
+    const { accessToken, refreshToken } = await authService.login(user);
 
-    const jwtToken = jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-    });
+    // Set refresh token as httpOnly cookie
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    };
+    res.cookie('refreshToken', refreshToken, cookieOptions);
+
+    await authService.updateSessionMeta(
+      user._id.toString(),
+      req.headers['user-agent'],
+      req.ip
+    );
 
     res.json({
       success: true,
-      token: jwtToken,
+      token: accessToken,
       user: formatUser(user),
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error during Google login',
-      details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+    console.error('Google login error:', error);
+    const detail = `${error?.name || 'Error'}: ${error?.message || 'unknown'}`;
+    res.status(500).json({
+      success: false,
+      // In development, surface the actual cause so it's visible in the client
+      message: process.env.NODE_ENV === 'development'
+        ? `Google login failed — ${detail}`
+        : 'Server error during Google login',
+      details: process.env.NODE_ENV === 'development' ? detail : undefined
     });
   }
 };
 
-export const logout = (_req, res) => {
-  // Logout is typically handled on the client side by removing the token
-  res.json({ success: true, message: 'Logged out successfully' });
+export const logout = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (userId) {
+      await authService.revokeSession(userId);
+      res.clearCookie('refreshToken', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+      });
+    }
+    res.json({ success: true, message: 'Logged out successfully' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ success: false, message: 'Server error during logout' });
+  }
+};
+
+export const refresh = async (req, res) => {
+  try {
+    const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
+    
+    if (!refreshToken) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Refresh token required' 
+      });
+    }
+
+    const tokens = await authService.refreshAccessToken(refreshToken);
+    
+    if (!tokens) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid or expired refresh token' 
+      });
+    }
+
+    // Set new refresh token cookie
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    };
+    res.cookie('refreshToken', tokens.refreshToken, cookieOptions);
+
+    res.json({
+      success: true,
+      token: tokens.accessToken,
+    });
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    res.status(500).json({ success: false, message: 'Server error during token refresh' });
+  }
 };
 
 export const updateProfile = async (req, res) => {

@@ -1,0 +1,21 @@
+# Environment files — never commit credentials
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Redis dumps (contain cached PDFs / user data)
+dump.rdb
+*.rdb
+
+# Uploads & runtime artifacts
+uploads/
+*.log
+.DS_Store
+
+# Build output
+dist/
+.next/
+coverage/

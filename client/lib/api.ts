@@ -35,8 +35,9 @@ import type {
 } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const PDF_SERVICE_URL = process.env.NEXT_PUBLIC_PDF_API_URL || 'http://localhost:5002/api';
 
-// Create axios instance
+// Create axios instance for main API
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,
   headers: {
@@ -44,47 +45,121 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor to add auth token
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
+// Create axios instance for PDF service
+const pdfServiceClient: AxiosInstance = axios.create({
+  baseURL: PDF_SERVICE_URL,
+  headers: {
+    'Content-Type': 'application/json',
   },
-  (error) => Promise.reject(error)
-);
+});
 
-// Response interceptor for error handling
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Don't auto-redirect if we're already on a view or login page to avoid loops
-      const isViewing = window.location.pathname.includes('/view/');
-      const isLogin = window.location.pathname.includes('/login');
-
-      if (!isViewing && !isLogin) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-
-        // Redirect based on current path
-        if (window.location.pathname.startsWith('/admin')) {
-          window.location.href = '/admin/login';
-        } else {
-          window.location.href = '/login';
-        }
-      }
-    }
-    return Promise.reject(error);
+// Request interceptor to add auth token (for both clients)
+const addAuthToken = (config: any) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  return config;
+};
+
+apiClient.interceptors.request.use(addAuthToken);
+pdfServiceClient.interceptors.request.use(addAuthToken);
+
+// ── Token refresh ──────────────────────────────────────────────────────────
+// Access tokens live 15 minutes; the refresh token is an httpOnly cookie valid
+// for 7/30 days. On a 401 we try ONE shared /auth/refresh call, store the new
+// access token, and retry the original request. Only when the refresh itself
+// fails do we clear state and redirect to login.
+let refreshPromise: Promise<string | null> | null = null;
+
+const refreshAccessToken = async (): Promise<string | null> => {
+  try {
+    // The refresh cookie rides along automatically (same-origin credentials)
+    const { data } = await apiClient.post<{ success: boolean; token: string }>(
+      '/auth/refresh'
+    );
+    if (data?.success && data?.token) {
+      localStorage.setItem('token', data.token);
+      return data.token;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const getRefreshedToken = (): Promise<string | null> => {
+  if (!refreshPromise) {
+    refreshPromise = refreshAccessToken().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+};
+
+const forceLogout = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+
+  // Don't auto-redirect if we're already on a view or login page to avoid loops
+  const isViewing = window.location.pathname.includes('/view/');
+  const isLogin = window.location.pathname.includes('/login');
+
+  if (!isViewing && !isLogin) {
+    if (window.location.pathname.startsWith('/admin')) {
+      window.location.href = '/admin/login';
+    } else {
+      window.location.href = '/login';
+    }
+  }
+};
+
+const makeResponseInterceptor = (client: AxiosInstance) => async (error: any) => {
+  const original = error?.config;
+  const status = error?.response?.status;
+  const isRefreshCall = original?.url?.includes('/auth/refresh');
+
+  // A 401 with a stored token means the access token expired — attempt one
+  // refresh + retry (guarded by _retried so a second 401 falls through).
+  if (
+    status === 401 &&
+    original &&
+    !original._retried &&
+    !isRefreshCall &&
+    typeof window !== 'undefined' &&
+    localStorage.getItem('token')
+  ) {
+    original._retried = true;
+    const newToken = await getRefreshedToken();
+    if (newToken) {
+      original.headers = original.headers || {};
+      original.headers.Authorization = `Bearer ${newToken}`;
+      return client.request(original); // retry on the same instance
+    }
+    forceLogout();
+  } else if (status === 401) {
+    forceLogout();
+  }
+  return Promise.reject(error);
+};
+
+apiClient.interceptors.response.use((response) => response, makeResponseInterceptor(apiClient));
+pdfServiceClient.interceptors.response.use((response) => response, makeResponseInterceptor(pdfServiceClient));
 
 // Auth API
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     const { data } = await apiClient.post<AuthResponse>('/auth/login', credentials);
+    return data;
+  },
+
+  googleLogin: async (token: string): Promise<AuthResponse> => {
+    const { data } = await apiClient.post<AuthResponse>('/auth/google-login', { token });
+    return data;
+  },
+
+  refresh: async (): Promise<{ success: boolean; token: string }> => {
+    const { data } = await apiClient.post<{ success: boolean; token: string }>('/auth/refresh');
     return data;
   },
 
@@ -99,7 +174,11 @@ export const authApi = {
   },
 
   logout: async (): Promise<void> => {
-    await apiClient.post('/auth/logout');
+    try {
+      await apiClient.post('/auth/logout');
+    } catch {
+      // Continue with client-side logout even if server call fails
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
   },
@@ -211,10 +290,10 @@ export const sessionApi = {  getAll: async (): Promise<APIResponse<Session[]>> =
   },
 };
 
-// PYQ API
+// PYQ API - calls PDF service directly
 export const pyqApi = {
   upload: async (formData: FormData): Promise<APIResponse<PYQPaper>> => {
-    const { data } = await apiClient.post<APIResponse<PYQPaper>>('/pyq/upload', formData, {
+    const { data } = await pdfServiceClient.post<APIResponse<PYQPaper>>('/pyq/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -223,7 +302,7 @@ export const pyqApi = {
   },
 
   uploadPublic: async (formData: FormData): Promise<APIResponse<PYQPaper>> => {
-    const { data } = await apiClient.post<APIResponse<PYQPaper>>('/pyq/upload-public', formData, {
+    const { data } = await pdfServiceClient.post<APIResponse<PYQPaper>>('/pyq/upload-public', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -232,40 +311,40 @@ export const pyqApi = {
   },
 
   getDailyUploadCount: async (): Promise<APIResponse<{ count: number; limit: number; isExempt: boolean }>> => {
-    const { data } = await apiClient.get<APIResponse<{ count: number; limit: number; isExempt: boolean }>>('/pyq/upload-count');
+    const { data } = await pdfServiceClient.get<APIResponse<{ count: number; limit: number; isExempt: boolean }>>('/pyq/upload-count');
     return data;
   },
 
   getFiltered: async (filters: PYQFilterQuery): Promise<APIResponse<PYQPaper[]>> => {
-    const { data } = await apiClient.get<APIResponse<PYQPaper[]>>('/pyq', { params: filters });
+    const { data } = await pdfServiceClient.get<APIResponse<PYQPaper[]>>('/pyq', { params: filters });
     return data;
   },
 
   getAll: async (params?: Record<string, any>): Promise<APIResponse<PYQPaper[]>> => {
-    const { data } = await apiClient.get<APIResponse<PYQPaper[]>>('/pyq/all', { params });
+    const { data } = await pdfServiceClient.get<APIResponse<PYQPaper[]>>('/pyq/all', { params });
     return data;
   },
 
   trackDownload: async (id: string): Promise<void> => {
-    await apiClient.post(`/pyq/${id}/download`);
+    await pdfServiceClient.post(`/pyq/${id}/download`);
   },
 
   trackView: async (id: string): Promise<void> => {
-    await apiClient.post(`/pyq/${id}/view`);
+    await pdfServiceClient.post(`/pyq/${id}/view`);
   },
 
   verify: async (id: string): Promise<APIResponse<PYQPaper>> => {
-    const { data } = await apiClient.patch<APIResponse<PYQPaper>>(`/pyq/${id}/verify`);
+    const { data } = await pdfServiceClient.patch<APIResponse<PYQPaper>>(`/pyq/${id}/verify`);
     return data;
   },
 
   update: async (id: string, updates: Partial<PYQPaper>): Promise<APIResponse<PYQPaper>> => {
-    const { data } = await apiClient.put<APIResponse<PYQPaper>>(`/pyq/${id}`, updates);
+    const { data } = await pdfServiceClient.put<APIResponse<PYQPaper>>(`/pyq/${id}`, updates);
     return data;
   },
 
   delete: async (id: string): Promise<APIResponse> => {
-    const { data } = await apiClient.delete<APIResponse>(`/pyq/${id}`);
+    const { data } = await pdfServiceClient.delete<APIResponse>(`/pyq/${id}`);
     return data;
   },
 };
@@ -434,10 +513,12 @@ export const bugApi = {
   },
 };
 
-// PDF API
+// PDF API - routes PYQ to PDF service, syllabus to main server
 export const pdfApi = {
   view: async (id: string, type: 'pyq' | 'syllabus' = 'pyq'): Promise<Blob> => {
-    const { data } = await apiClient.get(`/pdf/view/${id}`, {
+    // PYQ → dedicated PDF service; Syllabus → main server (has Syllabus model)
+    const client = type === 'syllabus' ? apiClient : pdfServiceClient;
+    const { data } = await client.get(`/pdf/view/${id}`, {
       params: { type },
       responseType: 'blob',
     });
@@ -445,7 +526,8 @@ export const pdfApi = {
   },
 
   download: async (id: string, type: 'pyq' | 'syllabus' = 'pyq'): Promise<{ blob: Blob; filename: string }> => {
-    const res = await apiClient.get(`/pdf/download/${id}`, {
+    const client = type === 'syllabus' ? apiClient : pdfServiceClient;
+    const res = await client.get(`/pdf/download/${id}`, {
       params: { type },
       responseType: 'blob',
     });

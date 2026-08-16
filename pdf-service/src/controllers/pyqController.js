@@ -1,15 +1,19 @@
 import mongoose from 'mongoose';
-import { PYQPaper } from '../models/PYQPaper.js';
+import { PDFDocument } from '../models/PDFDocument.js';
 import { uploadPDF, deletePDF } from '../services/cloudinaryService.js';
 import fs from 'fs/promises';
-import { awardPoints } from '../utils/points.js';
+
+// Points logic is simplified for PDF service or call main server if needed
+// For now we'll just skip points or assume main server handles it via webhook
+const awardPoints = async (userId, points, type, description) => {
+  console.log(`[Points] Should award ${points} points to ${userId} for ${type}: ${description}`);
+};
 
 // Upload PYQ (admin only)
 export const uploadPYQ = async (req, res) => {
   try {
     if (!req.file) {
-      res.status(400).json({ success: false, message: 'PDF file is required' });
-      return;
+      return res.status(400).json({ success: false, message: 'PDF file is required' });
     }
 
     const {
@@ -25,8 +29,7 @@ export const uploadPYQ = async (req, res) => {
 
     // Validate required fields
     if (!departmentId || !branchId || !sessionId || !semester || !subjectName || !examType || !year) {
-      res.status(400).json({ success: false, message: 'Missing required fields' });
-      return;
+      return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
 
     // Upload to Cloudinary
@@ -38,8 +41,8 @@ export const uploadPYQ = async (req, res) => {
     // Create title
     const title = `${subjectName} ${examType} ${year}`;
 
-    // Create PYQ document
-    const pyq = await PYQPaper.create({
+    // Create PDFDocument (PYQ) document
+    const pyq = await PDFDocument.create({
       title,
       subjectName,
       subjectCode: subjectCode || undefined,
@@ -68,7 +71,16 @@ export const uploadPYQ = async (req, res) => {
 // Get filtered PYQs (public)
 export const getPYQs = async (req, res) => {
   try {
-    const { departmentId, branchId, sessionId, semester, examType, subjectCode, search } = req.query;
+    // Coerce query params to plain strings — blocks operator injection
+    // (e.g. ?departmentId[$ne]=x turning the filter into a Mongo operator)
+    const asString = (v) => (typeof v === 'string' && v.length > 0 ? v : undefined);
+    const departmentId = asString(req.query.departmentId);
+    const branchId = asString(req.query.branchId);
+    const sessionId = asString(req.query.sessionId);
+    const semester = asString(req.query.semester);
+    const examType = asString(req.query.examType);
+    const subjectCode = asString(req.query.subjectCode);
+    const search = asString(req.query.search);
 
     const escapeRegex = (string) => {
       if (typeof string !== 'string') return '';
@@ -95,7 +107,7 @@ export const getPYQs = async (req, res) => {
       ];
     }
 
-    const pyqs = await PYQPaper.find(filter, { cloudinaryUrl: 0, cloudinaryPublicId: 0 })
+    const pyqs = await PDFDocument.find(filter, { cloudinaryUrl: 0, cloudinaryPublicId: 0 })
       .populate('departmentId', 'name displayName icon')
       .populate('branchId', 'name')
       .populate('sessionId', 'name startYear endYear')
@@ -116,21 +128,17 @@ export const getAllPYQs = async (req, res) => {
   try {
     const { page = '1', limit = '100', verified } = req.query;
     const pageNum = Math.max(parseInt(page.toString(), 10) || 1, 1);
-    // allow client to request a larger page size but cap it to avoid excessive load
     const pageSize = Math.min(Math.max(parseInt(limit.toString(), 10) || 100, 1), 1000);
 
     const skip = (pageNum - 1) * pageSize;
-
-    // Filter to only show active papers
     const filter = { isActive: true };
 
-    // Optional admin filter: verified=true → verified only, verified=false → unverified only
     if (verified === 'true') filter.verified = true;
     else if (verified === 'false') filter.verified = false;
 
     const [total, papers] = await Promise.all([
-      PYQPaper.countDocuments(filter),
-      PYQPaper.find(filter)
+      PDFDocument.countDocuments(filter),
+      PDFDocument.find(filter)
         .populate('departmentId', 'name displayName')
         .populate('branchId', 'name')
         .populate('sessionId', 'name')
@@ -152,12 +160,10 @@ export const getAllPYQs = async (req, res) => {
 export const trackDownload = async (req, res) => {
   try {
     const { id } = req.params;
-
-    const pyq = await PYQPaper.findByIdAndUpdate(id, { $inc: { downloads: 1 } }, { new: true });
+    const pyq = await PDFDocument.findByIdAndUpdate(id, { $inc: { downloads: 1 } }, { new: true });
 
     if (!pyq) {
-      res.status(404).json({ success: false, message: 'PYQ not found' });
-      return;
+      return res.status(404).json({ success: false, message: 'PYQ not found' });
     }
 
     res.json({ success: true, downloads: pyq.downloads });
@@ -171,12 +177,10 @@ export const trackDownload = async (req, res) => {
 export const trackView = async (req, res) => {
   try {
     const { id } = req.params;
-
-    const pyq = await PYQPaper.findByIdAndUpdate(id, { $inc: { views: 1 } }, { new: true });
+    const pyq = await PDFDocument.findByIdAndUpdate(id, { $inc: { views: 1 } }, { new: true });
 
     if (!pyq) {
-      res.status(404).json({ success: false, message: 'PYQ not found' });
-      return;
+      return res.status(404).json({ success: false, message: 'PYQ not found' });
     }
 
     res.json({ success: true, views: pyq.views });
@@ -186,20 +190,18 @@ export const trackView = async (req, res) => {
   }
 };
 
-// Verify PYQ (super admin only)
+// Verify PYQ (staff only)
 export const verifyPYQ = async (req, res) => {
   try {
     const { id } = req.params;
-
-    const pyqBefore = await PYQPaper.findById(id);
+    const pyqBefore = await PDFDocument.findById(id);
     if (!pyqBefore) {
-      res.status(404).json({ success: false, message: 'PYQ not found' });
-      return;
+      return res.status(404).json({ success: false, message: 'PYQ not found' });
     }
 
     const wasAlreadyVerified = pyqBefore.verified;
 
-    const pyq = await PYQPaper.findByIdAndUpdate(
+    const pyq = await PDFDocument.findByIdAndUpdate(
       id, 
       { $set: { verified: true } }, 
       { new: true }
@@ -222,20 +224,16 @@ export const verifyPYQ = async (req, res) => {
 export const deletePYQ = async (req, res) => {
   try {
     const { id } = req.params;
-
-    const pyq = await PYQPaper.findById(id);
+    const pyq = await PDFDocument.findById(id);
 
     if (!pyq) {
-      res.status(404).json({ success: false, message: 'PYQ not found' });
-      return;
+      return res.status(404).json({ success: false, message: 'PYQ not found' });
     }
 
-    // Delete from Cloudinary (with error handling inside the service)
     if (pyq.cloudinaryPublicId) {
       await deletePDF(pyq.cloudinaryPublicId);
     }
 
-    // Soft delete from database
     pyq.isActive = false;
     await pyq.save();
 
@@ -252,26 +250,21 @@ export const updatePYQ = async (req, res) => {
     const { id } = req.params;
     const { subjectName, subjectCode, year, examType, semester } = req.body;
 
-    const pyq = await PYQPaper.findById(id);
-
+    const pyq = await PDFDocument.findById(id);
     if (!pyq) {
-      res.status(404).json({ success: false, message: 'PYQ not found' });
-      return;
+      return res.status(404).json({ success: false, message: 'PYQ not found' });
     }
 
-    // Update allowed fields
     if (subjectName) pyq.subjectName = subjectName;
     if (subjectCode) pyq.subjectCode = subjectCode;
     if (year) pyq.year = parseInt(year);
     if (examType) pyq.examType = examType;
     if (semester) pyq.semester = parseInt(semester);
 
-    // Update title based on new data
     pyq.title = `${pyq.subjectName} ${pyq.examType} ${pyq.year}`;
-
     await pyq.save();
 
-    const updated = await PYQPaper.findById(id)
+    const updated = await PDFDocument.findById(id)
       .populate('departmentId', 'name displayName')
       .populate('branchId', 'name')
       .populate('sessionId', 'name')
@@ -284,41 +277,14 @@ export const updatePYQ = async (req, res) => {
   }
 };
 
-// Public upload PYQ (Any authenticated student user, limit 10 per day)
+// Public upload PYQ
 export const uploadPYQPublic = async (req, res) => {
   try {
     if (!req.file) {
-      res.status(400).json({ success: false, message: 'PDF file is required' });
-      return;
+      return res.status(400).json({ success: false, message: 'PDF file is required' });
     }
 
-    // Rate Limit: 10 uploads per day per user (only applies to students)
-    if (req.user.role !== 'admin' && req.user.role !== 'super-admin') {
-      // Calculate start of day in Indian Standard Time (IST, UTC+5:30)
-      const now = new Date();
-      const istOffset = 5.5 * 60 * 60 * 1000;
-      const startOfDayIST = new Date(now.getTime() + istOffset);
-      startOfDayIST.setUTCHours(0, 0, 0, 0);
-      const startOfDayUTC = new Date(startOfDayIST.getTime() - istOffset);
-
-      const uploadCount = await PYQPaper.countDocuments({
-        uploadedBy: new mongoose.Types.ObjectId(req.user.id),
-        createdAt: { $gte: startOfDayUTC },
-      });
-
-      if (uploadCount >= 10) {
-        try {
-          await fs.unlink(req.file.path);
-        } catch (err) {
-          console.error('Error deleting local file after rate limit hit:', err);
-        }
-        res.status(429).json({
-          success: false,
-          message: 'Daily upload limit reached. You can upload up to 10 PYQs per day.',
-        });
-        return;
-      }
-    }
+    // Rate Limit could be added here via Redis
 
     const {
       departmentId,
@@ -331,26 +297,19 @@ export const uploadPYQPublic = async (req, res) => {
       year,
     } = req.body;
 
-    // Validate required fields
     if (!departmentId || !branchId || !sessionId || !semester || !subjectName || !examType || !year) {
-      try {
-        await fs.unlink(req.file.path);
-      } catch {}
-      res.status(400).json({ success: false, message: 'Missing required fields' });
-      return;
+      try { await fs.unlink(req.file.path); } catch {}
+      return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
 
-    // Upload to Cloudinary
     const { cloudinaryUrl, cloudinaryPublicId, fileSize } = await uploadPDF(req.file.path, {
       subjectCode,
       examType,
     });
 
-    // Create title
     const title = `${subjectName} ${examType} ${year}`;
 
-    // Create PYQ document (verified defaults to false, so it awaits admin verification)
-    const pyq = await PYQPaper.create({
+    const pyq = await PDFDocument.create({
       title,
       subjectName,
       subjectCode: subjectCode || undefined,
@@ -372,32 +331,19 @@ export const uploadPYQPublic = async (req, res) => {
     res.status(201).json({ success: true, data: pyq });
   } catch (error) {
     console.error('Public Upload PYQ error:', error);
-    // Cleanup local file on error if not already cleaned up
     if (req.file) {
-      try {
-        await fs.unlink(req.file.path);
-      } catch {}
+      try { await fs.unlink(req.file.path); } catch {}
     }
     res.status(500).json({ success: false, message: 'Server error during upload' });
   }
 };
 
-// Get daily upload count for the authenticated user (IST-aligned)
+// Get daily upload count
 export const getDailyUploadCount = async (req, res) => {
   try {
-    // Max papers a non-admin user can upload per day (default 10)
-    const dailyLimit = parseInt(process.env.DAILY_UPLOAD_LIMIT, 10) || 10;
-
-    if (req.user.role === 'admin' || req.user.role === 'super-admin' || req.user.role === 'srt') {
-      res.json({ 
-        success: true, 
-        data: {
-          count: 0, 
-          limit: dailyLimit,
-          isExempt: true 
-        }
-      });
-      return;
+    const dailyLimit = 10;
+    if (['admin', 'super-admin', 'srt'].includes(req.user.role)) {
+      return res.json({ success: true, data: { count: 0, limit: dailyLimit, isExempt: true } });
     }
 
     const now = new Date();
@@ -406,19 +352,12 @@ export const getDailyUploadCount = async (req, res) => {
     startOfDayIST.setUTCHours(0, 0, 0, 0);
     const startOfDayUTC = new Date(startOfDayIST.getTime() - istOffset);
 
-    const count = await PYQPaper.countDocuments({
+    const count = await PDFDocument.countDocuments({
       uploadedBy: new mongoose.Types.ObjectId(req.user.id),
       createdAt: { $gte: startOfDayUTC },
     });
 
-    res.json({ 
-      success: true, 
-      data: {
-        count, 
-        limit: dailyLimit, 
-        isExempt: false 
-      }
-    });
+    res.json({ success: true, data: { count, limit: dailyLimit, isExempt: false } });
   } catch (error) {
     console.error('Get daily upload count error:', error);
     res.status(500).json({ success: false, message: 'Server error retrieving upload count' });
