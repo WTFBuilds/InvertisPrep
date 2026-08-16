@@ -3,7 +3,16 @@ import { Department } from '../models/Department.js';
 import { Branch } from '../models/Branch.js';
 import { getCache, setCache, delCache } from '../utils/cache.js';
 
-// Get single department by ID (public)
+// Resolve a department by ObjectId OR slug (e.g. "btech") — slugs power the
+// public /pyq/<slug> URLs. Returns null when neither matches.
+const findDepartmentByIdOrSlug = async (idOrSlug) => {
+  if (mongoose.isValidObjectId(idOrSlug)) {
+    return Department.findById(idOrSlug).lean();
+  }
+  return Department.findOne({ id: idOrSlug }).lean();
+};
+
+// Get single department by ID or slug (public)
 export const getDepartmentById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -13,9 +22,9 @@ export const getDepartmentById = async (req, res) => {
       console.log(`[Cache] HIT for ${cacheKey}`);
       return res.json({ success: true, data: cached });
     }
-    
+
     console.log(`[Cache] MISS for ${cacheKey}`);
-    const department = await Department.findById(id).lean();
+    const department = await findDepartmentByIdOrSlug(id);
     if (!department || !department.isActive) {
       res.status(404).json({ success: false, message: 'Department not found' });
       return;
@@ -155,15 +164,27 @@ export const deleteDepartment = async (req, res) => {
 export const getBranchesByDepartment = async (req, res) => {
   try {
     const { departmentId } = req.params;
-    const cacheKey = `branches:${departmentId}`;
+
+    // Branches store the department's ObjectId — resolve slugs to it first
+    let deptObjectId = departmentId;
+    if (!mongoose.isValidObjectId(departmentId)) {
+      const department = await Department.findOne({ id: departmentId }).lean();
+      if (!department || !department.isActive) {
+        res.status(404).json({ success: false, message: 'Department not found' });
+        return;
+      }
+      deptObjectId = department._id.toString();
+    }
+
+    const cacheKey = `branches:${deptObjectId}`;
     const cached = getCache(cacheKey);
     if (cached) {
       console.log(`[Cache] HIT for ${cacheKey}`);
       return res.json({ success: true, data: cached });
     }
-    
+
     console.log(`[Cache] MISS for ${cacheKey}`);
-    const branches = await Branch.find({ departmentId, isActive: true }).sort({ name: 1 }).lean();
+    const branches = await Branch.find({ departmentId: deptObjectId, isActive: true }).sort({ name: 1 }).lean();
     setCache(cacheKey, branches, 5 * 60 * 1000); // 5 minutes TTL
     res.json({ success: true, data: branches });
   } catch (error) {

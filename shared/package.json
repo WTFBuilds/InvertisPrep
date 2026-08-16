@@ -1,0 +1,19 @@
+{
+  "name": "@invertisprep/shared",
+  "version": "1.0.0",
+  "description": "Shared utilities for InvertisPrep services",
+  "type": "module",
+  "main": "redisClient.js",
+  "exports": {
+    ".": "./redisClient.js"
+  },
+  "scripts": {
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "dependencies": {
+    "redis": "^4.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
