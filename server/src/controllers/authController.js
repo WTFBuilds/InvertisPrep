@@ -20,6 +20,17 @@ const formatUser = (user) => ({
   freeDownloadsLeft: user.freeDownloadsLeft ?? 2,
 });
 
+
+// Cookie options for the refresh token.
+// In production the client (Vercel) and API (Render) are on different sites, so the
+// cookie must be SameSite=None + Secure to travel with cross-site requests.
+const refreshCookieOptions = (maxAge) => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  maxAge,
+});
+
 export const login = async (req, res) => {
   try {
     // Coerce to plain strings — blocks NoSQL operator injection (e.g. {"$gt": ""})
@@ -54,13 +65,9 @@ export const login = async (req, res) => {
     const { accessToken, refreshToken } = await authService.login(user, rememberMe);
 
     // Set refresh token as httpOnly cookie
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000,
-    };
-    res.cookie('refreshToken', refreshToken, cookieOptions);
+    res.cookie('refreshToken', refreshToken, refreshCookieOptions(
+      rememberMe ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000
+    ));
 
     // Update session metadata
     await authService.updateSessionMeta(
@@ -198,13 +205,7 @@ export const googleLogin = async (req, res) => {
     const { accessToken, refreshToken } = await authService.login(user);
 
     // Set refresh token as httpOnly cookie
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    };
-    res.cookie('refreshToken', refreshToken, cookieOptions);
+    res.cookie('refreshToken', refreshToken, refreshCookieOptions(7 * 24 * 60 * 60 * 1000));
 
     await authService.updateSessionMeta(
       user._id.toString(),
@@ -239,7 +240,7 @@ export const logout = async (req, res) => {
       res.clearCookie('refreshToken', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       });
     }
     res.json({ success: true, message: 'Logged out successfully' });
@@ -270,13 +271,7 @@ export const refresh = async (req, res) => {
     }
 
     // Set new refresh token cookie
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    };
-    res.cookie('refreshToken', tokens.refreshToken, cookieOptions);
+    res.cookie('refreshToken', tokens.refreshToken, refreshCookieOptions(7 * 24 * 60 * 60 * 1000));
 
     res.json({
       success: true,

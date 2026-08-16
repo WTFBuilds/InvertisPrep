@@ -38,11 +38,14 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 const PDF_SERVICE_URL = process.env.NEXT_PUBLIC_PDF_API_URL || 'http://localhost:5002/api';
 
 // Create axios instance for main API
+// withCredentials: the refresh cookie is set by the backend on a different
+// origin (Vercel → Render), so the browser must be allowed to store/send it
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 // Create axios instance for PDF service
@@ -51,6 +54,7 @@ const pdfServiceClient: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 // Request interceptor to add auth token (for both clients)
