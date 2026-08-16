@@ -34,7 +34,6 @@
     "multer": "^2.0.2",
     "pdf-lib": "^1.17.1",
     "redis": "^4.6.0",
-    "zod": "^3.24.2",
-    "@invertisprep/shared": "file:../shared"
+    "zod": "^3.24.2"
   }
 }

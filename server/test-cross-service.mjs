@@ -7,7 +7,7 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import { User } from './src/models/User.js';
-import { getRedis } from '@invertisprep/shared';
+import { getRedis } from './src/shared/redisClient.js';
 
 const PDF_SERVICE = process.env.PDF_SERVICE_URL || 'http://localhost:5002';
 const MAIN_SERVER = `http://localhost:${process.env.PORT || 5000}`;

@@ -138,7 +138,7 @@ Measured locally: **cold PDF view ~860ms** (Cloudinary fetch + watermark + cache
 | Framework | **Express 5** |
 | Database | **MongoDB** via **Mongoose 8** |
 | Auth | **jsonwebtoken** (15-min access / 7–30-day refresh), **bcryptjs**, **google-auth-library** |
-| Cache/Sessions | **Redis** (`@invertisprep/shared`) |
+| Cache/Sessions | **Redis** (vendored `src/shared/redisClient.js`) |
 | File storage | **Cloudinary** (syllabus PDFs) + **multer** |
 | Security | `helmet`, `cors` (prod-aware), tiered `express-rate-limit`, `cookie-parser` |
 
@@ -149,15 +149,17 @@ Measured locally: **cold PDF view ~860ms** (Cloudinary fetch + watermark + cache
 | Framework | **Express 5** |
 | Database | **MongoDB** (shared cluster; `pyqpapers`, lookup models for populate) |
 | PDF processing | **pdf-lib** (generic gradient watermark + branded footer) |
-| Cache/Queue | **Redis** (PDF cache via `@invertisprep/shared`) + **BullMQ** (watermark jobs) |
+| Cache/Queue | **Redis** (PDF cache via vendored `src/shared/redisClient.js`) + **BullMQ** (watermark jobs) |
 | File storage | **Cloudinary** (raw PDF uploads) + **multer** |
 | Config | **zod** env schema validation |
 | Security | `helmet`, `cors` (prod-aware), tiered `express-rate-limit` |
 
-### Shared package (`/shared`)
-`@invertisprep/shared` — a single Redis client (reconnect strategy, lazy connect)
-used by both services. Consumed via `"file:../shared"` and symlinked by npm; it
-keeps its own `node_modules` so its `redis` import resolves from the real path.
+### Shared Redis client (vendored per service)
+`src/shared/redisClient.js` — identical copies in both services (`server/src/shared/`
+and `pdf-service/src/shared/`). A single Redis client (reconnect strategy, lazy
+connect) with no cross-package dependency, so **each service deploys as a fully
+self-contained unit** (Root Directory = `server` / `pdf-service` on Render — no
+monorepo tooling needed). If you change one copy, change both.
 
 ---
 
@@ -204,9 +206,9 @@ InvertisPrep/
 │       ├── middleware/          # auth (Redis cache + main-server fallback), upload, rateLimit
 │       └── utils/               # redisCache (PDF cache), filename
 │
-├── shared/                      # @invertisprep/shared
-│   ├── redisClient.js           # shared Redis client (getRedis/closeRedis)
-│   └── package.json
+
+
+
 │
 ├── start-all.sh                 # boots Redis + main + pdf-service + client together
 ├── IMPLEMENTATION_PLAN.md       # migration plan & status (all phases ✅)
@@ -382,8 +384,7 @@ Redis user cache first, and falls back to the main server's internal endpoint
 
 - Fail-open design: if Redis is unavailable, auth falls back to DB and PDFs
   regenerate — the site degrades gracefully instead of erroring.
-- Shared client lives in `shared/redisClient.js` (`@invertisprep/shared`) with
-  reconnect strategy and lazy connect.
+- Vendored Redis client in each service's `src/shared/redisClient.js` (reconnect strategy, lazy connect).
 - PDF cache is keyed by **paper id only** (watermarks are generic), which is what
   makes the 24-h shared cache possible.
 
