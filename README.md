@@ -1,4 +1,4 @@
-# 🎓 InvertisPrep
+# 🎓 InvertisPrep 
 
 > Previous-Year-Question (PYQ) paper management platform for **Invertis University**.
 > Students browse, view, and contribute verified question papers; staff/admins
