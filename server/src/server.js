@@ -18,11 +18,11 @@ import authRoutes from './routes/auth.js';
 import departmentRoutes from './routes/departments.js';
 import branchRoutes from './routes/branches.js';
 import sessionRoutes from './routes/sessions.js';
-import pyqRoutes from './routes/pyq.js';
 import syllabusRoutes from './routes/syllabus.js';
 import userRoutes from './routes/users.js';
 import reportRoutes from './routes/reports.js';
 import pdfRoutes from './routes/pdf.js';
+import pdfProxyRoutes from './routes/pdfProxy.js';
 import resumeRoutes from './routes/resumes.js';
 import walletRoutes from './routes/wallet.js';
 import bugRoutes from './routes/bugs.js';
@@ -37,10 +37,10 @@ const PORT = Number(process.env.PORT) || 5000;
 
 // CORS Configuration
 // Default origins always apply; env var CORS_ORIGINS adds extra origins (comma-separated).
-// This avoids production breakage when the env only contains localhost.
+// Localhost origins are dev-only — never accepted in production.
+const isProduction = process.env.NODE_ENV === 'production';
 const defaultOrigins = [
-  'http://localhost:3000',
-  'http://localhost:5000',
+  ...(isProduction ? [] : ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5002']),
   'https://invertisprep.vercel.app',
   'https://invertisprepv2.vercel.app',
 ];
@@ -99,8 +99,7 @@ const initApp = async () => {
   app.use('/api/branches', readLimiter);
   app.use('/api/sessions', readLimiter);
   app.use('/api/syllabus', readLimiter);
-  app.use('/api/pyq', readLimiter);
-  app.use('/api/events', readLimiter);
+  app.use('/api/syllabus', readLimiter);
   app.use('/api/sponsors', readLimiter);
   app.use('/api/users', readLimiter);
   app.use('/api/leaderboard', readLimiter);
@@ -115,29 +114,28 @@ const initApp = async () => {
     res.json({ status: 'ok', message: 'Server is running' });
   });
 
-  // API Routes
-  app.use('/api/auth', authLimiter, authRoutes);
-  app.use('/api/departments', departmentRoutes);
-  app.use('/api/branches', branchRoutes);
-  app.use('/api/sessions', sessionRoutes);
-  app.use('/api/pyq', pyqRoutes);
-  app.use('/api/syllabus', syllabusRoutes);
-  app.use('/api/users', userRoutes);
-  app.use('/api/reports', reportRoutes);
-  app.use('/api/pdf', pdfLimiter, pdfRoutes);
-  app.use('/api/resumes', resumeRoutes);
-  app.use('/api/wallet', walletRoutes);
-  app.use('/api/bugs', bugRoutes);
-  app.use('/api/leaderboard', leaderboardRoutes);
-  app.use('/api/events', eventRoutes);
-  app.use('/api/admin/users', adminUserRoutes);
-  app.use('/api/sponsors', sponsorRoutes);
+// API Routes
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/departments', departmentRoutes);
+app.use('/api/branches', branchRoutes);
+app.use('/api/sessions', sessionRoutes);
+app.use('/api/syllabus', syllabusRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/pdf', pdfLimiter, pdfRoutes);
+app.use('/api/pdf-proxy', pdfProxyRoutes);
+app.use('/api/resumes', resumeRoutes);
+app.use('/api/wallet', walletRoutes);
+app.use('/api/bugs', bugRoutes);
+app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/admin/users', adminUserRoutes);
+app.use('/api/sponsors', sponsorRoutes);
 
   // Apply write limiter to mutation-heavy routes
   app.use('/api/departments', writeLimiter);
   app.use('/api/branches', writeLimiter);
   app.use('/api/sessions', writeLimiter);
-  app.use('/api/pyq', writeLimiter);
   app.use('/api/syllabus', writeLimiter);
   app.use('/api/reports', writeLimiter);
   app.use('/api/resumes', writeLimiter);

@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { PDFDocument, rgb, degrees, StandardFonts } from 'pdf-lib';
 import { PYQPaper } from '../models/PYQPaper.js';
 import { Syllabus } from '../models/Syllabus.js';
@@ -153,6 +154,9 @@ const applyWatermark = async (pdfDoc, user) => {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 const loadPaper = async (id, type) => {
+  // Invalid id formats (e.g. old UUID links) can't match any document —
+  // return null (→ 404) instead of letting mongoose's CastError bubble up as a 500.
+  if (!mongoose.isValidObjectId(id)) return { paper: null };
   if (type === 'syllabus') return { paper: await Syllabus.findById(id) };
   return {
     paper: await PYQPaper.findById(id)
