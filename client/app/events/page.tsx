@@ -380,10 +380,7 @@ export default function EventsPage() {
 
               {/* Top Bar Badges / Action triggers */}
               <div className="absolute top-6 left-6 z-30 flex gap-2">
-                <Badge className="bg-indigo-600 text-white font-extrabold tracking-widest text-[9px] uppercase px-3 py-1.5 rounded-full border-none shadow">
-                  {activeEvent.category === 'cultural' ? '🔥 Featured Fest' : '✨ Academic Expo'}
-                </Badge>
-                <Badge className="bg-white/15 text-white backdrop-blur-md border border-white/20 text-[9px] uppercase px-3 py-1.5 rounded-full font-bold">
+              <Badge className="bg-white/15 text-white backdrop-blur-md border border-white/20 text-[9px] uppercase px-3 py-1.5 rounded-full font-bold">
                   {activeEvent.organizer}
                 </Badge>
               </div>
@@ -539,99 +536,7 @@ export default function EventsPage() {
             );
           })}
         </div>
-
-        {/* Giveaways Horizontal Slider Section */}
-        <div className="space-y-6 pt-6 text-left">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <h2 className="text-2xl font-black tracking-tight text-slate-900 flex items-center gap-2">
-                Giveaways <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Just announced</span>
-              </h2>
-            </div>
-            {/* Scroll Navigation Chevrons */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleScrollGiveaways('left')}
-                className="p-2.5 rounded-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-500 transition-all shadow-sm"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handleScrollGiveaways('right')}
-                className="p-2.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-md shadow-indigo-500/10"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Horizontal Carousel */}
-          <div
-            ref={giveawaysContainerRef}
-            className="flex gap-6 overflow-x-auto pb-6 pt-2 scrollbar-none snap-x snap-mandatory"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-          >
-            {events.map((event) => (
-              <div
-                key={event.id}
-                className="flex-shrink-0 w-[240px] sm:w-[280px] snap-start bg-white border border-slate-200/80 rounded-2xl overflow-hidden group hover:border-slate-350 hover:shadow-lg transition-all duration-300 flex flex-col justify-between"
-              >
-                <Link href={`/events/${event.id}`} className="block group/carousel-card">
-                  {/* Card Media */}
-                  <div className="relative aspect-video w-full overflow-hidden bg-slate-100">
-                    <Image
-                      src={event.image}
-                      alt={event.title}
-                      fill
-                      sizes="280px"
-                      className="object-cover group-hover/carousel-card:scale-105 transition-transform duration-500"
-                    />
-
-                    {/* Soft black shadow overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
-                  </div>
-
-                  {/* Card Body */}
-                  <div className="p-4 space-y-2">
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                      <span className="capitalize">{event.category}</span>
-                      <span>•</span>
-                      <span className="truncate max-w-[120px]">{event.organizer}</span>
-                    </div>
-                    <h3 className="font-extrabold text-base text-slate-900 group-hover/carousel-card:text-indigo-650 transition-colors truncate">
-                      {event.title}
-                    </h3>
-                    <p className="text-slate-500 text-xs line-clamp-2 leading-relaxed">
-                      {event.description}
-                    </p>
-                  </div>
-                </Link>
-
-                <div className="p-4 pt-0">
-                  <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                      <Calendar className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>{event.date}</span>
-                    </div>
-
-                    <button
-                      onClick={(e) => handleLikeToggle(event.id, e)}
-                      className={`p-2 rounded-full border transition-all ${likedEvents[event.id]
-                        ? 'bg-red-500 text-white border-red-500 scale-105'
-                        : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-                        }`}
-                    >
-                      <Heart className={`w-3.5 h-3.5 ${likedEvents[event.id] ? 'fill-current' : ''}`} />
-                    </button>
-                  </div>
-                </div>
-
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Regular Events Filter & Grid Section */}
+        {/*All Events Directory */}
         <div className="space-y-6 pt-6 text-left border-t border-slate-200">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
@@ -742,6 +647,97 @@ export default function EventsPage() {
           </div>
         </div>
       </div>
-    </div>
+
+        {/* Giveaways Horizontal Slider Section */}
+        <div className="space-y-6 pt-6 text-left px-5">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <h2 className="text-2xl font-black tracking-tight text-slate-900 flex items-center gap-2">
+                Giveaways <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Just announced</span>
+              </h2>
+            </div>
+            {/* Scroll Navigation Chevrons */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleScrollGiveaways('left')}
+                className="p-2.5 rounded-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-500 transition-all shadow-sm"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleScrollGiveaways('right')}
+                className="p-2.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-md shadow-indigo-500/10"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Horizontal Carousel */}
+          <div
+            ref={giveawaysContainerRef}
+            className="flex gap-6 overflow-x-auto pb-6 pt-2 scrollbar-none snap-x snap-mandatory"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {events.map((event) => (
+              <div
+                key={event.id}
+                className="flex-shrink-0 w-[240px] sm:w-[280px] snap-start bg-white border border-slate-200/80 rounded-2xl overflow-hidden group hover:border-slate-350 hover:shadow-lg transition-all duration-300 flex flex-col justify-between"
+              >
+                <Link href={`/events/${event.id}`} className="block group/carousel-card">
+                  {/* Card Media */}
+                  <div className="relative aspect-video w-full overflow-hidden bg-slate-100">
+                    <Image
+                      src={event.image}
+                      alt={event.title}
+                      fill
+                      sizes="280px"
+                      className="object-cover group-hover/carousel-card:scale-105 transition-transform duration-500"
+                    />
+
+                    {/* Soft black shadow overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
+                  </div>
+
+                  {/* Card Body */}
+                  <div className="p-4 space-y-2">
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                      <span className="capitalize">{event.category}</span>
+                      <span>•</span>
+                      <span className="truncate max-w-[120px]">{event.organizer}</span>
+                    </div>
+                    <h3 className="font-extrabold text-base text-slate-900 group-hover/carousel-card:text-indigo-650 transition-colors truncate">
+                      {event.title}
+                    </h3>
+                    <p className="text-slate-500 text-xs line-clamp-2 leading-relaxed">
+                      {event.description}
+                    </p>
+                  </div>
+                </Link>
+
+                <div className="p-4 pt-0">
+                  <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                      <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>{event.date}</span>
+                    </div>
+
+                    <button
+                      onClick={(e) => handleLikeToggle(event.id, e)}
+                      className={`p-2 rounded-full border transition-all ${likedEvents[event.id]
+                        ? 'bg-red-500 text-white border-red-500 scale-105'
+                        : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                        }`}
+                    >
+                      <Heart className={`w-3.5 h-3.5 ${likedEvents[event.id] ? 'fill-current' : ''}`} />
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
   );
 }
