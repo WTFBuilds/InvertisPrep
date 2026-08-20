@@ -1,5 +1,16 @@
 import cloudinary from '../config/cloudinary.js';
 import fs from 'fs/promises';
+import http from 'http';
+import https from 'https';
+import axios from 'axios';
+
+// Create axios instance with keep-alive for Cloudinary requests
+// This reuses TCP connections, reducing latency for repeated requests
+export const cloudinaryAxios = axios.create({
+  httpAgent: new http.Agent({ keepAlive: true, maxSockets: 10 }),
+  httpsAgent: new https.Agent({ keepAlive: true, maxSockets: 10 }),
+  timeout: 30000,
+});
 
 export const uploadPDF = async (filePath, _metadata) => {
   try {

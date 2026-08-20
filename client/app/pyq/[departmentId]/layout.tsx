@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+// Server-only env var (no NEXT_PUBLIC_ prefix → never in the browser bundle).
+// Read server-side for SEO metadata; defaults to local dev.
+const API_URL = process.env.API_URL ;
+const PDF_API_URL = process.env.PDF_API_URL ;
 
 type DepartmentResponse = {
   data?: { displayName?: string; name?: string };

@@ -1,7 +1,9 @@
+import mongoose from 'mongoose';
 import { PDFDocument, rgb, degrees, StandardFonts } from 'pdf-lib';
-import axios from 'axios';
 import { PYQPaper } from '../models/PYQPaper.js';
 import { Syllabus } from '../models/Syllabus.js';
+import { pdfCache, getCache, setCache } from '../utils/cache.js';
+import { cloudinaryAxios } from '../services/cloudinaryService.js';
 
 const hexToRgb = (hex) => {
   const v = hex.replace('#', '');
@@ -152,6 +154,9 @@ const applyWatermark = async (pdfDoc, user) => {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 const loadPaper = async (id, type) => {
+  // Invalid id formats (e.g. old UUID links) can't match any document —
+  // return null (→ 404) instead of letting mongoose's CastError bubble up as a 500.
+  if (!mongoose.isValidObjectId(id)) return { paper: null };
   if (type === 'syllabus') return { paper: await Syllabus.findById(id) };
   return {
     paper: await PYQPaper.findById(id)
@@ -206,12 +211,29 @@ const buildDownloadFilename = (paper, isSyllabus) => {
 };
 
 const buildWatermarkedPdf = async (paper, user) => {
-  const { data: pdfBytes } = await axios.get(paper.cloudinaryUrl, {
+  // Create a cache key based on paper ID, user ID, and type (view/download)
+  // Since watermarks include user-specific info (email, timestamp), we need a unique key per user+paper
+  const cacheKey = `watermarked:${paper._id}:${user.id}:${Date.now() / (60 * 1000) | 0}`; // Cache for 1 minute per user
+  
+  // Try to get from cache first
+  const cached = getCache(cacheKey);
+  if (cached) {
+    console.log(`[PDF Cache] HIT for ${cacheKey}`);
+    return cached;
+  }
+  
+  console.log(`[PDF Cache] MISS for ${cacheKey}`);
+  const { data: pdfBytes } = await cloudinaryAxios.get(paper.cloudinaryUrl, {
     responseType: 'arraybuffer',
   });
   const pdfDoc = await PDFDocument.load(pdfBytes);
   await applyWatermark(pdfDoc, user);
-  return pdfDoc.save();
+  const watermarkedBytes = await pdfDoc.save();
+  
+  // Cache the watermarked PDF for 1 minute (TTL = 60000ms)
+  setCache(cacheKey, watermarkedBytes, 60000);
+  
+  return watermarkedBytes;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -89,7 +89,7 @@ export default function PYQBrowsePage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
             {filteredDepartments.map((dept) => (
-              <Link key={dept._id} href={`/pyq/${dept._id}`}>
+              <Link key={dept._id} href={`/pyq/${dept.id}`}>
                 <Card className="group h-full overflow-hidden border-slate-200/70 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl">
                   <CardHeader className="pb-4">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center">

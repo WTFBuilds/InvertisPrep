@@ -96,4 +96,18 @@ const userSchema = new Schema(
 // Indexes
 userSchema.index({ role: 1, isActive: 1 });
 
+// Invalidate Redis cache when role or isActive changes
+userSchema.post('save', async function(doc) {
+  if (this.isModified('role') || this.isModified('isActive')) {
+    try {
+      const { getRedis } = await import('../shared/redisClient.js');
+      const redis = await getRedis();
+      await redis.del(`user:${doc._id}`);
+      console.log(`[User] Invalidated cache for user ${doc._id}`);
+    } catch (err) {
+      console.error('[User] Cache invalidation error:', err);
+    }
+  }
+});
+
 export const User = mongoose.model('User', userSchema);
