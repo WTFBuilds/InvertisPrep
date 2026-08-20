@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useAuth } from '@/contexts/AuthContext';
 import { bugApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +27,9 @@ import {
 
 export default function AdminBugsPage() {
   const router = useRouter();
+  const { user } = useAuth();
+  // SRT can view bug reports but cannot change status or delete
+  const canModify = user?.role !== 'srt';
   const [bugs, setBugs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -245,6 +249,8 @@ export default function AdminBugsPage() {
                   
                   {/* Action buttons */}
                   <div className="flex flex-wrap items-center gap-2 sm:self-center">
+                    {canModify && (
+                      <>
                     {bug.status === 'pending' && (
                       <Button
                         size="sm"
@@ -300,6 +306,8 @@ export default function AdminBugsPage() {
                     >
                       <Trash2 className="h-3.5 w-3.5" /> Delete
                     </Button>
+                      </>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent className="p-6 space-y-4">

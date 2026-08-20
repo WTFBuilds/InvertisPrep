@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useAuth } from '@/contexts/AuthContext';
 import { reportApi, pyqApi } from '@/lib/api';
 import type { Report } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,9 @@ import {
 
 export default function AdminReportsPage() {
   const router = useRouter();
+  const { user } = useAuth();
+  // SRT can view reports but cannot dismiss or delete papers
+  const canModify = user?.role !== 'srt';
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -321,7 +325,7 @@ export default function AdminReportsPage() {
                               View PDF
                             </Button>
                           )}
-                          {report.status === 'pending' && (
+                          {report.status === 'pending' && canModify && (
                             <>
                               <Button 
                                 size="sm" 

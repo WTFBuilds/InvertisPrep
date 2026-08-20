@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useAuth } from '@/contexts/AuthContext';
 import { branchApi, departmentApi } from '@/lib/api';
 import type { Branch, Department, CreateBranchDTO } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import Link from 'next/link';
 
 export default function BranchesPage() {
+  const { user } = useAuth();
+  // SRT can view branches but cannot create, edit or delete
+  const canModify = user?.role !== 'srt';
   const [branches, setBranches] = useState<Branch[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,7 +175,7 @@ export default function BranchesPage() {
           </Alert>
         )}
 
-        {!showForm && (
+        {canModify && !showForm && (
           <Button onClick={() => setShowForm(true)} className="mb-6">
             + Add New Branch
           </Button>
@@ -339,14 +343,16 @@ export default function BranchesPage() {
                           {branch.isActive ? '✓ Active' : '✗ Inactive'}
                         </p>
                       </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => handleEdit(branch)}>
-                          Edit
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => handleDelete(branch._id)}>
-                          Delete
-                        </Button>
-                      </div>
+                      {canModify && (
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => handleEdit(branch)}>
+                            Edit
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleDelete(branch._id)}>
+                            Delete
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

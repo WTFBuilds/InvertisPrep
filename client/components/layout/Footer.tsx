@@ -59,7 +59,7 @@ export default function Footer() {
       { name: "Our Team", path: "/our-team" },
     ],
     "Resources": [
-      { name: "Study Materials", path: "/pyq" },
+      { name: "Study Materials", path: "/resources" },
       { name: "Previous Year Papers", path: "/pyq" },
       { name: "Syllabus", path: "/resources/syllabus" },
     ],
@@ -162,9 +162,9 @@ export default function Footer() {
           </p>
 
           <div className="flex items-center gap-1.5 flex-wrap justify-center">
-            <span>Designed & Developed by</span>
+            <span>Founded, Designed & Developed by</span>
             <a
-              href="https://www.ahqafali.dev"
+              href="https://www.linkedin.com/in/ahqaf-ali/"
               target="_blank"
               rel="noopener noreferrer"
               className="text-white hover:text-white/80 transition-colors"

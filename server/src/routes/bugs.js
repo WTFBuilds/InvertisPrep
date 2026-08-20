@@ -1,6 +1,6 @@
 import express from 'express';
 import { createBug, getBugs, updateBugStatus, deleteBug } from '../controllers/bugController.js';
-import { authenticateJWT, isAdmin } from '../middleware/auth.js';
+import { authenticateJWT, isAdmin, isStaff } from '../middleware/auth.js';
 import jwt from 'jsonwebtoken';
 
 const router = express.Router();
@@ -24,7 +24,8 @@ const optionalAuthenticateJWT = (req, res, next) => {
 };
 
 router.post('/', optionalAuthenticateJWT, createBug);
-router.get('/', authenticateJWT, isAdmin, getBugs);
+// Staff (incl. SRT) can view bugs; only admin/super-admin can update status or delete
+router.get('/', authenticateJWT, isStaff, getBugs);
 router.patch('/:id', authenticateJWT, isAdmin, updateBugStatus);
 router.delete('/:id', authenticateJWT, isAdmin, deleteBug);
 

@@ -19,20 +19,27 @@ export default function DepartmentPYQPage() {
   const router = useRouter();
   const departmentId = params.departmentId as string;
 
-  // SWR — cached data fetching, revalidates on focus disabled to avoid unnecessary requests
+  // URL carries the department slug (e.g. "btech"). Resolve it to the full
+  // department first — papers and branches are keyed by the department's
+  // ObjectId in the DB, so those queries wait for the resolved _id.
   const { data: deptRes, error: deptError } = useSWR<APIResponse<Department>>(
     `/departments/${departmentId}`,
     fetcher,
     { revalidateOnFocus: false }
   );
+  const department = deptRes?.data || null;
+  const deptObjectId = department?._id;
+
   const { data: branchesRes, error: branchesError } = useSWR<APIResponse<Branch[]>>(
-    `/departments/${departmentId}/branches`,
+    deptObjectId ? `/departments/${deptObjectId}/branches` : null,
     fetcher,
     { revalidateOnFocus: false }
   );
+  // Papers live on the PDF service — use pyqApi (not the main-server fetcher,
+  // whose /api/pyq route was removed during the microservice migration)
   const { data: papersRes, error: papersError } = useSWR<APIResponse<PYQPaper[]>>(
-    `/pyq?departmentId=${departmentId}`,
-    fetcher,
+    deptObjectId ? ['pyq-papers', deptObjectId] : null,
+    () => pyqApi.getFiltered({ departmentId: deptObjectId! }),
     { revalidateOnFocus: false }
   );
   const { data: sessionsRes, error: sessionsError } = useSWR<APIResponse<Session[]>>(
@@ -41,11 +48,10 @@ export default function DepartmentPYQPage() {
     { revalidateOnFocus: false }
   );
 
-  const department = deptRes?.data || null;
   const branches = branchesRes?.data || [];
   const papers = papersRes?.data || [];
   const sessions = sessionsRes?.data || [];
-  const loading = !deptRes && !deptError && !branchesRes && !papersRes && !sessionsRes;
+  const loading = (!deptRes && !deptError) || (!branchesRes && !branchesError) || (!papersRes && !papersError);
   const error = deptError || branchesError || papersError || sessionsError;
 
   // Filter states
@@ -327,7 +333,6 @@ export default function DepartmentPYQPage() {
                       <option value="">All Types</option>
                       <option value="mid-term">Mid-Term</option>
                       <option value="end-term">End-Term</option>
-                      <option value="sessional">Sessional</option>
                     </select>
                   </div>
 

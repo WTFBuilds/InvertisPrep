@@ -1,9 +1,19 @@
 import { Session } from '../models/Session.js';
+import { getCache, setCache, delCache } from '../utils/cache.js';
 
 // Get all sessions (public)
 export const getSessions = async (_req, res) => {
   try {
-    const sessions = await Session.find({ isActive: true }).sort({ startYear: -1 });
+    const cacheKey = 'sessions:all';
+    const cached = getCache(cacheKey);
+    if (cached) {
+      console.log(`[Cache] HIT for ${cacheKey}`);
+      return res.json({ success: true, data: cached });
+    }
+    
+    console.log(`[Cache] MISS for ${cacheKey}`);
+    const sessions = await Session.find({ isActive: true }).sort({ startYear: -1 }).lean();
+    setCache(cacheKey, sessions, 5 * 60 * 1000); // 5 minutes TTL
     res.json({ success: true, data: sessions });
   } catch (error) {
     console.error('Get sessions error:', error);
@@ -35,6 +45,7 @@ export const createSession = async (req, res) => {
       isActive: true,
     });
 
+    delCache('sessions:all');
     res.status(201).json({ success: true, data: session });
   } catch (error) {
     console.error('Create session error:', error);
@@ -59,6 +70,8 @@ export const updateSession = async (req, res) => {
       return;
     }
 
+    delCache('sessions:all');
+
     res.json({ success: true, data: session });
   } catch (error) {
     console.error('Update session error:', error);
@@ -81,6 +94,8 @@ export const deleteSession = async (req, res) => {
       res.status(404).json({ success: false, message: 'Session not found' });
       return;
     }
+
+    delCache('sessions:all');
 
     res.json({ success: true, message: 'Session deleted successfully' });
   } catch (error) {

@@ -1,15 +1,35 @@
+import mongoose from 'mongoose';
 import { Department } from '../models/Department.js';
 import { Branch } from '../models/Branch.js';
+import { getCache, setCache, delCache } from '../utils/cache.js';
 
-// Get single department by ID (public)
+// Resolve a department by ObjectId OR slug (e.g. "btech") — slugs power the
+// public /pyq/<slug> URLs. Returns null when neither matches.
+const findDepartmentByIdOrSlug = async (idOrSlug) => {
+  if (mongoose.isValidObjectId(idOrSlug)) {
+    return Department.findById(idOrSlug).lean();
+  }
+  return Department.findOne({ id: idOrSlug }).lean();
+};
+
+// Get single department by ID or slug (public)
 export const getDepartmentById = async (req, res) => {
   try {
     const { id } = req.params;
-    const department = await Department.findById(id);
+    const cacheKey = `department:${id}`;
+    const cached = getCache(cacheKey);
+    if (cached) {
+      console.log(`[Cache] HIT for ${cacheKey}`);
+      return res.json({ success: true, data: cached });
+    }
+
+    console.log(`[Cache] MISS for ${cacheKey}`);
+    const department = await findDepartmentByIdOrSlug(id);
     if (!department || !department.isActive) {
       res.status(404).json({ success: false, message: 'Department not found' });
       return;
     }
+    setCache(cacheKey, department, 5 * 60 * 1000); // 5 minutes TTL
     res.json({ success: true, data: department });
   } catch (error) {
     console.error('Get department by ID error:', error);
@@ -20,7 +40,16 @@ export const getDepartmentById = async (req, res) => {
 // Get all departments (public)
 export const getDepartments = async (_req, res) => {
   try {
-    const departments = await Department.find({ isActive: true }).sort({ name: 1 });
+    const cacheKey = 'departments:all';
+    const cached = getCache(cacheKey);
+    if (cached) {
+      console.log(`[Cache] HIT for ${cacheKey}`);
+      return res.json({ success: true, data: cached });
+    }
+    
+    console.log(`[Cache] MISS for ${cacheKey}`);
+    const departments = await Department.find({ isActive: true }).sort({ name: 1 }).lean();
+    setCache(cacheKey, departments, 5 * 60 * 1000); // 5 minutes TTL
     res.json({ success: true, data: departments });
   } catch (error) {
     console.error('Get departments error:', error);
@@ -62,6 +91,7 @@ export const createDepartment = async (req, res) => {
       isActive: true,
     });
 
+    delCache('departments:all');
     res.status(201).json({ success: true, data: department });
   } catch (error) {
     console.error('Create department error:', error);
@@ -75,8 +105,11 @@ export const updateDepartment = async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
+    // Match by _id (ObjectId) when possible, else by the slug `id` field
+    const query = mongoose.isValidObjectId(id) ? { _id: id } : { id };
+
     const department = await Department.findOneAndUpdate(
-      { id },
+      query,
       { $set: updates },
       { new: true, runValidators: true }
     );
@@ -85,6 +118,9 @@ export const updateDepartment = async (req, res) => {
       res.status(404).json({ success: false, message: 'Department not found' });
       return;
     }
+
+    delCache('departments:all');
+    delCache(`department:${id}`);
 
     res.json({ success: true, data: department });
   } catch (error) {
@@ -98,9 +134,12 @@ export const deleteDepartment = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Match by _id (ObjectId) when possible, else by the slug `id` field
+    const query = mongoose.isValidObjectId(id) ? { _id: id } : { id };
+
     // Soft delete
     const department = await Department.findOneAndUpdate(
-      { id },
+      query,
       { $set: { isActive: false } },
       { new: true }
     );
@@ -109,6 +148,10 @@ export const deleteDepartment = async (req, res) => {
       res.status(404).json({ success: false, message: 'Department not found' });
       return;
     }
+
+    delCache('departments:all');
+    delCache(`department:${id}`);
+    delCache(`branches:${id}`);
 
     res.json({ success: true, message: 'Department deleted successfully' });
   } catch (error) {
@@ -122,8 +165,27 @@ export const getBranchesByDepartment = async (req, res) => {
   try {
     const { departmentId } = req.params;
 
-    const branches = await Branch.find({ departmentId, isActive: true }).sort({ name: 1 });
+    // Branches store the department's ObjectId — resolve slugs to it first
+    let deptObjectId = departmentId;
+    if (!mongoose.isValidObjectId(departmentId)) {
+      const department = await Department.findOne({ id: departmentId }).lean();
+      if (!department || !department.isActive) {
+        res.status(404).json({ success: false, message: 'Department not found' });
+        return;
+      }
+      deptObjectId = department._id.toString();
+    }
 
+    const cacheKey = `branches:${deptObjectId}`;
+    const cached = getCache(cacheKey);
+    if (cached) {
+      console.log(`[Cache] HIT for ${cacheKey}`);
+      return res.json({ success: true, data: cached });
+    }
+
+    console.log(`[Cache] MISS for ${cacheKey}`);
+    const branches = await Branch.find({ departmentId: deptObjectId, isActive: true }).sort({ name: 1 }).lean();
+    setCache(cacheKey, branches, 5 * 60 * 1000); // 5 minutes TTL
     res.json({ success: true, data: branches });
   } catch (error) {
     console.error('Get branches by department error:', error);

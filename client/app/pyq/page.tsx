@@ -35,9 +35,12 @@ export default function PYQBrowsePage() {
     <div className="min-h-screen bg-muted/30">
       <div className="container mx-auto px-4 py-12">
         <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Browse PYQ Papers</h1>
-          <p className="text-xl text-muted-foreground">
-            Select your department to view previous year question papers
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+            Invertis University Previous Year Question Papers (PYQ)
+          </h1>
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+            Free department-wise previous year question papers for B.Tech, BCA, BBA, MCA and more —
+            select your department to view branch-wise, semester-wise and subject-wise exam papers.
           </p>
         </div>
 
@@ -86,7 +89,7 @@ export default function PYQBrowsePage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
             {filteredDepartments.map((dept) => (
-              <Link key={dept._id} href={`/pyq/${dept._id}`}>
+              <Link key={dept._id} href={`/pyq/${dept.id}`}>
                 <Card className="group h-full overflow-hidden border-slate-200/70 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl">
                   <CardHeader className="pb-4">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center">

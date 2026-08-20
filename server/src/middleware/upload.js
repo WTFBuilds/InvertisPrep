@@ -1,6 +1,12 @@
 import multer from 'multer';
 import path from 'path';
 
+// Read a positive number from env (MB), falling back to `fallback`
+const envMb = (key, fallback) => {
+  const val = parseFloat(process.env[key]);
+  return Number.isFinite(val) && val > 0 ? val * 1024 * 1024 : fallback * 1024 * 1024;
+};
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
@@ -21,12 +27,12 @@ const fileFilter = (_req, file, cb) => {
   }
 };
 
-// Multer instance
+// Multer instance — max PDF size in MB from env (default 10MB)
 export const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: envMb('MAX_PDF_SIZE_MB', 10),
   },
 });
 
@@ -40,11 +46,11 @@ const imageFilter = (_req, file, cb) => {
   }
 };
 
-// Multer instance for image uploads
+// Multer instance for image uploads — max image size in MB from env (default 5MB)
 export const uploadImage = multer({
   storage,
   fileFilter: imageFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: envMb('MAX_IMAGE_SIZE_MB', 5),
   },
 });

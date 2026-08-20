@@ -7,12 +7,15 @@ interface GlowCardProps {
   children: React.ReactNode;
   className?: string;
   glowColor?: string;
+  /** Extra classes for the inner content wrapper (default: block). Pass `flex flex-1 flex-col` to let children like `flex-1`/`mt-auto` fill the card height. */
+  contentClassName?: string;
 }
 
 export const GlowCard = ({
   children,
   className = '',
   glowColor = 'rgba(99, 102, 241, 0.15)',
+  contentClassName,
 }: GlowCardProps) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -42,7 +45,7 @@ export const GlowCard = ({
           background: `radial-gradient(600px circle at ${position.x}px ${position.y}px, ${glowColor}, transparent 40%)`,
         }}
       />
-      <div className="relative z-10">{children}</div>
+      <div className={cn('relative z-10', contentClassName)}>{children}</div>
     </div>
   );
 };
