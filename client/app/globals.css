@@ -186,16 +186,46 @@
 }
 
 @media print {
-  body { background: white !important; }
-  body > * { visibility: hidden; }
-  .resume-builder-shell, .resume-builder-shell * { visibility: visible; }
-  .resume-builder-shell { position: absolute; inset: 0; min-height: 0 !important; background: white !important; padding: 0 !important; }
-  .no-print, .resume-editor { display: none !important; }
-  .resume-preview-wrap { overflow: visible !important; border-radius: 0 !important; background: white !important; padding: 0 !important; box-shadow: none !important; }
-  .resume-page { margin: 0 !important; min-height: auto; box-shadow: none !important; }
-  .resume-watermark { position: fixed; right: 0.42in; bottom: 0.24in; }
-  /* Hide the live preview overlay, show the print watermark */
-  .resume-preview-watermark { display: none !important; }
+  body { 
+    background: white !important; 
+    color: #0f172a !important; 
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Hide non-printable elements */
+  .no-print, nav, footer, .resume-editor { 
+    display: none !important; 
+  }
+
+  /* Support for Resume Builder */
+  .resume-builder-shell { 
+    position: absolute; 
+    inset: 0; 
+    min-height: 0 !important; 
+    background: white !important; 
+    padding: 0 !important; 
+  }
+  .resume-preview-wrap { 
+    overflow: visible !important; 
+    border-radius: 0 !important; 
+    background: white !important; 
+    padding: 0 !important; 
+    box-shadow: none !important; 
+  }
+  .resume-page { 
+    margin: 0 !important; 
+    min-height: auto; 
+    box-shadow: none !important; 
+  }
+  .resume-watermark { 
+    position: fixed; 
+    right: 0.42in; 
+    bottom: 0.24in; 
+  }
+  .resume-preview-watermark { 
+    display: none !important; 
+  }
   .resume-print-watermark {
     display: block;
     position: fixed;
@@ -212,7 +242,25 @@
     z-index: 9999;
     white-space: nowrap;
   }
-  @page { size: A4; margin: 0; }
+
+  /* Support for ATS Resume Score Report */
+  .ats-score-printable {
+    display: block !important;
+    visibility: visible !important;
+    background: white !important;
+    color: #0f172a !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .ats-score-printable * {
+    visibility: visible !important;
+  }
+
+  @page { 
+    size: A4 portrait; 
+    margin: 10mm; 
+  }
 }
 
 /* printing-clean: hides print watermark when user paid for clean PDF */
