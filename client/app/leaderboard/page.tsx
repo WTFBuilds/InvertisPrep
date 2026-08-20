@@ -2,19 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Trophy, Medal, Crown, Sparkles, Star, Award, 
-  BookOpen, Users, CheckCircle2, Target, Flame, 
-  Shield, Zap, ChevronRight, Search, Landmark 
+import {
+  Trophy, Medal, Crown, Star, Award, Users,
+  CheckCircle2, Flame, ChevronRight, Search, Landmark,
+  Sparkles, ShieldCheck,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { leaderboardApi, departmentApi } from '@/lib/api';
+import { optimizeAvatar } from '@/lib/avatar';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Spotlight } from '@/components/ui/spotlight';
+import { GlowCard } from '@/components/ui/glow-card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 
 interface LeaderboardEntry {
   userId: string;
@@ -56,23 +61,22 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/login');
+      router.replace('/login');
     }
   }, [user, loading, router]);
 
-  if (loading) {
+  if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-slate-600 dark:text-slate-400 animate-pulse">Loading rankings...</p>
+      <div className="relative min-h-screen bg-slate-50">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-10">
+          <Skeleton className="mb-8 h-10 w-64" />
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Skeleton className="h-96 rounded-2xl" />
+            <Skeleton className="h-96 rounded-2xl lg:col-span-2" />
+          </div>
         </div>
       </div>
     );
-  }
-
-  if (!user) {
-    return null;
   }
 
   return <LeaderboardContent />;
@@ -83,25 +87,24 @@ function LeaderboardContent() {
   const [boardType, setBoardType] = useState<'all_time' | 'weekly'>('all_time');
   const [selectedDept, setSelectedDept] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  
+
   const [rankings, setRankings] = useState<LeaderboardEntry[]>([]);
   const [myStats, setMyStats] = useState<UserStats | null>(null);
   const [departments, setDepartments] = useState<{ id: string; displayName: string }[]>([]);
-  
+
   const [loadingList, setLoadingList] = useState<boolean>(true);
   const [loadingStats, setLoadingStats] = useState<boolean>(true);
-  
+
   // Load departments
   useEffect(() => {
     async function loadDepts() {
       try {
         const res = await departmentApi.getAll();
         if (res.success && res.data) {
-          setDepartments(res.data.map(d => ({ id: d.id, displayName: d.displayName })));
+          setDepartments(res.data.map((d) => ({ id: d.id, displayName: d.displayName })));
         }
       } catch (err) {
         console.error('Failed to load departments, using fallbacks', err);
-        // Standard Invertis university departments fallback
         setDepartments([
           { id: 'mca', displayName: 'MCA' },
           { id: 'bca', displayName: 'BCA' },
@@ -156,7 +159,7 @@ function LeaderboardContent() {
     fetchMyStats();
   }, [user]);
 
-  const filteredRankings = rankings.filter(entry => 
+  const filteredRankings = rankings.filter((entry) =>
     entry.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (entry.course && entry.course.toLowerCase().includes(searchQuery.toLowerCase()))
   );
@@ -164,24 +167,24 @@ function LeaderboardContent() {
   const getRankBadgeStyle = (rank: number) => {
     switch (rank) {
       case 1:
-        return 'bg-gradient-to-r from-amber-400 to-amber-500 text-white shadow-lg shadow-amber-400/20';
+        return 'bg-amber-400 text-white shadow-md shadow-amber-400/30';
       case 2:
-        return 'bg-gradient-to-r from-slate-300 to-slate-400 text-white shadow-lg shadow-slate-300/20';
+        return 'bg-slate-300 text-white shadow-md shadow-slate-300/30';
       case 3:
-        return 'bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-lg shadow-amber-700/20';
+        return 'bg-amber-600 text-white shadow-md shadow-amber-600/30';
       default:
-        return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
+        return 'bg-slate-100 text-slate-600';
     }
   };
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
       case 1:
-        return <Crown className="h-5 w-5 text-amber-400 drop-shadow animate-pulse" />;
+        return <Crown className="h-5 w-5 text-white drop-shadow" />;
       case 2:
-        return <Medal className="h-5 w-5 text-slate-300 drop-shadow" />;
+        return <Medal className="h-5 w-5 text-white drop-shadow" />;
       case 3:
-        return <Medal className="h-5 w-5 text-amber-700 drop-shadow" />;
+        return <Medal className="h-5 w-5 text-white drop-shadow" />;
       default:
         return <span className="text-sm font-bold">#{rank}</span>;
     }
@@ -189,246 +192,246 @@ function LeaderboardContent() {
 
   const getBadgeColorClasses = (color: 'white' | 'pink' | 'indigo', completed: boolean) => {
     if (!completed) {
-      return 'bg-slate-50 border border-slate-200/60 text-slate-400 opacity-60';
+      return 'border border-slate-200 bg-slate-50 text-slate-300';
     }
     switch (color) {
       case 'pink':
-        return 'bg-pink-50 border border-pink-200 text-pink-600 dark:bg-pink-950/20 dark:border-pink-900/50 dark:text-pink-400';
+        return 'border border-pink-200 bg-pink-50 text-pink-600';
       case 'indigo':
-        return 'bg-indigo-50 border border-indigo-200 text-indigo-600 dark:bg-indigo-950/20 dark:border-indigo-900/50 dark:text-indigo-400';
+        return 'border border-indigo-200 bg-indigo-50 text-indigo-600';
       case 'white':
       default:
-        return 'bg-white border border-slate-300 text-slate-700 shadow-sm dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300';
+        return 'border border-slate-300 bg-white text-slate-700 shadow-sm';
     }
   };
 
+  const nextBadge = myStats?.badges.find((b) => !b.completed);
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-20">
-      {/* ─── Main Content Layout ────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 mt-10">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* ─── Sidebar / Sticky Current User Summary ──────────────── */}
-          <div className="lg:col-span-1 space-y-6">
-            <Card className="border border-slate-200/60 dark:border-slate-800 shadow-xl shadow-slate-100/50 dark:shadow-none overflow-hidden sticky top-24">
-              <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 p-6 text-white relative">
-                <div className="absolute right-4 top-4 opacity-10">
-                  <Landmark className="h-28 w-28" />
-                </div>
-                
-                <div className="flex items-center gap-4 relative z-10">
-                  <Avatar className="h-16 w-16 border-2 border-white/20 shadow-md">
-                    {user?.picture && <AvatarImage src={user.picture} alt={user.name} />}
-                    <AvatarFallback className="bg-white/20 text-white text-xl font-bold">
+    <div className="relative min-h-screen bg-slate-50 pb-20">
+      {/* Subtle professional light accent */}
+      <Spotlight
+        className="absolute inset-x-0 top-0 h-80 overflow-hidden"
+        gradientFirst="radial-gradient(68.54% 68.72% at 50% 0%, rgba(99,102,241,0.08) 0%, transparent 50.11%)"
+        gradientSecond="radial-gradient(50% 50% at 50% 50%, rgba(99,102,241,0.04) 0%, transparent 50.11%)"
+        gradientThird="radial-gradient(80% 60% at 50% 0%, rgba(139,92,246,0.06) 0%, transparent 50%)"
+      />
+
+      <div className="relative mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-10">
+        {/* ── page header ── */}
+        <div className="mb-8">
+          <p className="text-sm font-semibold uppercase tracking-widest text-slate-500">Community</p>
+          <h1 className="mt-1 flex items-center gap-2 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+            <Trophy className="h-8 w-8 text-amber-400" />
+            Leaderboard
+          </h1>
+          <p className="mt-2 text-slate-500">Live rankings of the most helpful contributors on InvertisPrep.</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* ── sidebar / current user summary ── */}
+          <div className="space-y-6 lg:col-span-1">
+            <GlowCard className="sticky top-24 overflow-hidden rounded-2xl border-slate-200 bg-white">
+              {/* identity */}
+              <div className="relative px-6 pb-5 pt-6">
+                <Landmark className="pointer-events-none absolute -right-6 -top-6 h-36 w-36 text-slate-100" />
+                <div className="relative flex items-center gap-4">
+                  <Avatar className="h-16 w-16 border-2 border-slate-200 shadow-sm">
+                    {user?.picture && (
+                      <AvatarImage
+                        src={optimizeAvatar(user.picture)}
+                        alt={user.name}
+                        referrerPolicy="no-referrer"
+                        className="object-cover"
+                      />
+                    )}
+                    <AvatarFallback className="bg-slate-900 text-xl font-bold text-white">
                       {user?.name?.slice(0, 2).toUpperCase() || 'IP'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
-                    <p className="font-extrabold text-lg truncate leading-tight">{user?.name}</p>
-                    <p className="text-xs text-indigo-100/80 mt-1 truncate">{user?.email}</p>
-                    <p className="text-xs font-semibold bg-white/20 rounded-full px-2.5 py-0.5 inline-block mt-2">
-                      {user?.course || 'Student'}
+                    <p className="truncate text-lg font-extrabold leading-tight text-slate-900">{user?.name}</p>
+                    <p className="mt-0.5 truncate text-xs text-slate-400">{user?.email}</p>
+                    <Badge variant="secondary" className="mt-2">{user?.course || 'Student'}</Badge>
+                  </div>
+                </div>
+
+                <div className="relative mt-6 grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3 text-center">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">All-Time Rank</p>
+                    <p className="mt-1 text-3xl font-black tabular-nums tracking-tight text-slate-900">
+                      {loadingStats ? '…' : `#${myStats?.allTimeRank || '-'}`}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3 text-center">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Weekly Rank</p>
+                    <p className="mt-1 text-3xl font-black tabular-nums tracking-tight text-indigo-600">
+                      {loadingStats ? '…' : `#${myStats?.weeklyRank || '-'}`}
                     </p>
                   </div>
                 </div>
+              </div>
 
-                <div className="grid grid-cols-2 gap-4 mt-6 border-t border-white/10 pt-4 relative z-10">
-                  <div>
-                    <span className="text-xs text-indigo-100/60 block">All-Time Rank</span>
-                    <span className="text-3xl font-black tracking-tight">
-                      {loadingStats ? '...' : `#${myStats?.allTimeRank || '-'}`}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-xs text-indigo-100/60 block">Weekly Rank</span>
-                    <span className="text-3xl font-black tracking-tight text-pink-300">
-                      {loadingStats ? '...' : `#${myStats?.weeklyRank || '-'}`}
-                    </span>
-                  </div>
+              <Separator className="mx-6 w-auto" />
+
+              {/* score breakdown */}
+              <div className="grid grid-cols-3 gap-2 px-6 pt-5 text-center">
+                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+                  <Star className="mx-auto mb-1 h-4 w-4 text-indigo-500" />
+                  <span className="block text-xl font-bold leading-none tabular-nums text-slate-900">
+                    {loadingStats ? '…' : myStats?.points || 0}
+                  </span>
+                  <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Total Pts</span>
+                </div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+                  <Flame className="mx-auto mb-1 h-4 w-4 text-pink-500" />
+                  <span className="block text-xl font-bold leading-none tabular-nums text-slate-900">
+                    {loadingStats ? '…' : myStats?.weeklyPoints || 0}
+                  </span>
+                  <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Weekly</span>
+                </div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+                  <Award className="mx-auto mb-1 h-4 w-4 text-amber-500" />
+                  <span className="block text-xl font-bold leading-none tabular-nums text-slate-900">
+                    {loadingStats ? '…' : myStats?.badges.filter((b) => b.completed).length || 0}
+                  </span>
+                  <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Badges</span>
                 </div>
               </div>
 
-              <CardContent className="p-6 space-y-6 bg-white dark:bg-slate-950">
-                {/* Score breakdown metrics */}
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <Star className="h-4 w-4 text-indigo-500 mx-auto mb-1" />
-                    <span className="text-xl font-bold block leading-none">{loadingStats ? '...' : myStats?.points || 0}</span>
-                    <span className="text-[10px] text-slate-500 uppercase font-semibold">Total Pts</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <Flame className="h-4 w-4 text-pink-500 mx-auto mb-1" />
-                    <span className="text-xl font-bold block leading-none">{loadingStats ? '...' : myStats?.weeklyPoints || 0}</span>
-                    <span className="text-[10px] text-slate-500 uppercase font-semibold">Weekly</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <Award className="h-4 w-4 text-indigo-500 mx-auto mb-1" />
-                    <span className="text-xl font-bold block leading-none">
-                      {loadingStats ? '...' : myStats?.badges.filter(b => b.completed).length || 0}
-                    </span>
-                    <span className="text-[10px] text-slate-500 uppercase font-semibold">Badges</span>
-                  </div>
-                </div>
-
-                {/* Progress toward next milestone */}
-                {myStats && (
-                  <div className="space-y-3">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
-                      <span>Next Milestone</span>
-                      <span className="text-indigo-600 dark:text-indigo-400">
-                        {myStats.badges.find(b => !b.completed)?.name || 'All Completed!'}
-                      </span>
-                    </h3>
-                    {myStats.badges.find(b => !b.completed) && (() => {
-                      const nextBadge = myStats.badges.find(b => !b.completed)!;
-                      const progressPct = Math.min(100, Math.max(0, (nextBadge.current / nextBadge.target) * 100));
-                      return (
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-xs font-semibold">
-                            <span className="text-slate-600 dark:text-slate-400">{nextBadge.requirement}</span>
-                            <span>{nextBadge.current} / {nextBadge.target}</span>
-                          </div>
-                          <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                            <div 
-                              className="bg-gradient-to-r from-indigo-500 to-pink-500 h-full rounded-full transition-all duration-500" 
-                              style={{ width: `${progressPct}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
-
-                {/* Milestones & Badges Showcase */}
-                <div className="space-y-3">
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    My Badges & Badges Earned
-                  </h3>
-                  
-                  {loadingStats ? (
-                    <div className="space-y-2">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="h-10 bg-slate-100 dark:bg-slate-900 rounded-lg animate-pulse" />
-                      ))}
+              {/* progress toward next milestone */}
+              <div className="px-6 pt-6">
+                <h3 className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-500">
+                  <span>Next Milestone</span>
+                  <span className="font-bold normal-case tracking-normal text-indigo-600">
+                    {nextBadge?.name || 'All Completed!'}
+                  </span>
+                </h3>
+                {nextBadge && (
+                  <div className="mt-2 space-y-1.5">
+                    <div className="flex justify-between text-xs font-semibold">
+                      <span className="text-slate-600">{nextBadge.requirement}</span>
+                      <span className="tabular-nums text-slate-500">{nextBadge.current} / {nextBadge.target}</span>
                     </div>
-                  ) : myStats?.badges.length === 0 ? (
-                    <p className="text-sm text-slate-500 text-center py-4">No achievements yet. Start climbing!</p>
-                  ) : (
-                    <div className="grid grid-cols-5 gap-2">
-                      {myStats?.badges.map((badge) => (
-                        <div 
-                          key={badge.id} 
-                          title={`${badge.name}: ${badge.description} (${badge.completed ? 'Unlocked' : 'Locked'})`}
-                          className={`h-11 rounded-lg flex items-center justify-center text-lg relative transition-all ${
-                            getBadgeColorClasses(badge.color, badge.completed)
-                          }`}
-                        >
-                          <span>{badge.icon}</span>
-                          {badge.completed && (
-                            <span className="absolute -top-1 -right-1 bg-green-500 text-white rounded-full p-0.5 text-[8px] leading-none">
-                              ✓
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* ─── Rankings & Main Board ──────────────────────────────── */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card className="border border-slate-200/60 dark:border-slate-800 shadow-xl shadow-slate-100/50 dark:shadow-none bg-white dark:bg-slate-950">
-              <div className="p-6 border-b border-slate-100 dark:border-slate-900">
-                
-                {/* Header inside Card */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                  <div>
-                    <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Rankings</h2>
-                    <p className="text-sm text-slate-500">Live rankings of top contributors</p>
-                  </div>
-
-                  {/* Weekly vs. All Time Tabs */}
-                  <Tabs 
-                    defaultValue="all_time" 
-                    value={boardType} 
-                    onValueChange={(val) => setBoardType(val as 'all_time' | 'weekly')}
-                    className="w-auto"
-                  >
-                    <TabsList className="bg-slate-100 dark:bg-slate-900 p-1 rounded-lg">
-                      <TabsTrigger value="all_time" className="rounded-md px-3.5 py-1 text-xs font-semibold">
-                        🏆 All-Time
-                      </TabsTrigger>
-                      <TabsTrigger value="weekly" className="rounded-md px-3.5 py-1 text-xs font-semibold">
-                        🔥 Weekly
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                </div>
-
-                {/* Filters Row */}
-                <div className="grid sm:grid-cols-2 gap-3">
-                  {/* Search Bar */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-2.5 h-4.5 w-4.5 text-slate-400" />
-                    <input 
-                      type="text" 
-                      placeholder="Search students..." 
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 pr-4 py-2 w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    <Progress
+                      value={Math.min(100, Math.max(0, (nextBadge.current / nextBadge.target) * 100))}
+                      className="h-2 bg-slate-100"
                     />
                   </div>
-
-                  {/* Department Select dropdown */}
-                  <select 
-                    value={selectedDept} 
-                    onChange={(e) => setSelectedDept(e.target.value)}
-                    className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-slate-700 dark:text-slate-300 font-medium"
-                  >
-                    <option value="all">🎓 All Departments</option>
-                    {departments.map((dept) => (
-                      <option key={dept.id} value={dept.id}>
-                        {dept.displayName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                )}
               </div>
 
+              {/* badges showcase */}
+              <div className="px-6 pb-6 pt-5">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">My Badges</h3>
+                {loadingStats ? (
+                  <div className="mt-2 flex gap-2">
+                    {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-11 w-11 rounded-lg" />)}
+                  </div>
+                ) : myStats?.badges.length === 0 ? (
+                  <p className="mt-2 text-sm text-slate-400">No achievements yet. Start climbing!</p>
+                ) : (
+                  <div className="mt-2 grid grid-cols-5 gap-2">
+                    {myStats?.badges.map((badge) => (
+                      <div
+                        key={badge.id}
+                        title={`${badge.name}: ${badge.description} (${badge.completed ? 'Unlocked' : 'Locked'})`}
+                        className={`relative flex h-11 items-center justify-center rounded-lg text-lg transition-all ${getBadgeColorClasses(badge.color, badge.completed)}`}
+                      >
+                        <span className={badge.completed ? '' : 'grayscale opacity-60'}>{badge.icon}</span>
+                        {badge.completed && (
+                          <span className="absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500 text-[8px] leading-none text-white">
+                            <CheckCircle2 className="h-2.5 w-2.5" strokeWidth={3} />
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </GlowCard>
+          </div>
+
+          {/* ── rankings & main board ── */}
+          <div className="space-y-6 lg:col-span-2">
+            <GlowCard className="rounded-2xl border-slate-200 bg-white">
+              {/* header */}
+              <div className="flex flex-col gap-4 border-b border-slate-100 p-6 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900">Rankings</h2>
+                  <p className="text-sm text-slate-500">Live rankings of top contributors</p>
+                </div>
+
+                <Tabs
+                  defaultValue="all_time"
+                  value={boardType}
+                  onValueChange={(val) => setBoardType(val as 'all_time' | 'weekly')}
+                  className="w-auto"
+                >
+                  <TabsList className="rounded-lg bg-slate-100 p-1">
+                    <TabsTrigger value="all_time" className="rounded-md px-3.5 py-1 text-xs font-semibold">
+                      <Trophy className="mr-1.5 h-3.5 w-3.5 text-amber-500" /> All-Time
+                    </TabsTrigger>
+                    <TabsTrigger value="weekly" className="rounded-md px-3.5 py-1 text-xs font-semibold">
+                      <Flame className="mr-1.5 h-3.5 w-3.5 text-pink-500" /> Weekly
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+
+              {/* filters */}
+              <div className="grid gap-3 border-b border-slate-100 p-6 sm:grid-cols-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search students..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-4 text-sm text-slate-900 transition-all placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <select
+                  value={selectedDept}
+                  onChange={(e) => setSelectedDept(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="all">🎓 All Departments</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>{dept.displayName}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* list */}
               <div className="p-6">
                 <AnimatePresence mode="wait">
                   {loadingList ? (
-                    <motion.div 
+                    <motion.div
                       key="loading"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       className="space-y-3"
                     >
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <div key={i} className="h-16 bg-slate-100 dark:bg-slate-900 rounded-xl animate-pulse" />
-                      ))}
+                      {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-16 rounded-xl" />)}
                     </motion.div>
                   ) : filteredRankings.length === 0 ? (
-                    <motion.div 
+                    <motion.div
                       key="empty"
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0 }}
-                      className="p-12 text-center text-slate-400"
+                      className="p-12 text-center"
                     >
-                      <Trophy className="h-12 w-12 text-slate-300 dark:text-slate-800 mx-auto mb-4" />
-                      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">No rankings found</h3>
+                      <Trophy className="mx-auto mb-4 h-12 w-12 text-slate-300" />
+                      <h3 className="mb-1 text-lg font-bold text-slate-900">No rankings found</h3>
                       <p className="text-sm text-slate-500">
                         {searchQuery ? 'Try adjusting your search criteria' : 'Be the first to upload/participate and rank up!'}
                       </p>
                     </motion.div>
                   ) : (
-                    <motion.div 
+                    <motion.div
                       key="list"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -438,62 +441,66 @@ function LeaderboardContent() {
                       {filteredRankings.map((entry, index) => {
                         const isMe = entry.userId === user?.id;
                         return (
-                          <motion.div 
+                          <motion.div
                             key={entry.userId}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.3, delay: Math.min(index * 0.03, 0.3) }}
-                            className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${
-                              isMe 
-                                ? 'bg-indigo-50/50 border-indigo-200 dark:bg-indigo-950/20 dark:border-indigo-900' 
-                                : 'bg-white border-slate-100 dark:bg-slate-950 dark:border-slate-900 hover:border-slate-200 dark:hover:border-slate-800 shadow-sm hover:shadow'
+                            className={`flex items-center gap-4 rounded-xl border p-4 transition-all ${
+                              isMe
+                                ? 'border-indigo-200 bg-indigo-50/60 shadow-sm'
+                                : 'border-slate-100 bg-white shadow-sm hover:border-slate-200 hover:shadow'
                             }`}
                           >
-                            {/* Rank Indicator */}
-                            <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${getRankBadgeStyle(entry.rank)}`}>
+                            {/* rank indicator */}
+                            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${getRankBadgeStyle(entry.rank)}`}>
                               {getRankIcon(entry.rank)}
                             </div>
 
-                            {/* Avatar */}
-                            <Avatar className="h-10 w-10 border border-slate-100 dark:border-slate-800 shadow-sm shrink-0">
-                              {entry.picture && <AvatarImage src={entry.picture} alt={entry.name} />}
-                              <AvatarFallback className="bg-gradient-to-br from-indigo-400 to-purple-400 text-white font-bold text-sm">
+                            {/* avatar */}
+                            <Avatar className="h-10 w-10 shrink-0 border border-slate-100 shadow-sm">
+                              {entry.picture && (
+                                <AvatarImage
+                                  src={optimizeAvatar(entry.picture)}
+                                  alt={entry.name}
+                                  referrerPolicy="no-referrer"
+                                  className="object-cover"
+                                />
+                              )}
+                              <AvatarFallback className="bg-slate-900 text-sm font-bold text-white">
                                 {entry.name.slice(0, 2).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
 
-                            {/* Student Details */}
-                            <div className="flex-1 min-w-0">
-                              <p className={`font-semibold text-sm truncate flex items-center gap-1.5 ${
-                                isMe ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-900 dark:text-slate-200'
+                            {/* details */}
+                            <div className="min-w-0 flex-1">
+                              <p className={`flex items-center gap-1.5 truncate text-sm font-semibold ${
+                                isMe ? 'text-indigo-600' : 'text-slate-900'
                               }`}>
                                 {entry.name}
                                 {isMe && (
-                                  <span className="text-[10px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 font-bold px-2 py-0.5 rounded-full">
-                                    YOU
-                                  </span>
+                                  <Badge variant="indigo" className="px-1.5 py-0 text-[9px]">YOU</Badge>
                                 )}
                               </p>
-                              
-                              <p className="text-xs text-slate-500 truncate mt-0.5 flex items-center gap-2">
+                              <p className="mt-0.5 flex items-center gap-2 truncate text-xs text-slate-500">
                                 <span>{entry.course || 'Student'}</span>
                                 {entry.followersCount > 0 && (
                                   <>
-                                    <span className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-                                    <span>{entry.followersCount} followers</span>
+                                    <span className="h-1 w-1 rounded-full bg-slate-300" />
+                                    <span className="flex items-center gap-1">
+                                      <Users className="h-3 w-3" /> {entry.followersCount}
+                                    </span>
                                   </>
                                 )}
                               </p>
                             </div>
 
-                            {/* Score Display */}
-                            <div className="text-right shrink-0">
-                              <span className="text-lg font-black tracking-tight text-slate-900 dark:text-white tabular-nums">
+                            {/* score */}
+                            <div className="shrink-0 text-right">
+                              <span className="block text-lg font-black tabular-nums tracking-tight text-slate-900">
                                 {entry.points.toLocaleString()}
                               </span>
-                              <span className="text-[10px] text-slate-500 font-bold block uppercase leading-none">
-                                pts
-                              </span>
+                              <span className="block text-[10px] font-bold uppercase leading-none text-slate-400">pts</span>
                             </div>
                           </motion.div>
                         );
@@ -502,52 +509,60 @@ function LeaderboardContent() {
                   )}
                 </AnimatePresence>
               </div>
-            </Card>
+            </GlowCard>
 
-            {/* Badges Explanation Cards */}
-            <Card className="border border-slate-200/60 dark:border-slate-800 shadow-md bg-white dark:bg-slate-950 p-6 space-y-6">
-              <div>
-                <h3 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <Star className="h-5 w-5 text-indigo-500 fill-indigo-500" />
+            {/* badges explanation */}
+            <GlowCard className="rounded-2xl border-slate-200 bg-white p-6">
+              <div className="mb-4">
+                <h3 className="flex items-center gap-1.5 text-lg font-bold tracking-tight text-slate-900">
+                  <Sparkles className="h-5 w-5 text-indigo-500" />
                   Available Milestone Badges
                 </h3>
-                <p className="text-xs text-slate-500 mt-1">Unlock custom badges as you rank up and support the Invertis community</p>
+                <p className="mt-1 text-xs text-slate-500">Unlock custom badges as you rank up and support the Invertis community</p>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="p-4 border border-pink-100 bg-pink-50/20 dark:border-pink-900/30 dark:bg-pink-950/10 rounded-xl space-y-2">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-pink-100 bg-pink-50/40 p-4">
                   <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-lg bg-pink-500 text-white text-xs">📚</span>
-                    <span className="font-bold text-sm text-pink-700 dark:text-pink-400">Pink: Points Milestones</span>
+                    <span className="rounded-lg bg-pink-500 p-1.5 text-xs text-white">📚</span>
+                    <span className="text-sm font-bold text-pink-700">Points Milestones</span>
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                  <p className="mt-2 text-xs leading-relaxed text-slate-600">
                     Earned by accumulating total points on your profile: Scholars (500 pts), Legends (2,500 pts), and beyond!
                   </p>
                 </div>
 
-                <div className="p-4 border border-indigo-100 bg-indigo-50/20 dark:border-indigo-900/30 dark:bg-indigo-950/10 rounded-xl space-y-2">
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
                   <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-lg bg-indigo-500 text-white text-xs">⚔️</span>
-                    <span className="font-bold text-sm text-indigo-700 dark:text-indigo-400">Indigo: Arena Milestones</span>
+                    <span className="rounded-lg bg-indigo-500 p-1.5 text-xs text-white">⚔️</span>
+                    <span className="text-sm font-bold text-indigo-700">Arena Milestones</span>
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                  <p className="mt-2 text-xs leading-relaxed text-slate-600">
                     Earned by participating and dominating quiz battles: Quiz Warriors (10 wins), Quiz Gladiators (25 wins).
                   </p>
                 </div>
 
-                <div className="p-4 border border-slate-200 bg-slate-50/20 dark:border-slate-800 dark:bg-slate-900/10 rounded-xl space-y-2 sm:col-span-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:col-span-2">
                   <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-lg bg-slate-900 border border-slate-300 dark:bg-slate-950 dark:border-slate-700 text-white text-xs">📝</span>
-                    <span className="font-bold text-sm text-slate-700 dark:text-slate-300">White Outline: Contributions</span>
+                    <span className="rounded-lg border border-slate-300 bg-slate-900 p-1.5 text-xs text-white">📝</span>
+                    <span className="text-sm font-bold text-slate-700">Contributions</span>
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                  <p className="mt-2 text-xs leading-relaxed text-slate-600">
                     Earned by helping other students by uploading verified question papers, syllabus, or building community followers.
                   </p>
                 </div>
               </div>
-            </Card>
-          </div>
+            </GlowCard>
 
+            {/* footnote link */}
+            <div className="flex justify-center">
+              <Button variant="ghost" className="font-semibold text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700">
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                How are points calculated?
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

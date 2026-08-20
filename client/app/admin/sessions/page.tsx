@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useAuth } from '@/contexts/AuthContext';
 import { sessionApi } from '@/lib/api';
 import type { Session, CreateSessionDTO } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import Link from 'next/link';
 
 export default function SessionsPage() {
+  const { user } = useAuth();
+  // SRT can view sessions but cannot create, edit or delete
+  const canModify = user?.role !== 'srt';
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -133,7 +137,7 @@ export default function SessionsPage() {
           </Alert>
         )}
 
-        {!showForm && (
+        {canModify && !showForm && (
           <Button onClick={() => setShowForm(true)} className="mb-6">
             + Add New Session
           </Button>
@@ -232,14 +236,16 @@ export default function SessionsPage() {
                         {session.isActive ? '✓ Active' : '✗ Inactive'}
                       </p>
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => handleEdit(session)}>
-                        Edit
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDelete(session._id)}>
-                        Delete
-                      </Button>
-                    </div>
+                    {canModify && (
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => handleEdit(session)}>
+                          Edit
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleDelete(session._id)}>
+                          Delete
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

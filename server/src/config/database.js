@@ -8,10 +8,25 @@ export const connectDB = async () => {
       throw new Error('MONGODB_URI is not defined in environment variables');
     }
 
-    const conn = await mongoose.connect(mongoURI);
+    // Connection pool tuning for Render free tier (512MB RAM)
+    // maxPoolSize: 50 (reduced from default 100 to save memory)
+    // minPoolSize: 5 (keep some connections warm)
+    // socketTimeoutMS: 45000 (45s for long operations)
+    // serverSelectionTimeoutMS: 10000 (fail fast if no server)
+    // heartbeatFrequencyMS: 10000 (check connection health every 10s)
+    // family: 4 (force IPv4 to avoid DNS issues)
+    const conn = await mongoose.connect(mongoURI, {
+      maxPoolSize: 50,
+      minPoolSize: 5,
+      socketTimeoutMS: 45000,
+      serverSelectionTimeoutMS: 10000,
+      heartbeatFrequencyMS: 10000,
+      family: 4,
+    });
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
     console.log(`📊 Database: ${conn.connection.name}`);
+    console.log(`🏊 Connection Pool: max=${50}, min=${5}`);
   } catch (error) {
     console.error('❌ MongoDB Connection Error:', error);
     process.exit(1);
@@ -25,6 +40,11 @@ mongoose.connection.on('disconnected', () => {
 
 mongoose.connection.on('error', (error) => {
   console.error('❌ MongoDB error:', error);
+});
+
+// Connection pool monitoring
+mongoose.connection.on('connected', () => {
+  console.log('🔌 MongoDB connection established');
 });
 
 // Graceful shutdown

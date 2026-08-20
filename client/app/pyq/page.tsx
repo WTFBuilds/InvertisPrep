@@ -35,9 +35,12 @@ export default function PYQBrowsePage() {
     <div className="min-h-screen bg-muted/30">
       <div className="container mx-auto px-4 py-12">
         <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Browse PYQ Papers</h1>
-          <p className="text-xl text-muted-foreground">
-            Select your department to view previous year question papers
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+            Invertis University Previous Year Question Papers (PYQ)
+          </h1>
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+            Free department-wise previous year question papers for B.Tech, BCA, BBA, MCA and more —
+            select your department to view branch-wise, semester-wise and subject-wise exam papers.
           </p>
         </div>
 

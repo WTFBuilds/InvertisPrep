@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { authApi, resumeApi } from '@/lib/api';
+import { optimizeAvatar } from '@/lib/avatar';
 import type { User, LoginCredentials } from '@/types';
 
 // Guest resume localStorage utilities
@@ -20,6 +21,16 @@ function loadGuestResume() {
 
 function clearGuestResume() {
   localStorage.removeItem(GUEST_RESUME_KEY);
+}
+
+// Warm the browser cache for the avatar so the navbar shows the user's
+// picture instantly on mount instead of after a slow fetch.
+function preloadAvatar(url?: string) {
+  const src = optimizeAvatar(url);
+  if (!src) return;
+  const img = new Image();
+  img.referrerPolicy = 'no-referrer';
+  img.src = src;
 }
 
 interface AuthContextType {
@@ -48,7 +59,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (token && storedUser) {
         try {
-          setUser(JSON.parse(storedUser));
+          const parsed = JSON.parse(storedUser);
+          setUser(parsed);
+          preloadAvatar(parsed.picture);
           // Optionally verify token with backend
           const response = await authApi.getCurrentUser();
           if (response.success && response.user) {

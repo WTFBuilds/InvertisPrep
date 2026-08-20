@@ -2,7 +2,7 @@
 // Type definitions are documented inline in each file using JSDoc
 
 /**
- * @typedef {'student' | 'admin' | 'super-admin'} UserRole
+ * @typedef {'student' | 'srt' | 'admin' | 'super-admin'} UserRole
  */
 
 /**
@@ -58,7 +58,7 @@
  */
 
 /**
- * @typedef {'mid-term' | 'end-term' | 'sessional'} ExamType
+ * @typedef {'mid-term' | 'end-term'} ExamType
  */
 
 /**
