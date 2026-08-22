@@ -2,9 +2,15 @@ import { createClient } from 'redis';
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
+// Upstash (and other managed Redis providers) use rediss:// (TLS).
+// The node-redis client needs tls:true explicitly set for rediss:// URLs,
+// otherwise it exhausts retries and throws "Max retries reached".
+const isTls = redisUrl.startsWith('rediss://');
+
 const redis = createClient({
   url: redisUrl,
   socket: {
+    tls: isTls,
     reconnectStrategy: (retries) => {
       if (retries > 10) {
         console.error('[Redis] Max retries reached, giving up');
