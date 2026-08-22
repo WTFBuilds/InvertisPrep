@@ -1,5 +1,5 @@
-import dotenv from 'dotenv';
-dotenv.config();
+
+import './config/env.js'; // Load environment variables from .env file
 
 import express from 'express';
 import cors from 'cors';
