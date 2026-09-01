@@ -6,20 +6,10 @@ import { useEffect, useRef } from 'react';
 
 const customStyles = `
   @supports (animation-timeline: view()) {
-    .reveal-on-scroll {
-      animation: revealFooter linear both;
-      animation-timeline: view();
-      animation-range: entry 0% cover 40%;
-    }
     .reveal-text {
       animation: revealText linear both;
       animation-timeline: view();
       animation-range: entry 10% cover 50%;
-    }
-    
-    @keyframes revealFooter {
-      from { opacity: 0; }
-      to { opacity: 1; }
     }
     
     @keyframes revealText {
@@ -81,7 +71,7 @@ export default function Footer() {
   }
 
   return (
-    <footer ref={footerRef} className="relative bg-[#050505] text-white overflow-hidden min-h-screen flex flex-col justify-between reveal-on-scroll border-t border-white/5">
+    <footer ref={footerRef} className="relative bg-[#050505] text-white overflow-hidden min-h-screen flex flex-col justify-between border-t border-white/5">
       <style>{customStyles}</style>
       
       {/* Premium Visible Grid Background */}
@@ -162,7 +152,7 @@ export default function Footer() {
           </p>
 
           <div className="flex items-center gap-1.5 flex-wrap justify-center">
-            <span>Founded, Designed & Developed by</span>
+            <span>Founded & Developed by</span>
             <a
               href="https://www.linkedin.com/in/ahqaf-ali/"
               target="_blank"
@@ -178,7 +168,7 @@ export default function Footer() {
               rel="noopener noreferrer"
               className="text-white hover:text-white/80 transition-colors"
             >
-              TEAM
+              Team
             </a>
           </div>
         </div>

@@ -18,7 +18,6 @@ export default function Hero() {
     <div
       className="relative isolate overflow-hidden min-h-screen flex items-center"
       style={{
-        marginTop: '-40px',
         paddingTop: '2rem',
         padding: '4rem 1rem 1rem 1rem',
         backgroundImage: `url('/img1.jpg')`,
