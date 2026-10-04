@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
-import { pyqApi, pdfApi } from '@/lib/api';
-import type { PYQPaper, User, ExamType } from '@/types';
+import { pyqApi, pdfApi, departmentApi } from '@/lib/api';
+import type { PYQPaper, User, ExamType, Branch } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -45,6 +45,13 @@ export default function PapersPage() {
     examType: '',
     semester: '',
   });
+  // Additional-branch editor for the paper being edited: the department's
+  // branches (names for the checkboxes), the paper's primary branch id, and
+  // the currently ticked extra branches.
+  const [editBranches, setEditBranches] = useState<Branch[]>([]);
+  const [editPrimaryBranchId, setEditPrimaryBranchId] = useState('');
+  const [editAdditionalBranchIds, setEditAdditionalBranchIds] = useState<string[]>([]);
+  const [editBranchesLoading, setEditBranchesLoading] = useState(false);
 
   const fetchPapers = async (opts?: { page?: number; limit?: number }) => {
     try {
@@ -173,7 +180,7 @@ export default function PapersPage() {
     }
   };
 
-  const handleEdit = (paper: PYQPaper) => {
+  const handleEdit = async (paper: PYQPaper) => {
     setEditFormData({
       subjectName: paper.subjectName,
       subjectCode: paper.subjectCode || '',
@@ -182,6 +189,32 @@ export default function PapersPage() {
       semester: paper.semester.toString(),
     });
     setEditingId(paper._id);
+
+    // Normalize current extra-branch tags (raw ids or populated Branch docs).
+    const currentIds = (paper.additionalBranchIds || [])
+      .map((entry) => (typeof entry === 'string' ? entry : entry?._id))
+      .filter((id): id is string => Boolean(id));
+    setEditAdditionalBranchIds(currentIds);
+
+    const primaryBranchId =
+      typeof paper.branchId === 'string' ? paper.branchId : paper.branchId?._id;
+    setEditPrimaryBranchId(primaryBranchId || '');
+
+    // Load the department's branches so the editor can show real names.
+    const departmentId =
+      typeof paper.departmentId === 'string' ? paper.departmentId : paper.departmentId?._id;
+    setEditBranches([]);
+    if (departmentId) {
+      setEditBranchesLoading(true);
+      try {
+        const res = await departmentApi.getBranches(departmentId);
+        setEditBranches(res.data || []);
+      } catch (err: unknown) {
+        setError('Failed to load branches for editing');
+      } finally {
+        setEditBranchesLoading(false);
+      }
+    }
   };
 
   const handleCancelEdit = () => {
@@ -193,6 +226,9 @@ export default function PapersPage() {
       examType: '',
       semester: '',
     });
+    setEditBranches([]);
+    setEditPrimaryBranchId('');
+    setEditAdditionalBranchIds([]);
   };
 
   const handleUpdatePaper = async (e: React.FormEvent) => {
@@ -206,6 +242,10 @@ export default function PapersPage() {
         year: parseInt(editFormData.year),
         examType: editFormData.examType as ExamType,
         semester: parseInt(editFormData.semester),
+        // Always send so unticking every branch clears the tags.
+        additionalBranchIds: editAdditionalBranchIds.filter(
+          (id) => id !== editPrimaryBranchId
+        ),
       };
       await pyqApi.update(editingId, updateData);
       setSuccess('Paper updated successfully');
@@ -217,6 +257,9 @@ export default function PapersPage() {
         examType: '',
         semester: '',
       });
+      setEditBranches([]);
+      setEditPrimaryBranchId('');
+      setEditAdditionalBranchIds([]);
       fetchPapers();
     } catch (err: unknown) {
       let errorMessage = 'Failed to update paper';
@@ -406,6 +449,54 @@ export default function PapersPage() {
                   </div>
                 </div>
 
+                {/* Additional branches editor — tick every branch this paper should also appear under */}
+                {editBranches.filter((b) => b._id !== editPrimaryBranchId).length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Additional Branches (optional)
+                    </label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Tick every branch this paper also applies to — it will show up when students
+                      filter by any selected branch.
+                    </p>
+                    {editBranchesLoading ? (
+                      <p className="text-sm text-muted-foreground">Loading branches...</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {editBranches
+                          .filter((b) => b._id !== editPrimaryBranchId)
+                          .map((branch) => {
+                            const checked = editAdditionalBranchIds.includes(branch._id);
+                            return (
+                              <label
+                                key={branch._id}
+                                className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                                  checked
+                                    ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
+                                    : 'border-input bg-background text-muted-foreground hover:border-indigo-200'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="h-3.5 w-3.5 accent-indigo-600"
+                                  checked={checked}
+                                  onChange={(e) =>
+                                    setEditAdditionalBranchIds((prev) =>
+                                      e.target.checked
+                                        ? [...prev, branch._id]
+                                        : prev.filter((id) => id !== branch._id)
+                                    )
+                                  }
+                                />
+                                {branch.name}
+                              </label>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   <Button type="submit" size="sm">Save Changes</Button>
                   <Button type="button" variant="outline" size="sm" onClick={handleCancelEdit}>Cancel</Button>
@@ -517,6 +608,17 @@ export default function PapersPage() {
                       <p className="text-muted-foreground">Branch</p>
                       <p className="font-medium">{getBranchName(paper)}</p>
                     </div>
+                    {(paper.additionalBranchIds?.length ?? 0) > 0 && (
+                      <div>
+                        <p className="text-muted-foreground">Additional Branches</p>
+                        <p className="font-medium">
+                          {paper.additionalBranchIds!
+                            .map((entry) => (typeof entry === 'string' ? entry : entry?.name))
+                            .filter(Boolean)
+                            .join(', ')}
+                        </p>
+                      </div>
+                    )}
                     <div>
                       <p className="text-muted-foreground">Session</p>
                       <p className="font-medium">{getSessionName(paper)}</p>

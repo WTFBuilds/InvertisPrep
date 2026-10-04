@@ -29,6 +29,9 @@ export default function StudentUploadPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [filteredBranches, setFilteredBranches] = useState<Branch[]>([]);
   const [selectedSemesters, setSelectedSemesters] = useState<number[]>([]);
+  // Multi-branch tags: other branches (within the same department) this paper
+  // also applies to, so it shows up when filtering by any of them.
+  const [selectedAdditionalBranches, setSelectedAdditionalBranches] = useState<string[]>([]);
   
   const [dataLoading, setDataLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -102,6 +105,7 @@ export default function StudentUploadPage() {
           setFilteredBranches(branchData);
           setFormData((prev) => ({ ...prev, branchId: '', semester: '' }));
           setSelectedSemesters([]);
+          setSelectedAdditionalBranches([]);
         } catch (err: unknown) {
           setError('Failed to load branches.');
         }
@@ -109,6 +113,7 @@ export default function StudentUploadPage() {
         setBranches([]);
         setFilteredBranches([]);
         setSelectedSemesters([]);
+        setSelectedAdditionalBranches([]);
       }
     };
     fetchBranches();
@@ -172,6 +177,14 @@ export default function StudentUploadPage() {
       uploadData.append('pdf', file);
       uploadData.append('departmentId', formData.departmentId);
       uploadData.append('branchId', formData.branchId);
+      // Other branches this paper should also be visible under (excluding the
+      // primary branch itself).
+      const additionalBranchIds = selectedAdditionalBranches.filter(
+        (id) => id !== formData.branchId
+      );
+      if (additionalBranchIds.length > 0) {
+        uploadData.append('additionalBranchIds', JSON.stringify(additionalBranchIds));
+      }
       uploadData.append('sessionId', formData.sessionId);
       uploadData.append('semester', formData.semester);
       uploadData.append('subjectName', formData.subjectName);
@@ -195,6 +208,7 @@ export default function StudentUploadPage() {
           year: new Date().getFullYear(),
         });
         setFile(null);
+        setSelectedAdditionalBranches([]);
         const fileInput = document.getElementById('file') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
       } else {
@@ -313,6 +327,50 @@ export default function StudentUploadPage() {
                   </select>
                 </div>
               </div>
+
+              {/* Additional branches — the paper will also be visible under these filters */}
+              {formData.branchId && filteredBranches.length > 1 && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-gray-700">
+                    Also applicable to (optional)
+                  </Label>
+                  <p className="text-xs text-gray-500">
+                    Tick every other branch this paper applies to — it will show up when students
+                    filter by any selected branch.
+                  </p>
+                  <div className="flex flex-wrap gap-2 p-3 border border-gray-200 rounded-lg bg-white/80">
+                    {filteredBranches
+                      .filter((branch) => branch._id !== formData.branchId)
+                      .map((branch) => {
+                        const checked = selectedAdditionalBranches.includes(branch._id);
+                        return (
+                          <label
+                            key={branch._id}
+                            className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-all ${
+                              checked
+                                ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
+                                : 'border-gray-200 bg-white text-gray-600 hover:border-indigo-200 hover:bg-indigo-50/50'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="h-3.5 w-3.5 accent-indigo-600"
+                              checked={checked}
+                              onChange={(e) =>
+                                setSelectedAdditionalBranches((prev) =>
+                                  e.target.checked
+                                    ? [...prev, branch._id]
+                                    : prev.filter((id) => id !== branch._id)
+                                )
+                              }
+                            />
+                            {branch.name}
+                          </label>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
 
               {/* Session & Semester grid */}
               <div className="grid sm:grid-cols-2 gap-4">

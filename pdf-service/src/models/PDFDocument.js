@@ -31,6 +31,16 @@ const pdfDocumentSchema = new Schema(
       ref: 'Branch',
       index: true,
     },
+    // Extra branches the paper also applies to (e.g. a common first-year
+    // subject shared by CSE and ME). Papers match a branch filter when the
+    // branch is branchId OR appears here. Optional — legacy papers have
+    // branchId only and behave exactly as before.
+    additionalBranchIds: {
+      type: [String],
+      ref: 'Branch',
+      default: [],
+      index: true,
+    },
     semester: {
       type: Number,
       required: true,
