@@ -98,3 +98,64 @@ export function buildMetadata(overrides: SeoOverrides = {}): Metadata {
     },
   };
 }
+
+/**
+ * JSON-LD schema builders — render their output with <JsonLd /> from
+ * components/seo/JsonLd.tsx. Only use them inside server components
+ * (layouts and non-"use client" pages).
+ */
+
+export function organizationSchema(): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: siteConfig.name,
+    url: siteConfig.url,
+    logo: `${siteConfig.url}${siteConfig.openGraphImage}`,
+    description: siteConfig.description,
+  };
+}
+
+export function websiteSchema(): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: siteConfig.name,
+    url: siteConfig.url,
+    description: siteConfig.description,
+  };
+}
+
+/** Trail of ancestor links, ordered from the homepage down. */
+export function breadcrumbSchema(
+  items: { name: string; path: string }[],
+): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: `${siteConfig.url}${item.path === "/" ? "" : item.path}`,
+    })),
+  };
+}
+
+/** A named list of links, e.g. the PYQ department listing. */
+export function itemListSchema(
+  name: string,
+  items: { name: string; path: string }[],
+): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name,
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      url: `${siteConfig.url}${item.path === "/" ? "" : item.path}`,
+    })),
+  };
+}

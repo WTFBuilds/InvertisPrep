@@ -46,6 +46,11 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png",
   },
   manifest: "/site.webmanifest",
+  // Google Search Console: set GOOGLE_SITE_VERIFICATION in the environment to
+  // the value of the "google-site-verification" meta tag GSC offers.
+  ...(process.env.GOOGLE_SITE_VERIFICATION
+    ? { verification: { google: process.env.GOOGLE_SITE_VERIFICATION } }
+    : {}),
   robots: {
     index: true,
     follow: true,

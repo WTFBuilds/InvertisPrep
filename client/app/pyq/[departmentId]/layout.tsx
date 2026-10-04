@@ -1,14 +1,30 @@
 import type { Metadata } from "next";
-import { buildMetadata } from "@/lib/seo";
+import JsonLd from "@/components/seo/JsonLd";
+import { breadcrumbSchema, buildMetadata } from "@/lib/seo";
 
 // Server-only env var (no NEXT_PUBLIC_ prefix → never in the browser bundle).
 // Read server-side for SEO metadata; defaults to local dev.
-const API_URL = process.env.API_URL ;
-const PDF_API_URL = process.env.PDF_API_URL ;
+const API_URL = process.env.API_URL;
+const PDF_API_URL = process.env.PDF_API_URL;
 
 type DepartmentResponse = {
   data?: { displayName?: string; name?: string };
 };
+
+async function fetchDepartmentName(departmentId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_URL}/departments/${departmentId}`, {
+      next: { revalidate: 3600 },
+    });
+    if (res.ok) {
+      const json = (await res.json()) as DepartmentResponse;
+      return json.data?.displayName || json.data?.name || null;
+    }
+  } catch {
+    // Best-effort — fall through to null.
+  }
+  return null;
+}
 
 /**
  * Dynamic PYQ metadata — includes the department name in the title when it can
@@ -21,19 +37,7 @@ export async function generateMetadata({
   params: Promise<{ departmentId: string }>;
 }): Promise<Metadata> {
   const { departmentId } = await params;
-  let departmentName: string | null = null;
-
-  try {
-    const res = await fetch(`${API_URL}/departments/${departmentId}`, {
-      next: { revalidate: 3600 },
-    });
-    if (res.ok) {
-      const json = (await res.json()) as DepartmentResponse;
-      departmentName = json.data?.displayName || json.data?.name || null;
-    }
-  } catch {
-    // Best-effort — fall through to generic metadata.
-  }
+  const departmentName = await fetchDepartmentName(departmentId);
 
   if (departmentName) {
     return buildMetadata({
@@ -58,6 +62,30 @@ export async function generateMetadata({
   });
 }
 
-export default function DepartmentPyqLayout({ children }: { children: React.ReactNode }) {
-  return children;
+export default async function DepartmentPyqLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ departmentId: string }>;
+}) {
+  const { departmentId } = await params;
+  const departmentName = await fetchDepartmentName(departmentId);
+
+  return (
+    <>
+      <JsonLd
+        schemas={[
+          breadcrumbSchema([
+            { name: "Home", path: "/" },
+            { name: "Previous Year Question Papers", path: "/pyq" },
+            ...(departmentName
+              ? [{ name: departmentName, path: `/pyq/${departmentId}` }]
+              : []),
+          ]),
+        ]}
+      />
+      {children}
+    </>
+  );
 }
