@@ -44,8 +44,7 @@ export const adminNavItems = [
   { title: "Syllabus", url: "/admin/syllabus", icon: BookOpen },
   { title: "Reports", url: "/admin/reports", icon: Flag },
   { title: "Bug Reports", url: "/admin/bugs", icon: Bug },
-  { title: "Events", url: "/admin/events", icon: CalendarDays },
-  { title: "Sponsors", url: "/admin/sponsors", icon: HandCoins },
+  { title: "Events", url: "/admin/events", icon: CalendarDays }
 ]
 
 // SRT (Support & Resource Team) sees every admin page except User Management

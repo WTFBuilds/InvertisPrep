@@ -9,6 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 
 export default function UploadPage() {
@@ -17,6 +24,9 @@ export default function UploadPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [filteredBranches, setFilteredBranches] = useState<Branch[]>([]);
   const [selectedSemesters, setSelectedSemesters] = useState<number[]>([]);
+  // Multi-branch tags: other branches (same department) this paper also
+  // applies to, so it shows up when students filter by any of them.
+  const [selectedAdditionalBranches, setSelectedAdditionalBranches] = useState<string[]>([]);
   
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -63,6 +73,7 @@ export default function UploadPage() {
           setFilteredBranches(branchData);
           setFormData((prev) => ({ ...prev, branchId: '', semester: '' }));
           setSelectedSemesters([]);
+          setSelectedAdditionalBranches([]);
         } catch (err: unknown) {
           setError('Failed to load branches');
         }
@@ -70,6 +81,7 @@ export default function UploadPage() {
         setBranches([]);
         setFilteredBranches([]);
         setSelectedSemesters([]);
+        setSelectedAdditionalBranches([]);
       }
     };
     fetchBranches();
@@ -121,6 +133,14 @@ export default function UploadPage() {
       uploadData.append('pdf', file);
       uploadData.append('departmentId', formData.departmentId);
       uploadData.append('branchId', formData.branchId);
+      // Other branches this paper should also be visible under (excluding the
+      // primary branch itself).
+      const additionalBranchIds = selectedAdditionalBranches.filter(
+        (id) => id !== formData.branchId
+      );
+      if (additionalBranchIds.length > 0) {
+        uploadData.append('additionalBranchIds', JSON.stringify(additionalBranchIds));
+      }
       uploadData.append('sessionId', formData.sessionId);
       uploadData.append('semester', formData.semester);
       uploadData.append('subjectName', formData.subjectName);
@@ -142,6 +162,7 @@ export default function UploadPage() {
         year: new Date().getFullYear(),
       });
       setFile(null);
+      setSelectedAdditionalBranches([]);
       const fileInput = document.getElementById('file') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
     } catch (err: unknown) {
@@ -221,6 +242,70 @@ export default function UploadPage() {
                   ))}
                 </select>
               </div>
+
+              {/* Additional branches multi-select — the paper will also be visible under these filters */}
+              {formData.branchId && filteredBranches.length > 1 && (
+                <div>
+                  <Label>Additional Branches (optional)</Label>
+                  <p className="text-xs text-muted-foreground mt-1 mb-2">
+                    Select every branch this paper also applies to — it will show up when students
+                    filter by any selected branch.
+                  </p>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-between font-normal"
+                      >
+                        {selectedAdditionalBranches.length > 0
+                          ? `${selectedAdditionalBranches.length} branch${selectedAdditionalBranches.length > 1 ? 'es' : ''} selected`
+                          : 'Select additional branches'}
+                        <ChevronDown className="h-4 w-4 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] max-h-64 overflow-y-auto">
+                      {filteredBranches
+                        .filter((branch) => branch._id !== formData.branchId)
+                        .map((branch) => (
+                          <DropdownMenuCheckboxItem
+                            key={branch._id}
+                            checked={selectedAdditionalBranches.includes(branch._id)}
+                            // Keep the menu open so multiple branches can be ticked at once
+                            onSelect={(e) => e.preventDefault()}
+                            onCheckedChange={(checked) =>
+                              setSelectedAdditionalBranches((prev) =>
+                                checked
+                                  ? [...prev, branch._id]
+                                  : prev.filter((id) => id !== branch._id)
+                              )
+                            }
+                          >
+                            {branch.name}
+                          </DropdownMenuCheckboxItem>
+                        ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  {selectedAdditionalBranches.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {filteredBranches
+                        .filter(
+                          (branch) =>
+                            selectedAdditionalBranches.includes(branch._id) &&
+                            branch._id !== formData.branchId
+                        )
+                        .map((branch) => (
+                          <span
+                            key={branch._id}
+                            className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-indigo-100"
+                          >
+                            {branch.name}
+                          </span>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
