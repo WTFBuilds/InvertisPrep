@@ -31,6 +31,16 @@ const pyqPaperSchema = new Schema(
       ref: 'Branch',
       index: true,
     },
+    // Extra branches the paper also applies to. Kept in sync with the PDF
+    // service's PDFDocument model (same `pyqpapers` collection) — a Mongoose
+    // .save() with strict mode would silently drop this field if it were
+    // missing from one of the two schemas.
+    additionalBranchIds: {
+      type: [String],
+      ref: 'Branch',
+      default: [],
+      index: true,
+    },
     semester: {
       type: Number,
       required: true,

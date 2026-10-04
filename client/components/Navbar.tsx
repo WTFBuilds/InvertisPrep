@@ -20,7 +20,6 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { optimizeAvatar } from '@/lib/avatar';
-import SponsorPopover from '@/components/SponsorPopover';
 import {
   ChevronDown,
   LogOut,
@@ -352,7 +351,6 @@ export default function Navbar() {
   ];
 
   const supportLinks: MenuLink[] = [
-    { title: 'Sponsor Us', href: '/sponsor', description: 'Support InvertisPrep — see our sponsors.', icon: <HandCoins />, badge: 'new' },
     { title: 'Contact', href: '/contact', description: 'Reach out to the InvertisPrep team.', icon: <Mail /> },
     { title: 'Report a Bug', href: '/report-bug', description: 'Found something broken? Tell us.', icon: <Bug /> },
     { title: 'Support', href: '/support', description: 'Help center & FAQs.', icon: <LifeBuoy /> },
@@ -422,9 +420,6 @@ export default function Navbar() {
               <Instagram className="h-4 w-4" />
             </SocialIconLink>
           </div>
-
-          {/* Sponsor — always visible (desktop + mobile), opens a popup card */}
-          <SponsorPopover />
 
           {/* Mobile menu trigger */}
           <div className="lg:hidden">
@@ -567,15 +562,6 @@ export default function Navbar() {
                       </DropdownMenuItem>
                     </>
                   )}
-
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild className="cursor-pointer">
-                    <Link href="/sponsor">
-                      <Heart className="mr-2 h-4 w-4 text-rose-500" /> Sponsor
-                    </Link>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600 focus:text-red-600">
                     <LogOut className="mr-2 h-4 w-4" /> Log out
                   </DropdownMenuItem>
@@ -770,14 +756,7 @@ function MobileMenu({
             >
               <UploadCloud className="size-4 text-zinc-400 group-hover:text-zinc-800 transition-colors" /> Upload PYQ
             </Link>
-            <Link
-              href="/sponsor"
-              onClick={onNavigate}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-zinc-100 hover:text-zinc-900 group"
-            >
-              <Heart className="size-4 text-rose-500 transition-colors group-hover:text-rose-600" />
-              Sponsor
-            </Link>
+
             {user.role === 'admin' || user.role === 'super-admin' || user.role === 'srt' ? (
               <Link
                 href="/admin/dashboard"

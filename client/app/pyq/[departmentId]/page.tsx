@@ -68,7 +68,10 @@ export default function DepartmentPYQPage() {
     if (selectedBranch) {
       filtered = filtered.filter((p) => {
         const branchId = typeof p.branchId === 'string' ? p.branchId : p.branchId._id;
-        return branchId === selectedBranch;
+        // Multi-branch uploads: a paper is visible under any branch it was
+        // tagged with at upload time (primary or additional).
+        if (branchId === selectedBranch) return true;
+        return (p.additionalBranchIds || []).includes(selectedBranch);
       });
     }
     if (selectedSession) {
@@ -165,12 +168,21 @@ export default function DepartmentPYQPage() {
     }
   };
 
-  const getBranchName = (paper: PYQPaper) => {
+  const getPaperBranchNames = (paper: PYQPaper): string[] => {
+    const names: string[] = [];
     if (typeof paper.branchId === 'string') {
       const branch = branches.find((b) => b._id === paper.branchId);
-      return branch?.name || 'N/A';
+      if (branch) names.push(branch.name);
+    } else {
+      names.push(paper.branchId.name);
     }
-    return paper.branchId.name;
+    // Additional branches from multi-branch uploads — resolve names against
+    // the department's branches list already loaded for the filter dropdown.
+    for (const id of paper.additionalBranchIds || []) {
+      const branch = branches.find((b) => b._id === id);
+      if (branch && !names.includes(branch.name)) names.push(branch.name);
+    }
+    return names.length > 0 ? names : ['N/A'];
   };
 
   const getSessionName = (paper: PYQPaper) => {
@@ -403,9 +415,14 @@ export default function DepartmentPYQPage() {
                           </CardDescription>
                         </div>
                         <div className="flex flex-wrap gap-1.5">
-                          <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-700 ring-1 ring-indigo-100">
-                            {getBranchName(paper)}
-                          </span>
+                          {getPaperBranchNames(paper).map((branchName) => (
+                            <span
+                              key={branchName}
+                              className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-700 ring-1 ring-indigo-100"
+                            >
+                              {branchName}
+                            </span>
+                          ))}
                           <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">
                             Semester {paper.semester}
                           </span>

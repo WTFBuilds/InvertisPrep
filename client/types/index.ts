@@ -158,6 +158,9 @@ export interface PYQPaper {
   subjectCode?: string;
   departmentId: string | Department;
   branchId: string | Branch;
+  // Extra branches the paper also applies to (multi-branch uploads). Raw ids
+  // from the public API; the admin listing populates them as Branch docs.
+  additionalBranchIds?: Array<string | Branch>;
   sessionId: string | Session;
   semester: number;
   examType: ExamType;
@@ -180,6 +183,7 @@ export interface PYQPaper {
 export interface UploadPYQDTO {
   departmentId: string;
   branchId: string;
+  additionalBranchIds?: string[];
   sessionId: string;
   semester: number;
   subjectName: string;
