@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { adminUserApi } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import type { AdminUserDetail } from '@/types';
 import {
   Dialog,
@@ -15,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DeleteUserDialog } from '@/components/admin/delete-user-dialog';
 import {
   AlertCircle,
   ArrowDownLeft,
@@ -24,6 +26,7 @@ import {
   FileText,
   Flag,
   ShieldCheck,
+  Trash2,
   UserRound,
 } from 'lucide-react';
 
@@ -31,6 +34,8 @@ interface UserDetailDialogProps {
   userId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Called after a successful deletion so the parent can refresh its list. */
+  onDeleted?: (message: string) => void;
 }
 
 const badgeColorMap: Record<string, string> = {
@@ -72,10 +77,13 @@ const roleBadge = (role: string) => {
   }
 };
 
-export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialogProps) {
+export function UserDetailDialog({ userId, open, onOpenChange, onDeleted }: UserDetailDialogProps) {
+  const { user: currentUser } = useAuth();
+  const isSuperAdmin = currentUser?.role === 'super-admin';
   const [detail, setDetail] = useState<AdminUserDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   useEffect(() => {
     if (!open || !userId) return;
@@ -174,15 +182,30 @@ export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialo
                   </p>
                 </div>
               </div>
-              <Badge
-                className={
-                  detail.user.isActive
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-rose-100 text-rose-700'
-                }
-              >
-                {detail.user.isActive ? 'Active' : 'Banned'}
-              </Badge>
+              <div className="flex flex-col items-start gap-2 sm:items-end">
+                <Badge
+                  className={
+                    detail.user.isActive
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-rose-100 text-rose-700'
+                  }
+                >
+                  {detail.user.isActive ? 'Active' : 'Banned'}
+                </Badge>
+                {isSuperAdmin &&
+                  detail.user.id !== currentUser?.id &&
+                  detail.user.role !== 'super-admin' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 border-rose-200 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                      onClick={() => setDeleteOpen(true)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete user
+                    </Button>
+                  )}
+              </div>
             </div>
 
             {/* Key stats */}
@@ -389,6 +412,22 @@ export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialo
           </div>
         )}
       </DialogContent>
+
+      {/* Nested deletion confirmation — closes the detail view on success */}
+      <DeleteUserDialog
+        user={
+          detail
+            ? { id: detail.user.id, name: detail.user.name, email: detail.user.email }
+            : null
+        }
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        onDeleted={(message) => {
+          setDeleteOpen(false);
+          onOpenChange(false);
+          onDeleted?.(message);
+        }}
+      />
     </Dialog>
   );
 }

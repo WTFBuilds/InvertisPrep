@@ -298,3 +298,53 @@ export const updateStatus = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error while updating status' });
   }
 };
+
+// Permanently delete a user (super-admin only).
+// Blocks self-deletion and other super-admin accounts; removes content the
+// user authored (reports, bug reports, points history). Uploaded PYQ papers
+// are intentionally kept — their uploadedBy reference simply renders as
+// "System"/"User" in the UIs.
+export const deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ success: false, message: 'Invalid user id' });
+      return;
+    }
+
+    if (String(id) === String(req.user.id)) {
+      res.status(400).json({ success: false, message: 'You cannot delete your own account' });
+      return;
+    }
+
+    const target = await User.findById(id);
+    if (!target) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+
+    if (target.role === 'super-admin') {
+      res.status(403).json({
+        success: false,
+        message: 'Super-admin accounts cannot be deleted. Demote the account first.',
+      });
+      return;
+    }
+
+    await Promise.all([
+      Report.deleteMany({ reportedBy: id }),
+      Bug.deleteMany({ reportedBy: id }),
+      PointsLog.deleteMany({ userId: id }),
+    ]);
+    await User.findByIdAndDelete(id);
+
+    res.json({
+      success: true,
+      message: `Deleted ${target.email}. Their reports and points history were removed; uploaded papers were kept.`,
+    });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ success: false, message: 'Server error while deleting user' });
+  }
+};
