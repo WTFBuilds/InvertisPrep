@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import crypto from 'crypto';
-import { login, googleLogin, getCurrentUser, logout, updateProfile, refresh } from '../controllers/authController.js';
+import { login, googleLogin, register, checkEmail, getCurrentUser, logout, updateProfile, refresh } from '../controllers/authController.js';
 import { authenticateJWT } from '../middleware/auth.js';
 
 const router = Router();
 
 router.post('/login', login);
+router.post('/register', register);
+router.post('/check-email', checkEmail);
 router.post('/google-login', googleLogin);
 router.get('/me', authenticateJWT, getCurrentUser);
 router.put('/profile', authenticateJWT, updateProfile);
