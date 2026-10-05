@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Session } from '../models/Session.js';
 import { getCache, setCache, delCache } from '../utils/cache.js';
 
@@ -84,8 +85,11 @@ export const deleteSession = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // The client may pass either the Mongo _id or the business id
+    // (e.g. "2024-25") — match whichever form arrives.
+    const query = mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { id };
     const session = await Session.findOneAndUpdate(
-      { id },
+      query,
       { $set: { isActive: false } },
       { new: true }
     );

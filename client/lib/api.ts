@@ -442,6 +442,11 @@ export const adminUserApi = {
     const { data } = await apiClient.patch<APIResponse>(`/admin/users/${id}/status`, { isActive });
     return data;
   },
+
+  remove: async (id: string): Promise<APIResponse> => {
+    const { data } = await apiClient.delete<APIResponse>(`/admin/users/${id}`);
+    return data;
+  },
 };
 
 export const leaderboardApi = {

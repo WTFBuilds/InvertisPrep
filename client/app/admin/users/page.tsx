@@ -32,10 +32,12 @@ import {
   Eye,
   Search,
   ShieldAlert,
+  Trash2,
   UserRound,
   Users,
 } from 'lucide-react';
 import { UserDetailDialog } from '@/components/admin/user-detail-dialog';
+import { DeleteUserDialog } from '@/components/admin/delete-user-dialog';
 
 const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: 'all', label: 'All roles' },
@@ -121,6 +123,10 @@ export default function AdminUsersPage() {
 
   const [detailUserId, setDetailUserId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+
+  // Permanent deletion (super-admin only) — gated behind a typed-email dialog.
+  const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   // Debounce search input
   useEffect(() => {
@@ -454,18 +460,34 @@ export default function AdminUsersPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5 text-xs font-semibold"
-                      onClick={() => {
-                        setDetailUserId(u.id);
-                        setDetailOpen(true);
-                      }}
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      View
-                    </Button>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs font-semibold"
+                        onClick={() => {
+                          setDetailUserId(u.id);
+                          setDetailOpen(true);
+                        }}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        View
+                      </Button>
+                      {isSuperAdmin && u.id !== currentUser?.id && u.role !== 'super-admin' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 border-rose-200 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                          onClick={() => {
+                            setDeleteTarget(u);
+                            setDeleteOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Delete
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -533,6 +555,28 @@ export default function AdminUsersPage() {
         userId={detailUserId}
         open={detailOpen}
         onOpenChange={setDetailOpen}
+        onDeleted={(message) => {
+          setNotice(message);
+          fetchUsers();
+          adminUserApi.stats().then((s) => s.success && s.data && setStats(s.data));
+        }}
+      />
+
+      {/* Permanent deletion dialog (super-admin only) */}
+      <DeleteUserDialog
+        user={
+          deleteTarget
+            ? { id: deleteTarget.id, name: deleteTarget.name, email: deleteTarget.email }
+            : null
+        }
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        onDeleted={(message) => {
+          setNotice(message);
+          // Refresh both the list and the stats (counts just changed).
+          fetchUsers();
+          adminUserApi.stats().then((s) => s.success && s.data && setStats(s.data));
+        }}
       />
     </div>
   );

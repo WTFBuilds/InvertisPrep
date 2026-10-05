@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { MultiSelect } from '@/components/admin/multi-select';
 import { useAuth } from '@/contexts/AuthContext';
 import { pyqApi, pdfApi, departmentApi } from '@/lib/api';
 import type { PYQPaper, User, ExamType, Branch } from '@/types';
@@ -462,37 +463,16 @@ export default function PapersPage() {
                     {editBranchesLoading ? (
                       <p className="text-sm text-muted-foreground">Loading branches...</p>
                     ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {editBranches
+                      <MultiSelect
+                        options={editBranches
                           .filter((b) => b._id !== editPrimaryBranchId)
-                          .map((branch) => {
-                            const checked = editAdditionalBranchIds.includes(branch._id);
-                            return (
-                              <label
-                                key={branch._id}
-                                className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
-                                  checked
-                                    ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
-                                    : 'border-input bg-background text-muted-foreground hover:border-indigo-200'
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  className="h-3.5 w-3.5 accent-indigo-600"
-                                  checked={checked}
-                                  onChange={(e) =>
-                                    setEditAdditionalBranchIds((prev) =>
-                                      e.target.checked
-                                        ? [...prev, branch._id]
-                                        : prev.filter((id) => id !== branch._id)
-                                    )
-                                  }
-                                />
-                                {branch.name}
-                              </label>
-                            );
-                          })}
-                      </div>
+                          .map((b) => ({ value: b._id, label: b.name }))}
+                        selected={editAdditionalBranchIds}
+                        onChange={setEditAdditionalBranchIds}
+                        placeholder="Select additional branches"
+                        searchPlaceholder="Search branches..."
+                        emptyMessage="No other branches in this department"
+                      />
                     )}
                   </div>
                 )}
