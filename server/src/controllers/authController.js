@@ -311,3 +311,120 @@ export const updateProfile = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error during profile update' });
   }
 };
+
+// ── Email/password student flow ─────────────────────────────────────────────
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Route helper for the login page: does this email have an account, and is it
+ * linked to Google sign-in? Lets the UI decide between the password step, the
+ * registration step, or a "continue with Google" nudge.
+ */
+export const checkEmail = async (req, res) => {
+  try {
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    if (!EMAIL_REGEX.test(email)) {
+      res.status(400).json({ success: false, message: 'Enter a valid email address' });
+      return;
+    }
+
+    const user = await User.findOne({ email }).select('googleId isActive').lean();
+
+    res.json({
+      success: true,
+      data: {
+        exists: !!user,
+        isGoogleLinked: !!user?.googleId,
+        isActive: user ? user.isActive !== false : undefined,
+      },
+    });
+  } catch (error) {
+    console.error('Check email error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+/**
+ * Student registration with email + password. All fields are mandatory:
+ * valid email, name (2-60 chars), password (min 8 chars), 10-digit phone.
+ * Responds with the same shape as login so the client session setup is
+ * identical.
+ */
+export const register = async (req, res) => {
+  try {
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+    const password = typeof req.body.password === 'string' ? req.body.password : '';
+    const phoneNumber = typeof req.body.phoneNumber === 'string' ? req.body.phoneNumber.trim() : '';
+
+    if (!EMAIL_REGEX.test(email)) {
+      res.status(400).json({ success: false, message: 'Enter a valid email address' });
+      return;
+    }
+    if (name.length < 2 || name.length > 60) {
+      res.status(400).json({ success: false, message: 'Enter your full name' });
+      return;
+    }
+    if (password.length < 8) {
+      res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
+      return;
+    }
+    if (!/^\d{10}$/.test(phoneNumber)) {
+      res.status(400).json({ success: false, message: 'Enter a valid 10-digit phone number' });
+      return;
+    }
+
+    const existing = await User.findOne({ email }).select('googleId').lean();
+    if (existing) {
+      if (existing.googleId) {
+        res.status(409).json({
+          success: false,
+          message: 'This email is already linked with Google. Please continue with Google.',
+        });
+      } else {
+        res.status(409).json({ success: false, message: 'Account already exists. Please sign in.' });
+      }
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    let user;
+    try {
+      user = await User.create({
+        email,
+        name,
+        password: hashedPassword,
+        phoneNumber,
+        role: 'student',
+        isActive: true,
+        lastLogin: new Date(),
+      });
+    } catch (dbError) {
+      if (dbError.code === 11000) {
+        // Race: account created between check and create
+        res.status(409).json({ success: false, message: 'Account already exists. Please sign in.' });
+        return;
+      }
+      throw dbError;
+    }
+
+    const { accessToken, refreshToken } = await authService.login(user);
+    res.cookie('refreshToken', refreshToken, refreshCookieOptions(7 * 24 * 60 * 60 * 1000));
+    await authService.updateSessionMeta(
+      user._id.toString(),
+      req.headers['user-agent'],
+      req.ip
+    );
+
+    res.status(201).json({
+      success: true,
+      token: accessToken,
+      user: formatUser(user),
+    });
+  } catch (error) {
+    console.error('Register error:', error);
+    res.status(500).json({ success: false, message: 'Server error during registration' });
+  }
+};
