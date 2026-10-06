@@ -11,8 +11,36 @@ import Link from 'next/link';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { optimizeAvatar } from '@/lib/avatar';
+import {
+  buildCanonicalLoginUrl,
+  isSafeReturnPath,
+  pickLoginParams,
+  shouldTransitionAuthHost,
+} from '@/lib/canonical';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Human-readable messages for NextAuth OAuth errors surfaced via ?error=…
+// on the login URL (previously the form re-appeared with no explanation).
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  OAuthCallback: "Google sign-in couldn't be completed. Please try again.",
+  OAuthSignin: "Google sign-in couldn't be started. Please try again.",
+  OAuthAccountNotLinked: 'This email is already linked to a different sign-in method.',
+  AccessDenied: 'Access was denied. Please try again.',
+  Configuration: 'There is a sign-in configuration problem. Please contact support.',
+};
+
+// NextAuth callbackUrl: return to /login keeping the current context (webview
+// flow, intended destination) so the post-auth handler can finish the job.
+const buildLoginCallbackUrl = (): string => {
+  const params = pickLoginParams(window.location.search);
+  const search = new URLSearchParams();
+  if (params.webview) search.set('webview', params.webview);
+  if (params.mobile) search.set('mobile', params.mobile);
+  if (isSafeReturnPath(params.returnUrl)) search.set('returnUrl', params.returnUrl);
+  const qs = search.toString();
+  return `/login${qs ? `?${qs}` : ''}`;
+};
 
 // Warm the browser cache for the avatar URL so the navbar shows the user's
 // picture instantly after redirect instead of fetching it on the next page.
@@ -60,6 +88,19 @@ export default function LoginPage() {
 
     const params = new URLSearchParams(window.location.search);
     setIsWebViewAuthFlow(params.get('webview') === '1' || params.get('mobile') === '1');
+  }, []);
+
+  // Surface NextAuth OAuth errors (e.g. ?error=OAuthCallback after a failed
+  // round-trip) instead of silently re-showing an empty login form.
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const error = new URLSearchParams(window.location.search).get('error');
+    if (!error) {
+      return;
+    }
+    setError(OAUTH_ERROR_MESSAGES[error] ?? 'Sign-in could not be completed. Please try again.');
   }, []);
 
   // Handle URL parameters safely on mount
@@ -126,9 +167,10 @@ export default function LoginPage() {
             }
 
             // Check for returnUrl parameter - redirect there if present
+            // (validated: in-app relative paths only, never an open redirect)
             const searchParams = new URLSearchParams(window.location.search);
             const returnUrl = searchParams.get('returnUrl');
-            if (returnUrl && returnUrl.startsWith('/')) {
+            if (isSafeReturnPath(returnUrl)) {
               // Migrate guest resume if exists
               const guestResumeData = localStorage.getItem('resume-builder-guest-draft');
               if (guestResumeData) {
@@ -159,6 +201,15 @@ export default function LoginPage() {
             setError(response.data?.message || 'Failed to authenticate with server');
             setLoading(false);
           }
+        } else {
+          // One-click continuation: the user clicked "Continue with Google"
+          // on a public/SEO domain and was handed off here (auto=google).
+          // Start the OAuth flow now that the page sits on the canonical auth
+          // domain. The error guard prevents a failed attempt from looping.
+          const params = new URLSearchParams(window.location.search);
+          if (params.get('auto') === 'google' && !params.get('error')) {
+            await handleGoogleLogin();
+          }
         }
       } catch (error: any) {
         console.error('Google callback error:', error);
@@ -176,9 +227,24 @@ export default function LoginPage() {
     try {
       setLoading(true);
       setError('');
-      await signIn('google', {
-        callbackUrl: isWebViewAuthFlow ? '/login?webview=1' : '/login'
-      });
+
+      // OAuth is stateful (host-scoped state/PKCE cookies plus a fixed
+      // redirect_uri), so the round-trip must start on the canonical auth
+      // domain. From a public/SEO host, hand the flow over first; auto=google
+      // continues the click there so the user still only clicks once.
+      if (
+        typeof window !== 'undefined' &&
+        shouldTransitionAuthHost(window.location.hostname)
+      ) {
+        window.location.href = buildCanonicalLoginUrl(
+          '/login',
+          pickLoginParams(window.location.search),
+          { autoGoogle: true }
+        );
+        return;
+      }
+
+      await signIn('google', { callbackUrl: buildLoginCallbackUrl() });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'An error occurred during Google login';
       setError(errorMsg);
@@ -239,7 +305,11 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await login({ email: email.trim().toLowerCase(), password });
+      // Preserve the intended destination across the email sign-in flow too.
+      const returnUrl = new URLSearchParams(window.location.search).get('returnUrl');
+      await login({ email: email.trim().toLowerCase(), password }, {
+        redirectTo: isSafeReturnPath(returnUrl) ? returnUrl : undefined,
+      });
     } catch (err: unknown) {
       const error = err as Error;
       setError(error.message || 'Login failed. Please check your password.');
@@ -281,7 +351,8 @@ export default function LoginPage() {
         localStorage.setItem('user', JSON.stringify(res.user));
         updateUser(res.user);
         preloadAvatar(res.user.picture);
-        router.push('/pyq');
+        const returnUrl = new URLSearchParams(window.location.search).get('returnUrl');
+        router.push(isSafeReturnPath(returnUrl) ? returnUrl : '/pyq');
       } else {
         setError(res?.message || 'Failed to create account');
         setLoading(false);

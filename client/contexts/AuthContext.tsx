@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { authApi, resumeApi } from '@/lib/api';
+import { isSafeReturnPath } from '@/lib/canonical';
 import { optimizeAvatar } from '@/lib/avatar';
 import type { User, LoginCredentials } from '@/types';
 
@@ -36,7 +37,7 @@ function preloadAvatar(url?: string) {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (credentials: LoginCredentials) => Promise<void>;
+  login: (credentials: LoginCredentials, options?: { redirectTo?: string }) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updatedUser: User) => void;
   migrateGuestResume: () => Promise<string | null>;
@@ -79,17 +80,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadUser();
   }, []);
 
-  const login = async (credentials: LoginCredentials) => {
+  const login = async (credentials: LoginCredentials, options?: { redirectTo?: string }) => {
     try {
       const response = await authApi.login(credentials);
-      
+
       if (response.success && response.token && response.user) {
         localStorage.setItem('token', response.token);
         localStorage.setItem('user', JSON.stringify(response.user));
         setUser(response.user);
-        
-        // Redirect based on role
-        if (response.user.role === 'admin' || response.user.role === 'super-admin') {
+
+        // Redirect based on role; an explicit safe destination (returnUrl)
+        // wins so deep links survive the sign-in.
+        if (options?.redirectTo && isSafeReturnPath(options.redirectTo)) {
+          router.push(options.redirectTo);
+        } else if (response.user.role === 'admin' || response.user.role === 'super-admin') {
           router.push('/admin/dashboard');
         } else {
           router.push('/');

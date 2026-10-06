@@ -114,8 +114,16 @@ const forceLogout = () => {
   const isLogin = window.location.pathname.includes('/login');
 
   if (!isViewing && !isLogin) {
+    // Carry the current location so the login page can return here after
+    // re-authentication (in-app relative paths only — never an open redirect).
+    const returnTo = `${window.location.pathname}${window.location.search}`;
+    const isSafeReturn =
+      returnTo.startsWith('/') && !returnTo.startsWith('//') && !returnTo.startsWith('/\\');
+
     if (window.location.pathname.startsWith('/admin')) {
       window.location.href = '/admin/login';
+    } else if (isSafeReturn) {
+      window.location.href = `/login?returnUrl=${encodeURIComponent(returnTo)}`;
     } else {
       window.location.href = '/login';
     }
