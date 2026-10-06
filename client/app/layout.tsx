@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { QuizSocketProvider } from "@/contexts/QuizSocketContext";
 import SiteShell from "@/components/layout/SiteShell";
@@ -80,6 +81,9 @@ export default function RootLayout({
             <SiteShell>{children}</SiteShell>
           </QuizSocketProvider>
         </AuthProvider>
+        {/* Vercel Analytics: no-ops in local dev; collects page views on the
+            Vercel deployments (both domains share the same project). */}
+        <Analytics />
       </body>
     </html>
   );
