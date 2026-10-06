@@ -50,8 +50,9 @@ import {
   HandCoins,
   Heart,
 } from 'lucide-react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { buildLoginHref } from '@/lib/canonical';
 
 // ============================================================
 // Social links — update these two URLs to your real profiles
@@ -259,12 +260,24 @@ function NavDropdown({
 // ============================================================
 export default function Navbar() {
   const { user, logout } = useAuth();
+  const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [isHiddenByFooter, setIsHiddenByFooter] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navRef = useRef<HTMLElement>(null);
+
+  // Carry the current location into the login page so the user can be
+  // returned here (on the canonical domain) after authentication.
+  const handleSignInClick = (e: React.MouseEvent) => {
+    const destination = buildLoginHref(window.location.pathname, window.location.search);
+    if (destination === '/login') {
+      return;
+    }
+    e.preventDefault();
+    router.push(destination);
+  };
 
   // Hide navbar on the protected PDF viewer pages
   const hideNavbar = pathname && pathname.startsWith('/view/');
@@ -339,7 +352,6 @@ export default function Navbar() {
 
   const careerLinks: MenuLink[] = [
     { title: 'ATS Score Checker', href: '/ats-score', description: 'Check how your resume scores against ATS filters.', icon: <Target />, badge: 'new' },
-    { title: 'ATS Score Checker', href: '/coming-soon/ats-score', description: 'Check how your resume scores against ATS filters.', icon: <Target />, badge: 'soon' },
     { title: 'Resume Builder', href: user ? '/resumes' : '/resume-builder', description: 'Create, manage and export ATS-friendly resumes.', icon: <FileCheck2 />, badge: 'new' },
     { title: 'Career Hub', href: '/coming-soon/career', description: 'Internships, jobs & hackathons for students.', icon: <Briefcase />, badge: 'soon' },
   ];
@@ -569,7 +581,7 @@ export default function Navbar() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Link href="/login">
+              <Link href="/login" onClick={handleSignInClick}>
                 <Button className="bg-zinc-900 text-white shadow-sm hover:bg-zinc-800 rounded-md font-medium px-5">
                   Sign In
                 </Button>
@@ -653,6 +665,18 @@ function MobileMenu({
   onNavigate,
   onLogout,
 }: MobileMenuProps) {
+  const router = useRouter();
+
+  // Same deep-link preservation as the desktop navbar Sign In button.
+  const handleSignInClick = (e: React.MouseEvent) => {
+    const destination = buildLoginHref(window.location.pathname, window.location.search);
+    if (destination === '/login') {
+      return;
+    }
+    e.preventDefault();
+    router.push(destination);
+  };
+
   const groups: { value: string; label: string; links: MenuLink[] }[] = [
     { value: 'academics', label: 'Academics', links: academicLinks },
     { value: 'career', label: 'Career', links: careerLinks },
@@ -701,7 +725,13 @@ function MobileMenu({
 
       {!user && (
         <div className="p-4 pb-1">
-          <Link href="/login" onClick={onNavigate}>
+          <Link
+            href="/login"
+            onClick={(e) => {
+              handleSignInClick(e);
+              onNavigate();
+            }}
+          >
             <Button className="w-full bg-zinc-900 text-white hover:bg-zinc-800 rounded-md">
               Sign In
             </Button>

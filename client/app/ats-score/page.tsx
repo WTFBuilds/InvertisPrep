@@ -13,11 +13,9 @@ import {
   RefreshCw,
   Award,
   Target,
-  FileCheck,
   Check,
   Copy,
   ChevronDown,
-  ChevronUp,
   BrainCircuit,
   BarChart3,
   Briefcase,
@@ -25,8 +23,26 @@ import {
   Printer,
   ShieldCheck,
   TrendingUp,
-  Bot
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { Separator } from '@/components/ui/separator';
 import { DOMAINS, DomainProfile, GeminiATSAnalysisResult } from '@/lib/ats-domains';
 
 // Sample resumes for instant 1-click test
@@ -93,7 +109,83 @@ PROJECTS
   Integrated semantic document search over 50,000 internal PDF documentation pages.
 
 EDUCATION
-B.Tech in Computer Science & Engineering | Invertis University | 2019 - 2023`
+B.Tech in Computer Science & Engineering | Invertis University | 2019 - 2023`,
+};
+
+const EXPERIENCE_LEVELS = ['Fresher', '1-3 years', '3-5 years', '5+ years'];
+
+// Score-driven visual language for the dial, grade chip and summary accents.
+const scoreTheme = (score: number) => {
+  if (score >= 85) {
+    return {
+      stroke: '#10b981',
+      text: 'text-emerald-600',
+      chip: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    };
+  }
+  if (score >= 70) {
+    return {
+      stroke: '#0ea5e9',
+      text: 'text-sky-600',
+      chip: 'bg-sky-50 text-sky-700 border-sky-200',
+    };
+  }
+  if (score >= 50) {
+    return {
+      stroke: '#f59e0b',
+      text: 'text-amber-600',
+      chip: 'bg-amber-50 text-amber-700 border-amber-200',
+    };
+  }
+  return {
+    stroke: '#ef4444',
+    text: 'text-red-600',
+    chip: 'bg-red-50 text-red-700 border-red-200',
+  };
+};
+
+const BREAKDOWN_ITEMS: {
+  key: keyof GeminiATSAnalysisResult['breakdown'];
+  label: string;
+  bar: string;
+  value: string;
+}[] = [
+  {
+    key: 'skillsMatchScore',
+    label: 'Technical Skills Match',
+    bar: '[&>div]:bg-emerald-500',
+    value: 'text-emerald-600',
+  },
+  {
+    key: 'experienceRelevanceScore',
+    label: 'Role & Experience Relevance',
+    bar: '[&>div]:bg-indigo-500',
+    value: 'text-indigo-600',
+  },
+  {
+    key: 'quantifiableImpactScore',
+    label: 'Quantifiable Metrics & Impact (STAR)',
+    bar: '[&>div]:bg-pink-500',
+    value: 'text-pink-600',
+  },
+  {
+    key: 'keywordDensityScore',
+    label: 'ATS Keyword Frequency & Optimization',
+    bar: '[&>div]:bg-amber-500',
+    value: 'text-amber-600',
+  },
+  {
+    key: 'formattingStructureScore',
+    label: 'ATS Formatting & Parseability',
+    bar: '[&>div]:bg-rose-500',
+    value: 'text-rose-600',
+  },
+];
+
+const PRIORITY_STYLES: Record<string, string> = {
+  High: 'bg-red-50 text-red-700 border-red-200',
+  Medium: 'bg-amber-50 text-amber-700 border-amber-200',
+  Low: 'bg-slate-100 text-slate-600 border-slate-200',
 };
 
 export default function ATSResumeAnalyserPage() {
@@ -272,7 +364,7 @@ export default function ATSResumeAnalyserPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100 selection:bg-zinc-800 selection:text-white print:min-h-0 print:h-auto print:overflow-visible print:bg-white print:text-zinc-950">
+    <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-indigo-100 selection:text-indigo-900 print:min-h-0 print:h-auto print:overflow-visible print:bg-white">
       {/* Print Specific CSS Overrides */}
       <style jsx global>{`
         @media print {
@@ -287,7 +379,7 @@ export default function ATSResumeAnalyserPage() {
           }
           html, body {
             background-color: #ffffff !important;
-            color: #09090b !important;
+            color: #0f172a !important;
             min-height: auto !important;
             height: auto !important;
             overflow: visible !important;
@@ -298,18 +390,16 @@ export default function ATSResumeAnalyserPage() {
             display: none !important;
           }
 
-          /* Print Container */
           .ats-score-printable {
             display: block !important;
-            visibility: visible !important;
             background: #ffffff !important;
-            color: #09090b !important;
+            color: #0f172a !important;
             padding: 0 !important;
             margin: 0 !important;
             width: 100% !important;
           }
           .ats-score-printable * {
-            visibility: visible !important;
+            box-shadow: none !important;
           }
 
           /* Hero Section in Print: Clean 2-column flex */
@@ -325,9 +415,6 @@ export default function ATSResumeAnalyserPage() {
             width: 34% !important;
             min-width: 34% !important;
             max-width: 34% !important;
-            background-color: #f4f4f5 !important;
-            border: 1px solid #d4d4d8 !important;
-            border-radius: 12px !important;
             padding: 16px !important;
             text-align: center !important;
             display: flex !important;
@@ -338,9 +425,6 @@ export default function ATSResumeAnalyserPage() {
           .ats-print-breakdown-card {
             width: 64% !important;
             flex: 1 !important;
-            background-color: #ffffff !important;
-            border: 1px solid #d4d4d8 !important;
-            border-radius: 12px !important;
             padding: 16px !important;
             display: flex !important;
             flex-direction: column !important;
@@ -360,11 +444,10 @@ export default function ATSResumeAnalyserPage() {
 
           /* Full Width Cards in Print */
           .ats-print-card {
-            background-color: #ffffff !important;
-            border: 1px solid #d4d4d8 !important;
+            border: 1px solid #e2e8f0 !important;
             border-radius: 12px !important;
             padding: 14px 16px !important;
-            color: #09090b !important;
+            color: #0f172a !important;
             box-shadow: none !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
@@ -381,278 +464,256 @@ export default function ATSResumeAnalyserPage() {
             width: 100% !important;
             margin-top: 12px !important;
             padding-top: 10px !important;
-            border-top: 1px solid #e4e4e7 !important;
+            border-top: 1px solid #e2e8f0 !important;
           }
           .ats-print-stat-item {
             flex: 1 !important;
-            background-color: #f4f4f5 !important;
-            border: 1px solid #e4e4e7 !important;
+            border: 1px solid #e2e8f0 !important;
             border-radius: 8px !important;
             padding: 6px 8px !important;
             text-align: center !important;
           }
 
-          /* Skills Badges in Print */
+          /* Badges in Print */
           .ats-print-badges-wrap {
             display: flex !important;
             flex-wrap: wrap !important;
             gap: 6px !important;
             margin-top: 8px !important;
           }
-          .print-badge-matched {
-            background-color: #f4f4f5 !important;
-            color: #09090b !important;
-            border: 1px solid #a1a1aa !important;
+          .print-badge {
+            border: 1px solid #cbd5e1 !important;
             padding: 3px 8px !important;
             border-radius: 6px !important;
             font-size: 8.5pt !important;
             font-weight: 600 !important;
-          }
-          .print-badge-missing {
-            background-color: #ffffff !important;
-            color: #71717a !important;
-            border: 1px dashed #d4d4d8 !important;
-            padding: 3px 8px !important;
-            border-radius: 6px !important;
-            font-size: 8.5pt !important;
-            font-weight: 500 !important;
+            background-color: #f8fafc !important;
+            color: #0f172a !important;
           }
           .print-badge-soft {
-            background-color: #f4f4f5 !important;
-            color: #27272a !important;
-            border: 1px solid #d4d4d8 !important;
+            border: 1px solid #e2e8f0 !important;
             padding: 2px 7px !important;
             border-radius: 5px !important;
             font-size: 8pt !important;
-          }
-
-          /* Progress Bars in Print */
-          .print-progress-bar {
-            background-color: #e4e4e7 !important;
-            height: 6px !important;
-            border-radius: 9999px !important;
-            overflow: hidden !important;
-          }
-          .print-progress-fill {
-            background-color: #18181b !important;
-            height: 100% !important;
+            background-color: #ffffff !important;
+            color: #334155 !important;
           }
         }
       `}</style>
 
-      {/* Subtle Background Grid Pattern (Hidden on Print) */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden no-print print:hidden">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#27272a15_1px,transparent_1px),linear-gradient(to_bottom,#27272a15_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
-      </div>
-
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-24 print:p-0 print:m-0 print:max-w-none">
+      <div className="relative mx-auto max-w-7xl px-4 pb-24 pt-10 sm:px-6 lg:px-8 print:p-0 print:m-0 print:max-w-none">
         {/* Top Header (Hidden on Print) */}
-        <div className="flex flex-col items-center text-center space-y-3 max-w-4xl mx-auto mb-10 no-print print:hidden">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-zinc-800 bg-zinc-950 text-zinc-300 text-xs font-semibold tracking-wider uppercase shadow-sm">
-            <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+        <div className="mx-auto mb-10 flex max-w-4xl flex-col items-center space-y-3 text-center no-print print:hidden">
+          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3.5 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-700">
+            <Sparkles className="size-3.5" />
             <span>AI Resume Intelligence</span>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight">
-            ATS SCORE CHECKER
+          <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
+            ATS Score Checker
           </h1>
-          <p className="text-sm sm:text-base text-zinc-400 max-w-xl">
-            Evaluate your resume against industry Applicant Tracking Systems with precision benchmarking and actionable recommendations.
+          <p className="max-w-xl text-sm text-slate-600 sm:text-base">
+            Evaluate your resume against industry Applicant Tracking Systems with precision
+            benchmarking and actionable recommendations.
           </p>
         </div>
 
         {/* ================= MAIN INTERFACE (Hidden on Print) ================= */}
         {!analysisResult && !isAnalyzing && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start no-print print:hidden">
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12 lg:gap-8 no-print print:hidden">
             {/* Left Column: Domain & Role Selector */}
-            <div className="lg:col-span-5 space-y-6">
-              <div className="border border-zinc-800 bg-zinc-950 rounded-2xl p-6 shadow-xl">
-                <div className="flex items-center gap-3 pb-4 border-b border-zinc-800 mb-5">
-                  <div className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-white">
-                    <Briefcase className="size-5" />
+            <div className="space-y-6 lg:col-span-5">
+              <Card>
+                <CardHeader className="pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-10 items-center justify-center rounded-xl border border-indigo-100 bg-indigo-50 text-indigo-600">
+                      <Briefcase className="size-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">Target Job Domain</CardTitle>
+                      <CardDescription>Select your target career path</CardDescription>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-base font-bold text-white">Target Job Domain</h2>
-                    <p className="text-xs text-zinc-400">Select your target career path</p>
-                  </div>
-                </div>
-
-                {/* Domain Selector Grid */}
-                <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
-                  {DOMAINS.map((domain) => {
-                    const isSelected = selectedDomain.id === domain.id;
-                    return (
-                      <button
-                        key={domain.id}
-                        type="button"
-                        onClick={() => setSelectedDomain(domain)}
-                        className={`w-full text-left p-3.5 rounded-xl border transition-all duration-150 flex items-start gap-3 ${isSelected
-                            ? 'border-white bg-zinc-900 text-white ring-1 ring-white/20'
-                            : 'border-zinc-800/80 bg-zinc-900/40 text-zinc-300 hover:bg-zinc-900 hover:border-zinc-700'
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  {/* Domain Selector Grid */}
+                  <div className="custom-scrollbar max-h-[360px] space-y-2 overflow-y-auto pr-1">
+                    {DOMAINS.map((domain) => {
+                      const isSelected = selectedDomain.id === domain.id;
+                      return (
+                        <button
+                          key={domain.id}
+                          type="button"
+                          onClick={() => setSelectedDomain(domain)}
+                          className={`flex w-full items-start gap-3 rounded-xl border p-3.5 text-left transition-all duration-150 ${
+                            isSelected
+                              ? 'border-indigo-300 bg-indigo-50/70 ring-1 ring-indigo-200'
+                              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                           }`}
-                      >
-                        <span className="text-2xl pt-0.5">{domain.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <span className={`text-sm font-semibold truncate ${isSelected ? 'text-white' : 'text-zinc-200'}`}>
-                              {domain.name}
-                            </span>
-                            {isSelected && (
-                              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-black">
-                                <Check className="size-2.5 stroke-[3]" />
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-zinc-400 line-clamp-1 mt-0.5">{domain.description}</p>
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {domain.coreSkills.slice(0, 4).map((skill) => (
+                        >
+                          <span className="pt-0.5 text-2xl">{domain.icon}</span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
                               <span
-                                key={skill}
-                                className={`text-[10px] px-1.5 py-0.5 rounded ${isSelected
-                                    ? 'bg-zinc-800 text-zinc-200 border border-zinc-700'
-                                    : 'bg-zinc-900 text-zinc-400 border border-zinc-800'
-                                  }`}
+                                className={`truncate text-sm font-semibold ${isSelected ? 'text-indigo-900' : 'text-slate-800'}`}
                               >
-                                {skill}
+                                {domain.name}
                               </span>
-                            ))}
-                            {domain.coreSkills.length > 4 && (
-                              <span className="text-[10px] text-zinc-500 pt-0.5">
-                                +{domain.coreSkills.length - 4} more
-                              </span>
-                            )}
+                              {isSelected && (
+                                <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white">
+                                  <Check className="size-2.5 stroke-[3]" />
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">
+                              {domain.description}
+                            </p>
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {domain.coreSkills.slice(0, 4).map((skill) => (
+                                <span
+                                  key={skill}
+                                  className={`rounded border px-1.5 py-0.5 text-[10px] ${
+                                    isSelected
+                                      ? 'border-indigo-200 bg-white text-indigo-700'
+                                      : 'border-slate-200 bg-slate-50 text-slate-500'
+                                  }`}
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                              {domain.coreSkills.length > 4 && (
+                                <span className="pt-0.5 text-[10px] text-slate-400">
+                                  +{domain.coreSkills.length - 4} more
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Experience Level Selector */}
-                <div className="mt-5 pt-4 border-t border-zinc-800">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
-                    Experience Level
-                  </label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {['Fresher', '1-3 years', '3-5 years', '5+ years'].map((level) => (
-                      <button
-                        key={level}
-                        type="button"
-                        onClick={() => setExperienceLevel(level)}
-                        className={`py-2 px-1 text-center rounded-lg border text-xs font-medium transition-all ${experienceLevel === level
-                            ? 'border-white bg-white text-black font-bold'
-                            : 'border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-white hover:bg-zinc-800'
-                          }`}
-                      >
-                        {level}
-                      </button>
-                    ))}
+                        </button>
+                      );
+                    })}
                   </div>
-                </div>
 
-                {/* Optional Custom Job Description */}
-                <div className="mt-4 pt-4 border-t border-zinc-800">
-                  <button
-                    type="button"
-                    onClick={() => setShowJDInput(!showJDInput)}
-                    className="w-full flex items-center justify-between text-xs font-semibold text-zinc-300 hover:text-white transition-colors"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <Sliders className="size-3.5 text-zinc-400" />
-                      Add Custom Job Description (Optional)
-                    </span>
-                    {showJDInput ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-                  </button>
+                  <Separator />
 
-                  {showJDInput && (
-                    <div className="mt-3 space-y-2">
-                      <p className="text-[11px] text-zinc-400">
-                        Paste target job description to benchmark directly against company requirements.
+                  {/* Experience Level Selector */}
+                  <div>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Experience Level
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {EXPERIENCE_LEVELS.map((level) => (
+                        <Button
+                          key={level}
+                          type="button"
+                          size="sm"
+                          variant={experienceLevel === level ? 'default' : 'outline'}
+                          onClick={() => setExperienceLevel(level)}
+                          className={
+                            experienceLevel === level
+                              ? 'h-9 px-1 text-xs font-bold'
+                              : 'h-9 px-1 text-xs font-medium text-slate-600'
+                          }
+                        >
+                          {level}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Optional Custom Job Description */}
+                  <Collapsible open={showJDInput} onOpenChange={setShowJDInput}>
+                    <CollapsibleTrigger className="group flex w-full items-center justify-between rounded-lg text-xs font-semibold text-slate-700 transition-colors hover:text-indigo-700">
+                      <span className="flex items-center gap-1.5">
+                        <Sliders className="size-3.5 text-slate-400" />
+                        Add Custom Job Description (Optional)
+                      </span>
+                      <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-3 space-y-2">
+                      <p className="text-[11px] text-slate-500">
+                        Paste the target job description to benchmark directly against company
+                        requirements.
                       </p>
-                      <textarea
+                      <Textarea
                         value={customJD}
                         onChange={(e) => setCustomJD(e.target.value)}
                         placeholder="Paste target job description requirements, responsibilities, or qualifications here..."
                         rows={4}
-                        className="w-full rounded-xl border border-zinc-800 bg-black p-3 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 custom-scrollbar"
+                        className="custom-scrollbar text-xs"
                       />
-                    </div>
-                  )}
-                </div>
-              </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </CardContent>
+              </Card>
 
               {/* Instant 1-Click Samples */}
-              <div className="border border-zinc-800 bg-zinc-950 rounded-xl p-4 flex items-center justify-between shadow-md">
-                <div>
-                  <p className="text-xs font-semibold text-zinc-200">Try sample test resumes:</p>
-                  <p className="text-[11px] text-zinc-500">Test analysis immediately with 1 click</p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => loadSample('fullstack')}
-                    className="px-2.5 py-1.5 rounded-lg border border-zinc-700 bg-zinc-900 text-xs font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors cursor-pointer"
-                  >
-                    Full Stack
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => loadSample('aiml')}
-                    className="px-2.5 py-1.5 rounded-lg border border-zinc-700 bg-zinc-900 text-xs font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors cursor-pointer"
-                  >
-                    AI / ML
-                  </button>
-                </div>
-              </div>
+              <Card className="bg-white">
+                <CardContent className="flex items-center justify-between gap-3 p-4">
+                  <div>
+                    <p className="text-xs font-semibold text-slate-800">Try sample test resumes:</p>
+                    <p className="text-[11px] text-slate-500">
+                      Test analysis immediately with 1 click
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => loadSample('fullstack')}
+                      className="h-8 cursor-pointer px-2.5 text-xs font-medium"
+                    >
+                      Full Stack
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => loadSample('aiml')}
+                      className="h-8 cursor-pointer px-2.5 text-xs font-medium"
+                    >
+                      AI / ML
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Right Column: Upload Resume & Content */}
-            <div className="lg:col-span-7 space-y-6">
-              <div className="border border-zinc-800 bg-zinc-950 rounded-2xl p-6 shadow-xl">
-                {/* Tabs: Upload File vs Paste Text */}
-                <div className="flex items-center justify-between pb-4 border-b border-zinc-800 mb-5">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-white">
-                      <FileText className="size-5" />
+            <div className="space-y-6 lg:col-span-7">
+              <Card>
+                <CardHeader className="pb-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-10 items-center justify-center rounded-xl border border-indigo-100 bg-indigo-50 text-indigo-600">
+                        <FileText className="size-5" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-base">Your Resume</CardTitle>
+                        <CardDescription>Upload a document or paste text</CardDescription>
+                      </div>
                     </div>
-                    <div>
-                      <h2 className="text-base font-bold text-white">Your Resume</h2>
-                      <p className="text-xs text-zinc-400">Upload document or paste text</p>
-                    </div>
-                  </div>
 
-                  <div className="flex rounded-lg border border-zinc-800 bg-black p-1">
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('upload')}
-                      className={`px-3 py-1 text-xs font-medium rounded-md transition-all cursor-pointer ${activeTab === 'upload'
-                          ? 'bg-zinc-800 text-white font-semibold shadow-sm'
-                          : 'text-zinc-400 hover:text-zinc-200'
-                        }`}
-                    >
-                      Upload File
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('paste')}
-                      className={`px-3 py-1 text-xs font-medium rounded-md transition-all cursor-pointer ${activeTab === 'paste'
-                          ? 'bg-zinc-800 text-white font-semibold shadow-sm'
-                          : 'text-zinc-400 hover:text-zinc-200'
-                        }`}
-                    >
-                      Paste Text
-                    </button>
+                    <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'upload' | 'paste')}>
+                      <TabsList className="h-9">
+                        <TabsTrigger value="upload" className="px-3 text-xs">
+                          Upload File
+                        </TabsTrigger>
+                        <TabsTrigger value="paste" className="px-3 text-xs">
+                          Paste Text
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
                   </div>
-                </div>
-
-                {/* Upload Zone */}
-                {activeTab === 'upload' ? (
-                  <div className="space-y-4">
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Upload Zone */}
+                  {activeTab === 'upload' && (
                     <div
                       onDragOver={handleDragOver}
                       onDrop={handleDrop}
                       onClick={() => fileInputRef.current?.click()}
-                      className="group relative cursor-pointer rounded-2xl border-2 border-dashed border-zinc-800 bg-black p-8 text-center transition-all duration-200 hover:border-zinc-600 hover:bg-zinc-900/40"
+                      className="group relative cursor-pointer rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/60 p-8 text-center transition-all duration-200 hover:border-indigo-300 hover:bg-indigo-50/40"
                     >
                       <input
                         ref={fileInputRef}
@@ -666,224 +727,249 @@ export default function ATSResumeAnalyserPage() {
                         className="hidden"
                       />
 
-                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900 text-zinc-300 group-hover:scale-105 group-hover:border-zinc-600 group-hover:text-white transition-all duration-200">
+                      <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-all duration-200 group-hover:scale-105 group-hover:border-indigo-200 group-hover:text-indigo-600">
                         <UploadCloud className="size-7 stroke-[1.75]" />
                       </div>
 
-                      <p className="mt-4 text-sm font-semibold text-zinc-200 group-hover:text-white">
+                      <p className="mt-4 text-sm font-semibold text-slate-700 group-hover:text-slate-900">
                         {fileName ? (
-                          <span className="text-white font-bold flex items-center justify-center gap-1.5">
-                            <CheckCircle2 className="size-4 text-zinc-400" /> {fileName}
+                          <span className="flex items-center justify-center gap-1.5 font-bold text-slate-900">
+                            <CheckCircle2 className="size-4 text-emerald-600" /> {fileName}
                           </span>
                         ) : (
                           'Drag & drop your resume here, or browse files'
                         )}
                       </p>
-                      <p className="mt-1 text-xs text-zinc-500">
+                      <p className="mt-1 text-xs text-slate-500">
                         Supports PDF, TXT, DOCX files (Up to 10MB)
                       </p>
 
                       {fileName && (
-                        <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-xs text-zinc-200">
-                          <Check className="size-3 text-white" /> File loaded & ready for analysis
+                        <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                          <Check className="size-3" /> File loaded & ready for analysis
                         </div>
                       )}
                     </div>
-                  </div>
-                ) : (
-                  /* Paste Tab */
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-zinc-400">
-                        Paste the full raw text of your resume:
-                      </span>
-                      {resumeText && (
-                        <span className="text-xs text-zinc-500">
-                          {resumeText.split(/\s+/).filter(Boolean).length} words
+                  )}
+
+                  {/* Paste Tab */}
+                  {activeTab === 'paste' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-slate-500">
+                          Paste the full raw text of your resume:
                         </span>
-                      )}
+                        {resumeText && (
+                          <span className="text-xs text-slate-400">
+                            {resumeText.split(/\s+/).filter(Boolean).length} words
+                          </span>
+                        )}
+                      </div>
+                      <Textarea
+                        value={resumeText}
+                        onChange={(e) => {
+                          setResumeText(e.target.value);
+                          setFileName(e.target.value ? 'Pasted_Resume_Content.txt' : null);
+                        }}
+                        rows={14}
+                        placeholder="Paste entire resume here (including Summary, Skills, Experience, Education, Projects)..."
+                        className="custom-scrollbar font-mono text-xs leading-relaxed"
+                      />
                     </div>
-                    <textarea
-                      value={resumeText}
-                      onChange={(e) => {
-                        setResumeText(e.target.value);
-                        setFileName(e.target.value ? 'Pasted_Resume_Content.txt' : null);
-                      }}
-                      rows={14}
-                      placeholder="Paste entire resume here (including Summary, Skills, Experience, Education, Projects)..."
-                      className="w-full rounded-xl border border-zinc-800 bg-black p-4 text-xs font-mono text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 custom-scrollbar leading-relaxed"
-                    />
-                  </div>
-                )}
+                  )}
 
-                {/* Error Banner */}
-                {errorMsg && (
-                  <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-zinc-700 bg-zinc-900 p-3.5 text-xs text-zinc-200">
-                    <AlertTriangle className="size-4 shrink-0 text-zinc-400 mt-0.5" />
-                    <span>{errorMsg}</span>
-                  </div>
-                )}
+                  {/* Error Banner */}
+                  {errorMsg && (
+                    <Alert variant="destructive">
+                      <AlertTriangle className="size-4" />
+                      <AlertDescription className="text-xs">{errorMsg}</AlertDescription>
+                    </Alert>
+                  )}
 
-                {/* Submit Action Button */}
-                <div className="mt-6 pt-5 border-t border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="flex items-center gap-2 text-xs text-zinc-400">
-                    <ShieldCheck className="size-4 text-zinc-300" />
-                    <span>Selected: <strong className="text-zinc-200">{selectedDomain.name}</strong> ({experienceLevel})</span>
-                  </div>
+                  {/* Submit Action Button */}
+                  <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-100 pt-5 sm:flex-row">
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <ShieldCheck className="size-4 text-slate-400" />
+                      <span>
+                        Selected:{' '}
+                        <strong className="font-semibold text-slate-800">
+                          {selectedDomain.name}
+                        </strong>{' '}
+                        ({experienceLevel})
+                      </span>
+                    </div>
 
-                  <button
-                    type="button"
-                    onClick={runAnalysis}
-                    disabled={!resumeText.trim()}
-                    className={`w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer shadow-lg ${resumeText.trim()
-                        ? 'bg-white text-black hover:bg-zinc-200 active:scale-98'
-                        : 'bg-zinc-900 text-zinc-600 cursor-not-allowed border border-zinc-800'
-                      }`}
-                  >
-                    <Sparkles className="size-4" />
-                    <span>Analyze ATS Score</span>
-                    <ArrowRight className="size-4" />
-                  </button>
-                </div>
-              </div>
+                    <Button
+                      type="button"
+                      onClick={runAnalysis}
+                      disabled={!resumeText.trim() || isAnalyzing}
+                      className="h-11 w-full cursor-pointer bg-slate-900 px-8 text-sm font-bold hover:bg-slate-800 sm:w-auto"
+                    >
+                      <Sparkles className="size-4" />
+                      <span>Analyze ATS Score</span>
+                      <ArrowRight className="size-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         )}
 
         {/* ================= LOADING SCANNER ANIMATION ================= */}
         {isAnalyzing && (
-          <div className="max-w-2xl mx-auto py-12 no-print print:hidden">
-            <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-8 sm:p-12 text-center shadow-2xl relative overflow-hidden">
-              <div className="relative mx-auto mb-8 flex h-20 w-20 items-center justify-center rounded-2xl border border-zinc-700 bg-zinc-900 text-white shadow-xl">
-                <BrainCircuit className="size-10 text-white animate-pulse" />
+          <div className="mx-auto max-w-2xl py-12 no-print print:hidden">
+            <Card className="relative overflow-hidden p-8 sm:p-12">
+              <div className="relative mx-auto mb-8 flex size-20 items-center justify-center rounded-2xl border border-indigo-100 bg-indigo-50 text-indigo-600">
+                <BrainCircuit className="size-10 animate-pulse" />
               </div>
 
-              <h3 className="text-2xl sm:text-3xl font-extrabold text-white mb-2">
+              <h3 className="mb-2 text-center text-2xl font-extrabold text-slate-900 sm:text-3xl">
                 Evaluating Your Resume
               </h3>
-              <p className="text-sm text-zinc-400 mb-8">
-                Benchmarking against <span className="text-white font-semibold">{selectedDomain.name}</span> hiring standards...
+              <p className="mb-8 text-center text-sm text-slate-500">
+                Benchmarking against{' '}
+                <span className="font-semibold text-indigo-700">{selectedDomain.name}</span> hiring
+                standards...
               </p>
 
               {/* Progress Bar */}
-              <div className="w-full space-y-2 mb-8">
-                <div className="flex justify-between text-xs font-semibold text-zinc-400">
+              <div className="mb-8 w-full space-y-2">
+                <div className="flex justify-between text-xs font-semibold text-slate-500">
                   <span>Processing</span>
-                  <span className="text-white font-mono">{loadingProgress}%</span>
+                  <span className="font-mono text-indigo-700">{loadingProgress}%</span>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-900 border border-zinc-800">
-                  <div
-                    className="h-full bg-white transition-all duration-300 rounded-full"
-                    style={{ width: `${loadingProgress}%` }}
-                  />
-                </div>
+                <Progress value={loadingProgress} className="h-2" />
               </div>
 
               {/* Active Step Indicator */}
-              <div className="space-y-2.5 text-left max-w-md mx-auto">
+              <div className="mx-auto max-w-md space-y-2.5 text-left">
                 {loadingSteps.map((step, idx) => {
                   const isDone = idx < loadingStep;
                   const isCurrent = idx === loadingStep;
                   return (
                     <div
                       key={step.title}
-                      className={`flex items-start gap-3 p-2.5 rounded-xl border transition-all duration-200 ${isCurrent
-                          ? 'border-zinc-600 bg-zinc-900 text-white'
+                      className={`flex items-start gap-3 rounded-xl border p-2.5 transition-all duration-200 ${
+                        isCurrent
+                          ? 'border-indigo-200 bg-indigo-50/70'
                           : isDone
-                            ? 'border-zinc-800/80 bg-zinc-950/60 text-zinc-400'
-                            : 'border-transparent text-zinc-600 opacity-40'
-                        }`}
+                            ? 'border-slate-100 bg-slate-50'
+                            : 'border-transparent opacity-40'
+                      }`}
                     >
                       <div className="mt-0.5">
                         {isDone ? (
-                          <CheckCircle2 className="size-4 text-white" />
+                          <CheckCircle2 className="size-4 text-emerald-600" />
                         ) : isCurrent ? (
-                          <div className="size-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                          <div className="size-4 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
                         ) : (
-                          <div className="size-4 rounded-full border border-zinc-700" />
+                          <div className="size-4 rounded-full border border-slate-300" />
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className={`text-xs font-semibold ${isCurrent ? 'text-white' : 'text-zinc-300'}`}>
+                        <p
+                          className={`text-xs font-semibold ${isCurrent ? 'text-indigo-900' : 'text-slate-600'}`}
+                        >
                           {step.title}
                         </p>
-                        <p className="text-[11px] text-zinc-500 truncate">{step.detail}</p>
+                        <p className="truncate text-[11px] text-slate-400">{step.detail}</p>
                       </div>
                     </div>
                   );
                 })}
               </div>
-            </div>
+            </Card>
           </div>
         )}
 
         {/* ================= ATS RESULTS DASHBOARD ================= */}
         {analysisResult && !isAnalyzing && (
-          <div ref={resultRef} className="ats-score-printable space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 print:space-y-4">
+          <div
+            ref={resultRef}
+            className="ats-score-printable space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-700 lg:space-y-8 print:space-y-4"
+          >
             {/* Dedicated Print Only Header */}
-            <div className="hidden print:block border-b-2 border-zinc-900 pb-3 mb-4">
-              <div className="flex justify-between items-start">
+            <div className="hidden border-b-2 border-slate-900 pb-3 print:block">
+              <div className="flex items-start justify-between">
                 <div>
-                  <h1 className="text-xl font-black tracking-tight text-zinc-950">INVERTISPREP ATS SCORE REPORT</h1>
-                  <p className="text-xs text-zinc-600 mt-0.5">
-                    Target Domain: <strong>{selectedDomain.name}</strong> ({experienceLevel})
+                  <h1 className="text-xl font-black tracking-tight text-slate-950">
+                    INVERTISPREP ATS SCORE REPORT
+                  </h1>
+                  <p className="mt-0.5 text-xs text-slate-600">
+                    Target Domain:{' '}
+                    <strong>
+                      {selectedDomain.name} ({experienceLevel})
+                    </strong>
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-zinc-700 font-semibold">Document: {fileName || 'Resume Document'}</p>
-                  <p className="text-[10px] text-zinc-500">Date: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                  <p className="text-xs font-semibold text-slate-700">
+                    Document: {fileName || 'Resume Document'}
+                  </p>
+                  <p className="text-[10px] text-slate-500">
+                    Date:{' '}
+                    {new Date().toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </p>
                 </div>
               </div>
             </div>
 
             {/* Screen Action Bar (Hidden on Print) */}
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800 pb-5 no-print print:hidden">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-5 no-print print:hidden">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Analysis Complete</span>
-                  <span className="text-zinc-600">•</span>
-                  <span className="text-xs text-zinc-400">{fileName || 'Resume Document'}</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">
+                    Analysis Complete
+                  </span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-xs text-slate-500">{fileName || 'Resume Document'}</span>
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
-                  ATS Scorecard for <span className="text-white underline decoration-zinc-600 underline-offset-4">{selectedDomain.name}</span>
+                <h2 className="mt-1 text-2xl font-extrabold text-slate-900 sm:text-3xl">
+                  ATS Scorecard for{' '}
+                  <span className="text-indigo-700">{selectedDomain.name}</span>
                 </h2>
               </div>
 
               <div className="flex items-center gap-3">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={handlePrint}
-                  className="px-4 py-2.5 rounded-xl border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-xs font-semibold text-zinc-200 hover:text-white flex items-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer"
+                  className="cursor-pointer gap-2 text-xs font-semibold"
                 >
-                  <Printer className="size-4 text-zinc-400" />
+                  <Printer className="size-4" />
                   <span>Print / Export PDF</span>
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={() => {
                     setAnalysisResult(null);
                   }}
-                  className="px-4 py-2.5 rounded-xl border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-xs font-semibold text-zinc-300 hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
+                  className="cursor-pointer gap-2 text-xs font-semibold text-slate-600"
                 >
-                  <RefreshCw className="size-4 text-zinc-400" />
+                  <RefreshCw className="size-4" />
                   <span>Analyze Another Resume</span>
-                </button>
+                </Button>
               </div>
             </div>
 
             {/* Top Score Banner: Hero Gauge */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch ats-print-hero">
+            <div className="ats-print-hero grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12">
               {/* Score Circular Dial Card */}
-              <div className="lg:col-span-5 border border-zinc-800 bg-zinc-950 rounded-3xl p-8 shadow-xl flex flex-col items-center justify-center text-center relative overflow-hidden ats-print-score-card">
-                {/* Score Dial Visual */}
+              <Card className="ats-print-score-card flex flex-col items-center justify-center p-8 text-center lg:col-span-5">
                 <div className="relative my-2 flex items-center justify-center">
-                  <svg className="w-40 h-40 transform -rotate-90" viewBox="0 0 100 100">
+                  <svg className="h-40 w-40 -rotate-90" viewBox="0 0 100 100">
                     <circle
                       cx="50"
                       cy="50"
                       r="40"
-                      stroke="#27272a"
-                      className="print:stroke-zinc-200"
+                      stroke="#e2e8f0"
                       strokeWidth="8"
                       fill="transparent"
                     />
@@ -891,21 +977,23 @@ export default function ATSResumeAnalyserPage() {
                       cx="50"
                       cy="50"
                       r="40"
-                      stroke="#ffffff"
+                      stroke={scoreTheme(analysisResult.atsScore).stroke}
                       strokeWidth="8"
                       strokeDasharray={251.2}
                       strokeDashoffset={251.2 - (251.2 * analysisResult.atsScore) / 100}
                       strokeLinecap="round"
                       fill="transparent"
-                      className="transition-all duration-1000 ease-out print:stroke-zinc-900"
+                      className="transition-all duration-1000 ease-out"
                     />
                   </svg>
 
                   <div className="absolute flex flex-col items-center justify-center">
-                    <span className="text-4xl font-black tracking-tight text-white print:text-zinc-950">
+                    <span
+                      className={`text-4xl font-black tracking-tight ${scoreTheme(analysisResult.atsScore).text}`}
+                    >
                       {analysisResult.atsScore}
                     </span>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 print:text-zinc-600">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                       out of 100
                     </span>
                   </div>
@@ -913,141 +1001,93 @@ export default function ATSResumeAnalyserPage() {
 
                 {/* Grade Badge */}
                 <div className="mt-2">
-                  <span className="inline-block px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-zinc-900 text-white border border-zinc-700 print:bg-zinc-100 print:text-zinc-900 print:border-zinc-300">
+                  <Badge
+                    variant="outline"
+                    className={`px-3 py-1 text-xs font-extrabold uppercase tracking-wider ${scoreTheme(analysisResult.atsScore).chip}`}
+                  >
                     {analysisResult.grade} ATS Match
-                  </span>
-                  <p className="mt-2 text-xs text-zinc-400 max-w-sm leading-relaxed print:text-zinc-700 print:text-[9.5pt]">
+                  </Badge>
+                  <p className="mx-auto mt-3 max-w-sm text-xs leading-relaxed text-slate-600">
                     {analysisResult.summary}
                   </p>
                 </div>
-              </div>
+              </Card>
 
               {/* Breakdown Bars & Quick Checkpoints */}
-              <div className="lg:col-span-7 border border-zinc-800 bg-zinc-950 rounded-3xl p-8 shadow-xl flex flex-col justify-between ats-print-breakdown-card">
+              <Card className="ats-print-breakdown-card flex flex-col justify-between p-6 sm:p-8 lg:col-span-7">
                 <div>
-                  <h3 className="text-base font-bold text-white flex items-center gap-2 mb-4 print:text-zinc-950 print:text-base print:mb-3">
-                    <BarChart3 className="size-4 text-zinc-400" />
+                  <h3 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-900">
+                    <BarChart3 className="size-4 text-indigo-600" />
                     Scoring Dimension Breakdown
                   </h3>
 
-                  <div className="space-y-3 print:space-y-2">
-                    {/* Skills Match - Green */}
-                    <div>
-                      <div className="flex justify-between text-xs font-semibold mb-1">
-                        <span className="text-zinc-300 print:text-zinc-800">Technical Skills Match</span>
-                        <span className="text-emerald-400 font-mono print:text-emerald-800 font-bold">{analysisResult.breakdown.skillsMatchScore}%</span>
-                      </div>
-                      <div className="h-2.5 w-full rounded-full bg-zinc-900 border border-zinc-800 overflow-hidden print-progress-bar">
-                        <div
-                          className="h-full bg-emerald-500 rounded-full print-progress-fill"
-                          style={{ width: `${analysisResult.breakdown.skillsMatchScore}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Experience Relevance - Indigo */}
-                    <div>
-                      <div className="flex justify-between text-xs font-semibold mb-1">
-                        <span className="text-zinc-300 print:text-zinc-800">Role & Experience Relevance</span>
-                        <span className="text-indigo-400 font-mono print:text-indigo-800 font-bold">{analysisResult.breakdown.experienceRelevanceScore}%</span>
-                      </div>
-                      <div className="h-2.5 w-full rounded-full bg-zinc-900 border border-zinc-800 overflow-hidden print-progress-bar">
-                        <div
-                          className="h-full bg-indigo-500 rounded-full print-progress-fill"
-                          style={{ width: `${analysisResult.breakdown.experienceRelevanceScore}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Quantifiable Impact - Pink */}
-                    <div>
-                      <div className="flex justify-between text-xs font-semibold mb-1">
-                        <span className="text-zinc-300 print:text-zinc-800">Quantifiable Metrics & Impact (STAR Method)</span>
-                        <span className="text-pink-400 font-mono print:text-pink-800 font-bold">{analysisResult.breakdown.quantifiableImpactScore}%</span>
-                      </div>
-                      <div className="h-2.5 w-full rounded-full bg-zinc-900 border border-zinc-800 overflow-hidden print-progress-bar">
-                        <div
-                          className="h-full bg-pink-500 rounded-full print-progress-fill"
-                          style={{ width: `${analysisResult.breakdown.quantifiableImpactScore}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Keyword Density - Yellow */}
-                    <div>
-                      <div className="flex justify-between text-xs font-semibold mb-1">
-                        <span className="text-zinc-300 print:text-zinc-800">ATS Keyword Frequency & Optimization</span>
-                        <span className="text-yellow-400 font-mono print:text-yellow-800 font-bold">{analysisResult.breakdown.keywordDensityScore}%</span>
-                      </div>
-                      <div className="h-2.5 w-full rounded-full bg-zinc-900 border border-zinc-800 overflow-hidden print-progress-bar">
-                        <div
-                          className="h-full bg-yellow-400 rounded-full print-progress-fill"
-                          style={{ width: `${analysisResult.breakdown.keywordDensityScore}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Formatting & Structure - Red */}
-                    <div>
-                      <div className="flex justify-between text-xs font-semibold mb-1">
-                        <span className="text-zinc-300 print:text-zinc-800">ATS Formatting & Parseability</span>
-                        <span className="text-red-400 font-mono print:text-red-800 font-bold">{analysisResult.breakdown.formattingStructureScore}%</span>
-                      </div>
-                      <div className="h-2.5 w-full rounded-full bg-zinc-900 border border-zinc-800 overflow-hidden print-progress-bar">
-                        <div
-                          className="h-full bg-red-500 rounded-full print-progress-fill"
-                          style={{ width: `${analysisResult.breakdown.formattingStructureScore}%` }}
-                        />
-                      </div>
-                    </div>
+                  <div className="space-y-3">
+                    {BREAKDOWN_ITEMS.map((item) => {
+                      const value = analysisResult.breakdown[item.key];
+                      return (
+                        <div key={item.key}>
+                          <div className="mb-1 flex justify-between text-xs font-semibold">
+                            <span className="text-slate-600">{item.label}</span>
+                            <span className={`font-mono font-bold ${item.value}`}>{value}%</span>
+                          </div>
+                          <Progress value={value} className={`h-2.5 bg-slate-100 ${item.bar}`} />
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
                 {/* Quick Meta Stats */}
-                <div className="mt-4 pt-3 border-t border-zinc-800 grid grid-cols-3 gap-2 text-center ats-print-stats-row">
-                  <div className="bg-zinc-900/70 p-2 rounded-xl border border-zinc-800 ats-print-stat-item">
-                    <p className="text-[10px] text-zinc-400 print:text-zinc-600 font-medium">Total Word Count</p>
-                    <p className="text-sm font-bold text-white print:text-zinc-950">{analysisResult.wordCount} words</p>
+                <div className="ats-print-stats-row mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-center">
+                  <div className="ats-print-stat-item rounded-xl border border-slate-100 bg-slate-50 p-2">
+                    <p className="text-[10px] font-medium text-slate-500">Total Word Count</p>
+                    <p className="text-sm font-bold text-slate-900">
+                      {analysisResult.wordCount} words
+                    </p>
                   </div>
-                  <div className="bg-zinc-900/70 p-2 rounded-xl border border-zinc-800 ats-print-stat-item">
-                    <p className="text-[10px] text-zinc-400 print:text-zinc-600 font-medium">Action Verbs</p>
-                    <p className="text-sm font-bold text-white print:text-zinc-950">{analysisResult.actionVerbsFound.length} detected</p>
+                  <div className="ats-print-stat-item rounded-xl border border-slate-100 bg-slate-50 p-2">
+                    <p className="text-[10px] font-medium text-slate-500">Action Verbs</p>
+                    <p className="text-sm font-bold text-slate-900">
+                      {analysisResult.actionVerbsFound.length} detected
+                    </p>
                   </div>
-                  <div className="bg-zinc-900/70 p-2 rounded-xl border border-zinc-800 ats-print-stat-item">
-                    <p className="text-[10px] text-zinc-400 print:text-zinc-600 font-medium">Estimated Reading</p>
-                    <p className="text-sm font-bold text-white print:text-zinc-950">~{analysisResult.readingTimeMinutes} min</p>
+                  <div className="ats-print-stat-item rounded-xl border border-slate-100 bg-slate-50 p-2">
+                    <p className="text-[10px] font-medium text-slate-500">Estimated Reading</p>
+                    <p className="text-sm font-bold text-slate-900">
+                      ~{analysisResult.readingTimeMinutes} min
+                    </p>
                   </div>
                 </div>
-              </div>
+              </Card>
             </div>
 
             {/* ================= SKILLS MATCHING SECTION ================= */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 ats-print-grid-2">
+            <div className="ats-print-grid-2 grid grid-cols-1 gap-6 lg:grid-cols-2">
               {/* Matched Skills */}
-              <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6 sm:p-8 shadow-xl ats-print-card">
-                <div className="flex items-center justify-between mb-3">
+              <Card className="ats-print-card">
+                <div className="mb-3 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white print:bg-zinc-100 print:text-zinc-900">
+                    <div className="flex size-8 items-center justify-center rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-600">
                       <CheckCircle2 className="size-4" />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-white print:text-zinc-950">Matching Skills Detected</h3>
-                      <p className="text-[11px] text-zinc-400 print:text-zinc-600">
+                      <h3 className="text-base font-bold text-slate-900">Matching Skills Detected</h3>
+                      <p className="text-[11px] text-slate-500">
                         {analysisResult.matchedSkills.length} competencies identified
                       </p>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full bg-white text-black font-bold text-xs print:bg-zinc-100 print:text-zinc-900 print:border print:border-zinc-300">
+                  <Badge className="shrink-0 bg-emerald-600 font-bold hover:bg-emerald-600">
                     {analysisResult.matchedSkills.length} Matched
-                  </span>
+                  </Badge>
                 </div>
 
                 {analysisResult.matchedSkills.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5 pt-1 ats-print-badges-wrap">
+                  <div className="ats-print-badges-wrap flex flex-wrap gap-1.5 pt-1">
                     {analysisResult.matchedSkills.map((skill) => (
                       <span
                         key={skill}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-700 text-white text-xs font-semibold shadow-sm print-badge-matched"
+                        className="print-badge inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"
                       >
                         <Check className="size-3 stroke-[3]" />
                         {skill}
@@ -1055,18 +1095,22 @@ export default function ATSResumeAnalyserPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-zinc-500 print:text-zinc-500 italic">No direct domain skill keywords detected.</p>
+                  <p className="pt-1 text-xs italic text-slate-400">
+                    No direct domain skill keywords detected.
+                  </p>
                 )}
 
                 {/* Soft skills */}
                 {analysisResult.softSkillsFound && analysisResult.softSkillsFound.length > 0 && (
-                  <div className="mt-4 pt-3 border-t border-zinc-800 print:border-zinc-200">
-                    <p className="text-[11px] font-semibold text-zinc-300 print:text-zinc-800 mb-1.5">Soft Skills & Leadership Detected:</p>
-                    <div className="flex flex-wrap gap-1 ats-print-badges-wrap">
+                  <div className="mt-4 border-t border-slate-100 pt-3">
+                    <p className="mb-1.5 text-[11px] font-semibold text-slate-700">
+                      Soft Skills & Leadership Detected:
+                    </p>
+                    <div className="ats-print-badges-wrap flex flex-wrap gap-1">
                       {analysisResult.softSkillsFound.map((soft) => (
                         <span
                           key={soft}
-                          className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 print-badge-soft"
+                          className="print-badge-soft rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] text-slate-600"
                         >
                           {soft}
                         </span>
@@ -1074,55 +1118,60 @@ export default function ATSResumeAnalyserPage() {
                     </div>
                   </div>
                 )}
-              </div>
+              </Card>
 
               {/* Missing Skills */}
-              <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6 sm:p-8 shadow-xl ats-print-card">
-                <div className="flex items-center justify-between mb-3">
+              <Card className="ats-print-card">
+                <div className="mb-3 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 print:bg-zinc-100 print:text-zinc-900">
+                    <div className="flex size-8 items-center justify-center rounded-lg border border-rose-100 bg-rose-50 text-rose-600">
                       <XCircle className="size-4" />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-white print:text-zinc-950">Missing Domain Keywords</h3>
-                      <p className="text-[11px] text-zinc-400 print:text-zinc-600">
+                      <h3 className="text-base font-bold text-slate-900">Missing Domain Keywords</h3>
+                      <p className="text-[11px] text-slate-500">
                         Top keywords recommended by ATS filters
                       </p>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 font-bold text-xs border border-zinc-700 print:bg-zinc-100 print:text-zinc-700 print:border-zinc-300">
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 border-rose-200 bg-rose-50 font-bold text-rose-700"
+                  >
                     {analysisResult.missingSkills.length} Missing
-                  </span>
+                  </Badge>
                 </div>
 
                 {analysisResult.missingSkills.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5 pt-1 ats-print-badges-wrap">
+                  <div className="ats-print-badges-wrap flex flex-wrap gap-1.5 pt-1">
                     {analysisResult.missingSkills.map((skill) => (
                       <span
                         key={skill}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-900/60 border border-dashed border-zinc-700 text-zinc-300 text-xs font-medium shadow-sm print-badge-missing"
+                        className="print-badge inline-flex items-center gap-1 rounded-lg border border-dashed border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-600"
                       >
-                        <span className="text-zinc-400 font-bold">+</span>
+                        <span className="font-bold text-rose-500">+</span>
                         {skill}
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 text-zinc-300 text-xs py-2 print:text-zinc-800">
-                    <CheckCircle2 className="size-4 text-white" />
+                  <div className="flex items-center gap-2 py-2 text-xs text-slate-700">
+                    <CheckCircle2 className="size-4 text-emerald-600" />
                     <span>Incredible! Your resume covers all core domain technical requirements.</span>
                   </div>
                 )}
 
                 {/* Missing Keywords list */}
                 {analysisResult.missingKeywords && analysisResult.missingKeywords.length > 0 && (
-                  <div className="mt-4 pt-3 border-t border-zinc-800 print:border-zinc-200">
-                    <p className="text-[11px] font-semibold text-zinc-300 print:text-zinc-800 mb-1.5">Recommended Industry Keywords to Add:</p>
-                    <div className="flex flex-wrap gap-1 ats-print-badges-wrap">
+                  <div className="mt-4 border-t border-slate-100 pt-3">
+                    <p className="mb-1.5 text-[11px] font-semibold text-slate-700">
+                      Recommended Industry Keywords to Add:
+                    </p>
+                    <div className="ats-print-badges-wrap flex flex-wrap gap-1">
                       {analysisResult.missingKeywords.map((kw) => (
                         <span
                           key={kw}
-                          className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-400 print:bg-zinc-50 print:text-zinc-700 print:border-zinc-300"
+                          className="print-badge-soft rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] text-slate-600"
                         >
                           {kw}
                         </span>
@@ -1130,62 +1179,69 @@ export default function ATSResumeAnalyserPage() {
                     </div>
                   </div>
                 )}
-              </div>
+              </Card>
             </div>
 
             {/* ================= CRITICAL RED FLAGS & STRENGTHS ================= */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 ats-print-grid-2">
+            <div className="ats-print-grid-2 grid grid-cols-1 gap-6 md:grid-cols-2">
               {/* Strengths */}
-              <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6 sm:p-8 shadow-xl ats-print-card">
-                <h3 className="text-base font-bold text-white flex items-center gap-2 mb-3 print:text-zinc-950">
-                  <Award className="size-4 text-zinc-300" />
+              <Card className="ats-print-card">
+                <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-slate-900">
+                  <Award className="size-4 text-indigo-600" />
                   Key Strengths
                 </h3>
                 <ul className="space-y-2">
                   {analysisResult.strengths.map((st, i) => (
-                    <li key={i} className="flex items-start gap-2 text-xs text-zinc-300 leading-relaxed print:text-zinc-800">
-                      <CheckCircle2 className="size-3.5 text-white shrink-0 mt-0.5" />
+                    <li
+                      key={i}
+                      className="flex items-start gap-2 text-xs leading-relaxed text-slate-600"
+                    >
+                      <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
                       <span>{st}</span>
                     </li>
                   ))}
                 </ul>
-              </div>
+              </Card>
 
               {/* Critical Red Flags */}
-              <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6 sm:p-8 shadow-xl ats-print-card">
-                <h3 className="text-base font-bold text-white flex items-center gap-2 mb-3 print:text-zinc-950">
-                  <AlertTriangle className="size-4 text-zinc-400" />
+              <Card className="ats-print-card">
+                <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-slate-900">
+                  <AlertTriangle className="size-4 text-rose-600" />
                   ATS Red Flags & Warnings
                 </h3>
                 <ul className="space-y-2">
                   {analysisResult.criticalRedFlags && analysisResult.criticalRedFlags.length > 0 ? (
                     analysisResult.criticalRedFlags.map((flag, i) => (
-                      <li key={i} className="flex items-start gap-2 text-xs text-zinc-300 leading-relaxed print:text-zinc-800">
-                        <AlertTriangle className="size-3.5 text-zinc-400 shrink-0 mt-0.5" />
+                      <li
+                        key={i}
+                        className="flex items-start gap-2 text-xs leading-relaxed text-slate-600"
+                      >
+                        <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-rose-500" />
                         <span>{flag}</span>
                       </li>
                     ))
                   ) : (
-                    <li className="flex items-start gap-2 text-xs text-zinc-300 print:text-zinc-800">
-                      <CheckCircle2 className="size-3.5 text-white shrink-0 mt-0.5" />
+                    <li className="flex items-start gap-2 text-xs text-slate-600">
+                      <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
                       <span>No major ATS formatting or critical structure red flags detected!</span>
                     </li>
                   )}
                 </ul>
-              </div>
+              </Card>
             </div>
 
             {/* ================= BULLET POINT FIXER ================= */}
             {analysisResult.bulletPointFixes && analysisResult.bulletPointFixes.length > 0 && (
-              <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6 sm:p-8 shadow-xl ats-print-card">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white">
+              <Card className="ats-print-card">
+                <div className="mb-4 flex items-center gap-2">
+                  <div className="flex size-8 items-center justify-center rounded-lg border border-indigo-100 bg-indigo-50 text-indigo-600">
                     <Sparkles className="size-4" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white print:text-zinc-950">Bullet Point Fixes</h3>
-                    <p className="text-xs text-zinc-400 print:text-zinc-600">
-                      High-impact Google XYZ statements (Accomplished [X] by doing [Y] as measured by [Z])
+                    <h3 className="text-base font-bold text-slate-900">Bullet Point Fixes</h3>
+                    <p className="text-xs text-slate-500">
+                      High-impact Google XYZ statements (Accomplished [X] by doing [Y] as measured
+                      by [Z])
                     </p>
                   </div>
                 </div>
@@ -1194,108 +1250,119 @@ export default function ATSResumeAnalyserPage() {
                   {analysisResult.bulletPointFixes.map((fix, idx) => (
                     <div
                       key={idx}
-                      className="rounded-xl border border-zinc-800 bg-black p-4 space-y-2 print:bg-zinc-50 print:border-zinc-300 print:p-3 print:rounded-lg"
+                      className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/70 p-4"
                     >
                       <div className="flex items-start gap-2">
-                        <span className="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-zinc-400 text-[9px] font-bold uppercase shrink-0 mt-0.5 print:bg-zinc-200 print:text-zinc-800 print:border-zinc-300">
+                        <Badge
+                          variant="outline"
+                          className="shrink-0 border-slate-200 bg-white text-[9px] font-bold uppercase text-slate-500"
+                        >
                           Before / Weak
-                        </span>
-                        <p className="text-xs text-zinc-400 line-through italic print:text-zinc-500">{fix.originalContext}</p>
+                        </Badge>
+                        <p className="text-xs italic text-slate-400 line-through">
+                          {fix.originalContext}
+                        </p>
                       </div>
 
-                      <div className="flex items-start justify-between gap-3 pt-1.5 border-t border-zinc-900 print:border-zinc-200">
+                      <div className="flex items-start justify-between gap-3 border-t border-slate-200 pt-2">
                         <div className="flex items-start gap-2">
-                          <span className="px-1.5 py-0.5 rounded bg-white text-black text-[9px] font-bold uppercase shrink-0 mt-0.5 print:bg-zinc-900 print:text-white">
+                          <Badge className="shrink-0 bg-indigo-600 text-[9px] font-bold uppercase hover:bg-indigo-600">
                             ATS Optimized
-                          </span>
+                          </Badge>
                           <div>
-                            <p className="text-xs font-semibold text-white leading-relaxed print:text-zinc-950">
+                            <p className="text-xs font-semibold leading-relaxed text-slate-900">
                               {fix.suggestion}
                             </p>
-                            <p className="text-[10px] text-zinc-400 mt-0.5 print:text-zinc-600">{fix.reason}</p>
+                            <p className="mt-0.5 text-[10px] text-slate-500">{fix.reason}</p>
                           </div>
                         </div>
 
-                        <button
+                        <Button
                           type="button"
+                          variant="outline"
+                          size="sm"
                           onClick={() => copyToClipboard(fix.suggestion, `fix-${idx}`)}
-                          className="px-2 py-1 rounded-lg border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white text-xs flex items-center gap-1 shrink-0 transition-colors no-print print:hidden cursor-pointer"
+                          className="no-print h-7 shrink-0 cursor-pointer gap-1 px-2 text-[10px] print:hidden"
                         >
                           {copiedSnippet === `fix-${idx}` ? (
                             <>
-                              <Check className="size-3 text-white" />
-                              <span className="text-white text-[10px]">Copied!</span>
+                              <Check className="size-3 text-emerald-600" />
+                              <span>Copied!</span>
                             </>
                           ) : (
                             <>
                               <Copy className="size-3" />
-                              <span className="text-[10px]">Copy</span>
+                              <span>Copy</span>
                             </>
                           )}
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
+              </Card>
             )}
 
             {/* ================= STEP-BY-STEP IMPROVEMENT ROADMAP ================= */}
-            <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6 sm:p-8 shadow-xl ats-print-card">
-              <h3 className="text-base font-bold text-white flex items-center gap-2 mb-4 print:text-zinc-950">
-                <Target className="size-4 text-zinc-300" />
+            <Card className="ats-print-card">
+              <h3 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-900">
+                <Target className="size-4 text-indigo-600" />
                 Optimization Roadmap
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ats-print-grid-2">
+              <div className="ats-print-grid-2 grid grid-cols-1 gap-3 md:grid-cols-2">
                 {analysisResult.improvementSuggestions.map((item, idx) => (
                   <div
                     key={idx}
-                    className="p-4 rounded-xl border border-zinc-800 bg-black flex flex-col justify-between print:bg-zinc-50 print:border-zinc-200 print:p-3 print:rounded-lg"
+                    className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4"
                   >
                     <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider print:text-zinc-600">
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                           {item.category}
                         </span>
-                        <span
-                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${item.priority === 'High'
-                              ? 'bg-zinc-800 border-zinc-700 text-white'
-                              : item.priority === 'Medium'
-                                ? 'bg-zinc-900 border-zinc-800 text-zinc-300'
-                                : 'bg-zinc-900/60 border-zinc-800 text-zinc-400'
-                            }`}
+                        <Badge
+                          variant="outline"
+                          className={`text-[9px] font-bold ${PRIORITY_STYLES[item.priority] ?? PRIORITY_STYLES.Low}`}
                         >
                           {item.priority} Priority
-                        </span>
+                        </Badge>
                       </div>
-                      <h4 className="text-xs font-bold text-white mb-1 print:text-zinc-950">{item.title}</h4>
-                      <p className="text-[11px] text-zinc-400 leading-relaxed print:text-zinc-700">{item.description}</p>
+                      <h4 className="mb-1 text-xs font-bold text-slate-900">{item.title}</h4>
+                      <p className="text-[11px] leading-relaxed text-slate-600">
+                        {item.description}
+                      </p>
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
+            </Card>
 
             {/* Bottom Actions (Hidden on Print) */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-6 rounded-2xl border border-zinc-800 bg-zinc-950 no-print print:hidden shadow-xl">
+            <div className="flex flex-col items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm no-print print:hidden sm:flex-row">
               <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-white">
+                <div className="flex size-12 items-center justify-center rounded-xl border border-indigo-100 bg-indigo-50 text-indigo-600">
                   <TrendingUp className="size-6" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-white">Need to build a 100% ATS-Compliant Resume?</h4>
-                  <p className="text-xs text-zinc-400">Use our InvertisPrep Resume Builder with ready-made ATS templates.</p>
+                  <h4 className="text-sm font-bold text-slate-900">
+                    Need to build a 100% ATS-Compliant Resume?
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    Use our InvertisPrep Resume Builder with ready-made ATS templates.
+                  </p>
                 </div>
               </div>
 
-              <Link
-                href="/resume-builder"
-                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+              <Button
+                asChild
+                className="w-full cursor-pointer bg-slate-900 text-xs font-bold hover:bg-slate-800 sm:w-auto"
               >
-                <span>Launch Resume Builder</span>
-                <ArrowRight className="size-4" />
-              </Link>
+                <Link href="/resume-builder" className="flex items-center justify-center gap-2">
+                  <span>Launch Resume Builder</span>
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
             </div>
           </div>
         )}
