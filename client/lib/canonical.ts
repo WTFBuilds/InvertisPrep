@@ -2,29 +2,38 @@
 //
 // InvertisPrep serves two public domains:
 //   - https://invertisprep.vercel.app — SEO/discovery entry point (stays public)
-//   - https://invertisprep.in         — canonical authenticated product domain
+//   - https://www.invertisprep.in     — canonical authenticated product domain
+//
+// IMPORTANT: the branded domain SERVES on www.invertisprep.in. The apex
+// invertisprep.in is an edge-level 308 alias to www (Vercel domain redirect),
+// so every apex request (including /login and the OAuth callback) lands on
+// www with path + query preserved. The canonical origin below must therefore
+// be www — pointing it at the apex would alternate with the edge redirect and
+// create an ERR_TOO_MANY_REDIRECTS loop.
 //
 // NextAuth's Google flow is stateful: the state/PKCE cookies it sets are
 // scoped to the host that starts the flow, while the OAuth redirect_uri is
 // derived from the server's resolved origin. A flow started on .vercel.app
-// therefore lands on .in without its state cookies and fails with
-// `error=OAuthCallback`. Authentication must transition to the canonical
+// therefore lands on the branded domain without its state cookies and fails
+// with `error=OAuthCallback`. Authentication must transition to the canonical
 // domain BEFORE the OAuth round-trip begins. Public pages are never
 // redirected, so the SEO entry point keeps working and no loop is possible
-// (the canonical host is never in the transition set).
+// (the canonical hosts are never in the transition set).
 
-export const CANONICAL_AUTH_ORIGIN = 'https://invertisprep.in';
+export const CANONICAL_AUTH_ORIGIN = 'https://www.invertisprep.in';
 
-// Hosts allowed to serve the authenticated experience directly.
-const CANONICAL_AUTH_HOSTS = new Set(['invertisprep.in']);
+// Hosts allowed to serve the authenticated experience directly. Both the www
+// serving host and the apex alias are accepted so an edge-redirect change can
+// never produce a loop with this middleware.
+const CANONICAL_AUTH_HOSTS = new Set([
+  'www.invertisprep.in',
+  'invertisprep.in',
+]);
 
 // Public/SEO hosts that must transition to the canonical domain for login.
 // Vercel preview deployments are intentionally excluded so they keep working
 // as isolated test environments.
-const TRANSITION_AUTH_HOSTS = new Set([
-  'invertisprep.vercel.app',
-  'www.invertisprep.in',
-]);
+const TRANSITION_AUTH_HOSTS = new Set(['invertisprep.vercel.app']);
 
 // Login-route query params carried across the domain transition. Anything
 // else is dropped, so unknown params can't be injected into the login URL.
