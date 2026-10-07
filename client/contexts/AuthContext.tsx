@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { authApi, resumeApi } from '@/lib/api';
 import { optimizeAvatar } from '@/lib/avatar';
 import type { User, LoginCredentials } from '@/types';
@@ -36,7 +36,7 @@ function preloadAvatar(url?: string) {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (credentials: LoginCredentials) => Promise<void>;
+  login: (credentials: LoginCredentials, redirectTo?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updatedUser: User) => void;
   migrateGuestResume: () => Promise<string | null>;
@@ -50,6 +50,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
+
+  // Remember the last page a logged-out visitor was on, so the login page can
+  // send them back there after signing in. /login itself is never recorded.
+  useEffect(() => {
+    if (!loading && !user && pathname && pathname !== '/login') {
+      try {
+        sessionStorage.setItem('returnTo', pathname);
+      } catch {
+        // sessionStorage unavailable — redirect just falls back to homepage
+      }
+    }
+  }, [loading, user, pathname]);
 
   // Load user from localStorage on mount
   useEffect(() => {
@@ -79,20 +92,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadUser();
   }, []);
 
-  const login = async (credentials: LoginCredentials) => {
+  const login = async (credentials: LoginCredentials, redirectTo?: string) => {
     try {
       const response = await authApi.login(credentials);
-      
+
       if (response.success && response.token && response.user) {
         localStorage.setItem('token', response.token);
         localStorage.setItem('user', JSON.stringify(response.user));
         setUser(response.user);
-        
+
         // Redirect based on role
         if (response.user.role === 'admin' || response.user.role === 'super-admin') {
           router.push('/admin/dashboard');
         } else {
-          router.push('/');
+          router.push(redirectTo || '/');
         }
       }
     } catch (error: unknown) {
