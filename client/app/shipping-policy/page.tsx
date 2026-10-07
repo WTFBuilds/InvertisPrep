@@ -66,7 +66,7 @@ const sections = [
     title: 'Delivery Issues',
     children: (
       <p>
-        If you experience any issues accessing your purchased content, please contact our support team at <strong>invertisprep@gmail.com</strong>. We will investigate and resolve the issue promptly. Common issues include payment processing delays, which typically resolve within a few minutes. If your QCoins or content are not available within 30 minutes of purchase, please reach out to us.
+        If you experience any issues accessing your purchased content, please contact our support team at <strong>support@invertisprep.in</strong>. We will investigate and resolve the issue promptly. Common issues include payment processing delays, which typically resolve within a few minutes. If your QCoins or content are not available within 30 minutes of purchase, please reach out to us.
       </p>
     ),
   },

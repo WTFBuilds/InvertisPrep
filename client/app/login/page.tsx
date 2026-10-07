@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { optimizeAvatar } from '@/lib/avatar';
 import {
   buildCanonicalLoginUrl,
+  isAuthPage,
   isSafeReturnPath,
   pickLoginParams,
   shouldTransitionAuthHost,
@@ -92,15 +93,16 @@ export default function LoginPage() {
 
   // Where to send the user after a successful login: an explicit ?returnUrl=
   // wins; otherwise the last page they were on while logged out (captured by
-  // AuthContext in sessionStorage); homepage as the final fallback.
+  // AuthContext in sessionStorage); homepage as the final fallback. Auth pages
+  // are never valid destinations — they cause redirect loops.
   const resolveReturnUrl = (): string => {
     if (typeof window === 'undefined') return '/';
     const params = new URLSearchParams(window.location.search);
     const url = params.get('returnUrl');
-    if (url && url.startsWith('/') && !url.startsWith('/login')) return url;
+    if (isSafeReturnPath(url) && !isAuthPage(url)) return url;
     try {
       const stored = sessionStorage.getItem('returnTo');
-      if (stored && stored.startsWith('/') && !stored.startsWith('/login')) return stored;
+      if (isSafeReturnPath(stored) && !isAuthPage(stored)) return stored;
     } catch {
       // sessionStorage unavailable
     }
@@ -110,13 +112,15 @@ export default function LoginPage() {
   // Once the auth state resolves, a logged-in user has no business sitting on
   // the login page — this covers returning to /login after signing in (back
   // button, bookmark) and any case where a completed login didn't navigate.
+  // The `loading` gate keeps this effect out of the way of an in-progress
+  // form sign-in, whose own handler decides the destination.
   // (resolveReturnUrl is intentionally not a dependency: it reads window
   // state fresh on every call.)
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading && !loading && user) {
       router.replace(resolveReturnUrl());
     }
-  }, [authLoading, user, router]);
+  }, [authLoading, loading, user, router]);
 
   // Handle URL parameters safely on mount
   useEffect(() => {

@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { authApi, resumeApi } from '@/lib/api';
-import { isSafeReturnPath } from '@/lib/canonical';
+import { isSafeReturnPath, isAuthPage } from '@/lib/canonical';
 import { optimizeAvatar } from '@/lib/avatar';
 import type { User, LoginCredentials } from '@/types';
 
@@ -54,9 +54,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   // Remember the last page a logged-out visitor was on, so the login page can
-  // send them back there after signing in. /login itself is never recorded.
+  // send them back there after signing in. Auth pages are never recorded — a
+  // logged-in user sent back to a login page causes redirect loops.
   useEffect(() => {
-    if (!loading && !user && pathname && pathname !== '/login') {
+    if (!loading && !user && pathname && !isAuthPage(pathname)) {
       try {
         sessionStorage.setItem('returnTo', pathname);
       } catch {

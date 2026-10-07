@@ -17,8 +17,8 @@ const contactInfo = [
   {
     icon: Mail,
     title: 'Email Us',
-    value: 'invertisprep@gmail.com',
-    href: 'mailto:invertisprep@gmail.com',
+    value: 'support@invertisprep.in',
+    href: 'mailto:support@invertisprep.in',
     chipClass: 'bg-indigo-100 text-indigo-700',
     description: 'Our team typically responds within 24 hours.',
   },
@@ -198,7 +198,7 @@ export default function ContactPage() {
               },
               {
                 question: 'How do I report an issue?',
-                answer: 'Use this contact form or email us at invertisprep@gmail.com with details of the problem you\'re experiencing.',
+                answer: 'Use this contact form or email us at support@invertisprep.in with details of the problem you\'re experiencing.',
               },
             ]}
           />
@@ -217,7 +217,7 @@ export default function ContactPage() {
               asChild
               className="bg-slate-900 px-8 py-6 text-base font-semibold text-white shadow-sm hover:bg-slate-800"
             >
-              <a href="mailto:invertisprep@gmail.com">
+              <a href="mailto:support@invertisprep.in">
                 <Mail className="mr-2 h-5 w-5" />
                 Email Us Directly
               </a>

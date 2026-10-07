@@ -203,6 +203,33 @@ export interface PYQFilterQuery {
   search?: string;
 }
 
+// Paper requests — students ask for papers they couldn't find
+export interface PaperRequest {
+  _id: string;
+  departmentId: string | Department;
+  branchId: string | Branch;
+  subjectName: string;
+  subjectCode?: string;
+  examType: 'any' | ExamType;
+  year?: number;
+  note?: string;
+  requestedBy: string | Pick<User, 'id' | 'name' | 'email' | 'picture'>;
+  status: 'pending' | 'fulfilled' | 'rejected';
+  reviewedBy?: string | Pick<User, 'id' | 'name' | 'email'>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePaperRequestDTO {
+  departmentId: string;
+  branchId: string;
+  subjectName: string;
+  subjectCode?: string;
+  examType: 'any' | ExamType;
+  year?: number;
+  note?: string;
+}
+
 // API Response types
 export interface APIResponse<T = unknown> {
   success: boolean;

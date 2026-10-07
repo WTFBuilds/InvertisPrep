@@ -11,6 +11,8 @@ import type {
   CreateSessionDTO,
   PYQPaper,
   PYQFilterQuery,
+  PaperRequest,
+  CreatePaperRequestDTO,
   APIResponse,
   UserResponse,
   PublicUserProfile,
@@ -507,6 +509,29 @@ export const reportApi = {
 
   updateStatus: async (id: string, status: 'resolved' | 'dismissed'): Promise<APIResponse<Report>> => {
     const { data } = await apiClient.patch<APIResponse<Report>>(`/reports/${id}`, { status });
+    return data;
+  },
+};
+
+// Paper request API — students request missing papers, staff triage them
+export const paperRequestApi = {
+  create: async (requestData: CreatePaperRequestDTO): Promise<APIResponse<PaperRequest>> => {
+    const { data } = await apiClient.post<APIResponse<PaperRequest>>('/paper-requests', requestData);
+    return data;
+  },
+
+  list: async (params?: { status?: string; search?: string }): Promise<APIResponse<PaperRequest[]>> => {
+    const { data } = await apiClient.get<APIResponse<PaperRequest[]>>('/paper-requests', { params });
+    return data;
+  },
+
+  updateStatus: async (id: string, status: 'pending' | 'fulfilled' | 'rejected'): Promise<APIResponse<PaperRequest>> => {
+    const { data } = await apiClient.patch<APIResponse<PaperRequest>>(`/paper-requests/${id}/status`, { status });
+    return data;
+  },
+
+  remove: async (id: string): Promise<APIResponse> => {
+    const { data } = await apiClient.delete<APIResponse>(`/paper-requests/${id}`);
     return data;
   },
 };
