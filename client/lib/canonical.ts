@@ -118,3 +118,12 @@ export function buildLoginHref(currentPath: string, currentSearch: string): stri
   }
   return `/login?returnUrl=${encodeURIComponent(target)}`;
 }
+
+// Login routes must never be used as a post-login destination — a logged-in
+// user sent back to a login page ping-pongs with that page's own redirect
+// logic (the /admin/login ↔ /login?role=admin loop class).
+const AUTH_PAGES = ['/login', '/admin/login', '/auth/signin'];
+
+export function isAuthPage(path: string | null | undefined): boolean {
+  return Boolean(path && AUTH_PAGES.some((p) => path === p || path.startsWith(`${p}/`)));
+}

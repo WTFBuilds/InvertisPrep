@@ -30,6 +30,7 @@ import leaderboardRoutes from './routes/leaderboard.js';
 import eventRoutes from './routes/events.js';
 import adminUserRoutes from './routes/adminUsers.js';
 import sponsorRoutes from './routes/sponsors.js';
+import paperRequestRoutes from './routes/paperRequests.js';
 
 // Initialize Express app
 const app = express();
@@ -122,6 +123,7 @@ app.use('/api/sessions', sessionRoutes);
 app.use('/api/syllabus', syllabusRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/paper-requests', paperRequestRoutes);
 app.use('/api/pdf', pdfLimiter, pdfRoutes);
 app.use('/api/pdf-proxy', pdfProxyRoutes);
 app.use('/api/resumes', resumeRoutes);

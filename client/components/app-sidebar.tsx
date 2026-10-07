@@ -10,6 +10,7 @@ import {
   Calendar,
   Upload,
   FileText,
+  FileQuestion,
   BookOpen,
   Flag,
   Bug,
@@ -43,6 +44,7 @@ export const adminNavItems = [
   { title: "Manage Papers", url: "/admin/papers", icon: FileText },
   { title: "Syllabus", url: "/admin/syllabus", icon: BookOpen },
   { title: "Reports", url: "/admin/reports", icon: Flag },
+  { title: "Paper Requests", url: "/admin/requests", icon: FileQuestion },
   { title: "Bug Reports", url: "/admin/bugs", icon: Bug },
   { title: "Events", url: "/admin/events", icon: CalendarDays }
 ]
