@@ -4,20 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { paperRequestApi } from '@/lib/api';
-import type { PaperRequest, Department, Branch } from '@/types';
+import type { PaperRequest } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -29,8 +22,6 @@ import {
   AlertCircle,
   CalendarDays,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   FileQuestion,
   Loader2,
   Search,
@@ -38,7 +29,8 @@ import {
   Trash2,
   XCircle,
 } from 'lucide-react';
-import Link from 'next/link';
+import { PaperRequestDetailDialog } from '@/components/admin/paper-request-detail-dialog';
+import { Eye } from 'lucide-react';
 
 const statusBadge = (status: PaperRequest['status']) => {
   switch (status) {
@@ -61,9 +53,7 @@ const formatDate = (value?: string | null) => {
 };
 
 const getDepartmentName = (r: PaperRequest) =>
-  typeof r.departmentId === 'string'
-    ? '—'
-    : r.departmentId.displayName || r.departmentId.name;
+  typeof r.departmentId === 'string' ? '—' : r.departmentId.displayName || r.departmentId.name;
 
 const getBranchName = (r: PaperRequest) =>
   typeof r.branchId === 'string' ? '—' : r.branchId.name;
@@ -91,6 +81,8 @@ export default function PaperRequestsPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [actingId, setActingId] = useState<string | null>(null);
+  const [viewId, setViewId] = useState<string | null>(null);
+  const [viewOpen, setViewOpen] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 400);
@@ -124,6 +116,12 @@ export default function PaperRequestsPage() {
   const pendingCount = useMemo(
     () => requests.filter((r) => r.status === 'pending').length,
     [requests]
+  );
+
+  // The dialog reads from `requests` so status updates reflect live.
+  const viewRequest = useMemo(
+    () => requests.find((r) => r._id === viewId) ?? null,
+    [requests, viewId]
   );
 
   const handleStatusChange = async (id: string, status: 'fulfilled' | 'rejected' | 'pending') => {
@@ -224,150 +222,157 @@ export default function PaperRequestsPage() {
           </Select>
         </div>
 
-        {/* Requests table */}
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-slate-50 hover:bg-slate-50">
-                <TableHead className="font-bold text-slate-600">Requested by</TableHead>
-                <TableHead className="font-bold text-slate-600">Paper</TableHead>
-                <TableHead className="font-bold text-slate-600">Department</TableHead>
-                <TableHead className="font-bold text-slate-600">Branch</TableHead>
-                <TableHead className="font-bold text-slate-600">Exam / Year</TableHead>
-                <TableHead className="font-bold text-slate-600">Note</TableHead>
-                <TableHead className="font-bold text-slate-600">Requested</TableHead>
-                <TableHead className="font-bold text-slate-600">Status</TableHead>
-                <TableHead className="text-right font-bold text-slate-600">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading &&
-                Array.from({ length: 4 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell colSpan={9}>
-                      <Skeleton className="h-10 w-full" />
-                    </TableCell>
-                  </TableRow>
-                ))}
-
-              {!loading && !error && requests.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={9}>
-                    <div className="flex flex-col items-center gap-2 py-14 text-center">
-                      <FileQuestion className="h-8 w-8 text-slate-300" />
-                      <p className="text-sm font-semibold text-slate-600">No requests found</p>
-                      <p className="text-xs text-slate-400">
-                        Student paper requests will show up here.
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-
-              {!loading &&
-                !error &&
-                requests.map((r) => {
-                  const requester = getRequester(r);
-                  const busy = actingId === r._id;
-                  return (
-                    <TableRow key={r._id} className="hover:bg-slate-50/60">
-                      <TableCell>
-                        <div className="flex items-center gap-2.5">
-                          <Avatar className="h-7 w-7">
-                            {requester.picture && (
-                              <AvatarImage src={requester.picture} alt={requester.name} />
-                            )}
-                            <AvatarFallback className="bg-indigo-100 text-xs text-indigo-700">
-                              {requester.name.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-slate-800">
-                              {requester.name}
+        {/* Requests list — full info per card, no horizontal scrolling */}
+        {loading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-32 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+            ))}
+          </div>
+        ) : requests.length === 0 ? (
+          <Card className="border-dashed border-slate-300 bg-white/70">
+            <CardContent className="flex flex-col items-center gap-2 py-14 text-center">
+              <FileQuestion className="h-8 w-8 text-slate-300" />
+              <p className="text-sm font-semibold text-slate-600">No requests found</p>
+              <p className="text-xs text-slate-400">
+                Student paper requests will show up here.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {requests.map((r) => {
+              const requester = getRequester(r);
+              const busy = actingId === r._id;
+              return (
+                <Card
+                  key={r._id}
+                  className="border-slate-200 bg-white shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
+                >
+                  <CardContent className="p-4">
+                    <div className="flex flex-col gap-3.5 lg:flex-row lg:items-center lg:justify-between">
+                      {/* Left — paper summary (full details live in the View dialog) */}
+                      <div className="flex min-w-0 flex-1 items-start gap-3">
+                        <Avatar className="h-9 w-9 shrink-0">
+                          {requester.picture && (
+                            <AvatarImage src={requester.picture} alt={requester.name} />
+                          )}
+                          <AvatarFallback className="bg-indigo-100 text-xs font-bold text-indigo-700">
+                            {requester.name.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-baseline gap-x-2">
+                            <p className="truncate text-sm font-bold text-slate-900">
+                              {r.subjectName}
                             </p>
-                            <p className="truncate text-xs text-slate-400">{requester.email}</p>
+                            {r.subjectCode && (
+                              <span className="text-xs font-medium text-slate-400">
+                                {r.subjectCode}
+                              </span>
+                            )}
                           </div>
+                          <p className="mt-0.5 truncate text-xs text-slate-500">
+                            {getDepartmentName(r)} › {getBranchName(r)} ·{' '}
+                            {r.examType === 'any' ? 'Any exam' : r.examType.replace('-', ' ')}
+                            {r.year ? ` · ${r.year}` : ''}
+                          </p>
+                          <p
+                            className="mt-0.5 truncate text-xs text-slate-400"
+                            title={r.note ? r.note : undefined}
+                          >
+                            <span className="font-medium text-slate-600">{requester.name}</span>
+                            {requester.email && ` · ${requester.email}`}
+                            {r.note ? ` — ${r.note}` : ''}
+                          </p>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <p className="text-sm font-semibold text-slate-800">{r.subjectName}</p>
-                        {r.subjectCode && (
-                          <p className="text-xs text-slate-400">{r.subjectCode}</p>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-slate-600">
-                        {getDepartmentName(r)}
-                      </TableCell>
-                      <TableCell className="text-sm text-slate-600">{getBranchName(r)}</TableCell>
-                      <TableCell className="text-sm text-slate-600">
-                        {r.examType === 'any' ? 'Any exam' : r.examType.replace('-', ' ')}
-                        {r.year ? ` · ${r.year}` : ''}
-                      </TableCell>
-                      <TableCell className="max-w-[180px]">
-                        <p className="truncate text-sm text-slate-500" title={r.note || ''}>
-                          {r.note || '—'}
-                        </p>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-xs text-slate-500">
-                        <span className="flex items-center gap-1.5">
-                          <CalendarDays className="h-3.5 w-3.5 text-slate-400" />
-                          {formatDate(r.createdAt)}
-                        </span>
-                      </TableCell>
-                      <TableCell>{statusBadge(r.status)}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                      </div>
+
+                      {/* Right — status, date, actions */}
+                      <div className="flex shrink-0 flex-row items-center justify-between gap-2.5 lg:w-64 lg:flex-col lg:items-end">
+                        <div className="flex items-center gap-2">
+                          {statusBadge(r.status)}
+                          <span className="flex items-center gap-1 text-xs text-slate-400">
+                            <CalendarDays className="h-3.5 w-3.5" />
+                            {formatDate(r.createdAt)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 gap-1.5 text-xs font-semibold"
+                            onClick={() => {
+                              setViewId(r._id);
+                              setViewOpen(true);
+                            }}
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            View
+                          </Button>
                           {canModify && (
                             <>
                               {r.status !== 'fulfilled' && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  disabled={busy}
-                                  className="gap-1.5 border-emerald-200 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
-                                  onClick={() => handleStatusChange(r._id, 'fulfilled')}
-                                >
-                                  {busy ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                  ) : (
-                                    <CheckCircle2 className="h-3.5 w-3.5" />
-                                  )}
-                                  Fulfilled
-                                </Button>
-                              )}
-                              {r.status !== 'rejected' && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  disabled={busy}
-                                  className="gap-1.5 border-amber-200 text-xs font-semibold text-amber-700 hover:bg-amber-50"
-                                  onClick={() => handleStatusChange(r._id, 'rejected')}
-                                >
-                                  <XCircle className="h-3.5 w-3.5" />
-                                  Reject
-                                </Button>
-                              )}
-                            </>
-                          )}
-                          {isSuperAdmin && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={busy}
-                              className="gap-1.5 border-rose-200 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                              onClick={() => handleDelete(r._id)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-            </TableBody>
-          </Table>
-        </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={busy}
+                                className="h-8 gap-1.5 border-emerald-200 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                                onClick={() => handleStatusChange(r._id, 'fulfilled')}
+                              >
+                                {busy ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                )}
+                                Fulfilled
+                              </Button>
+                            )}
+                            {r.status !== 'rejected' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={busy}
+                                className="h-8 gap-1.5 border-amber-200 text-xs font-semibold text-amber-700 hover:bg-amber-50"
+                                onClick={() => handleStatusChange(r._id, 'rejected')}
+                              >
+                                <XCircle className="h-3.5 w-3.5" />
+                                Reject
+                              </Button>
+                            )}
+                                {isSuperAdmin && (
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    disabled={busy}
+                                    aria-label="Delete request"
+                                    className="h-8 w-8 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                                    onClick={() => handleDelete(r._id)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Full request detail dialog */}
+        <PaperRequestDetailDialog
+          request={viewRequest}
+          open={viewOpen}
+          onOpenChange={setViewOpen}
+          onStatusChange={handleStatusChange}
+          onDelete={handleDelete}
+          actingId={actingId}
+        />
       </div>
     </ProtectedRoute>
   );
