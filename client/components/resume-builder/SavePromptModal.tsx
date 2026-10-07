@@ -4,6 +4,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { buildCanonicalLoginUrl, shouldTransitionAuthHost } from '@/lib/canonical';
 import { navigationFlag } from './ResumeBuilder';
 
 interface SavePromptModalProps {
@@ -23,6 +24,17 @@ export function SavePromptModal({ open, onOpenChange, onSaveAndLogin, onDiscard 
       onSaveAndLogin();
       // Suppress beforeunload to prevent "Leave site?" prompt during OAuth redirect
       navigationFlag.suppress = true;
+      // OAuth is stateful and must start on the canonical auth domain; hand
+      // the flow over (keeping the /resume-builder destination) when on a
+      // public/SEO host. auto=google continues the click there.
+      if (typeof window !== 'undefined' && shouldTransitionAuthHost(window.location.hostname)) {
+        window.location.href = buildCanonicalLoginUrl(
+          '/login',
+          { returnUrl: '/resume-builder' },
+          { autoGoogle: true }
+        );
+        return;
+      }
       await signIn('google', {
         callbackUrl: `/login?returnUrl=${encodeURIComponent('/resume-builder')}`,
       });

@@ -5,6 +5,7 @@
 
 # Dependencies
 node_modules/
+package-lock.json
 
 # Redis dumps (contain cached PDFs / user data)
 dump.rdb

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { authApi, resumeApi } from '@/lib/api';
+import { isSafeReturnPath } from '@/lib/canonical';
 import { optimizeAvatar } from '@/lib/avatar';
 import type { User, LoginCredentials } from '@/types';
 

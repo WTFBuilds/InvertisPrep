@@ -19,12 +19,19 @@ export async function POST(req: NextRequest) {
     const wordCount = words.length;
     const readingTimeMinutes = Math.max(1, Math.round(wordCount / 200));
 
-    const geminiApiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-    const openRouterApiKey = process.env.OPENROUTER_API_KEY || process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
+    // AI keys are SERVER-ONLY secrets (set GEMINI_API_KEY / OPENROUTER_API_KEY
+    // in the environment — Vercel dashboard or local .env). They are never
+    // read from NEXT_PUBLIC_* variables so they can't leak into the client
+    // bundle. Gemini is tried first; OpenRouter is the paid-key fallback.
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    const openRouterApiKey = process.env.OPENROUTER_API_KEY;
 
     if (!geminiApiKey && !openRouterApiKey) {
       return NextResponse.json(
-        { error: 'GEMINI_API_KEY environment variable is not configured. Please set GEMINI_API_KEY in your .env file.' },
+        {
+          error:
+            'The ATS analyser is not configured yet. Set GEMINI_API_KEY (or OPENROUTER_API_KEY) in the server environment and try again.',
+        },
         { status: 500 }
       );
     }
@@ -204,12 +211,12 @@ Respond with a strictly valid JSON object matching this exact schema (pure JSON 
     const atsScore = Number(parsed.atsScore) || 0;
     const gradeColor =
       atsScore >= 85
-        ? 'text-emerald-400'
+        ? 'text-emerald-600'
         : atsScore >= 70
-        ? 'text-cyan-400'
+        ? 'text-sky-600'
         : atsScore >= 50
-        ? 'text-amber-400'
-        : 'text-red-400';
+        ? 'text-amber-600'
+        : 'text-red-600';
 
     const result: GeminiATSAnalysisResult = {
       atsScore,

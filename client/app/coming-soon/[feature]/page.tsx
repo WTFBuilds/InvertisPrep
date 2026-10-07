@@ -9,7 +9,6 @@ import { Spotlight } from '@/components/ui/spotlight';
 import { GlowCard } from '@/components/ui/glow-card';
 import { ArrowLeft, Check, Clock } from 'lucide-react';
 
-// Feature catalog — each new "coming soon" feature gets its own entry
 const FEATURES: Record<string, { title: string; tagline: string; description: string; features: string[]; icon: string }> = {
   'ats-score': {
     title: 'ATS Score Checker',
@@ -27,14 +26,8 @@ const FEATURES: Record<string, { title: string; tagline: string; description: st
   'societies': {
     title: 'Clubs',
     tagline: 'Find your people on campus',
-    description:
-      'Browse every club and student body at Invertis University. See what they do, who runs them, when they meet, and how to join — all in one place.',
-    features: [
-      'Directory of all campus clubs',
-      'Upcoming club events & recruitments',
-      'Contact the team directly',
-      'Follow clubs you care about',
-    ],
+    description: '',
+    features: [],
     icon: '🤝',
   },
   'career': {
@@ -144,21 +137,25 @@ export default function ComingSoonPage({ params }: { params: Promise<{ feature: 
           <Separator className="my-6" />
 
           <div className="px-6 pb-8 sm:px-10 sm:pb-10">
-            <p className="leading-relaxed text-slate-600">{data.description}</p>
+            {data.description && (
+              <p className="leading-relaxed text-slate-600">{data.description}</p>
+            )}
 
-            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50/60 p-5">
-              <p className="mb-3 font-semibold text-slate-900">What you&apos;ll get</p>
-              <ul className="space-y-2.5">
-                {data.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2.5 text-sm text-slate-600">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-                      <Check className="h-3 w-3" strokeWidth={3} />
-                    </span>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {data.features && data.features.length > 0 && (
+              <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50/60 p-5">
+                <p className="mb-3 font-semibold text-slate-900">What you&apos;ll get</p>
+                <ul className="space-y-2.5">
+                  {data.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2.5 text-sm text-slate-600">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                        <Check className="h-3 w-3" strokeWidth={3} />
+                      </span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <p className="mt-8 text-center text-sm text-slate-400">
               We&apos;re working hard to ship this. Check back soon! 🚀
