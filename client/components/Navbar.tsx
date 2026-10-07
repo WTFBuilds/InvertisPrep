@@ -357,7 +357,7 @@ export default function Navbar() {
   ];
 
   const communityLinks: MenuLink[] = [
-    { title: 'Clubs', href: '/coming-soon/societies', description: 'Discover and join campus clubs.', icon: <Users />, badge: 'soon' },
+    { title: 'Clubs', href: '/club', description: 'Discover and join campus clubs.', icon: <Users />, badge: 'soon' },
     { title: 'Events', href: '/events', description: 'Calendar of fests, talks & workshops.', icon: <CalendarDays />, badge: 'new' },
     { title: 'Leaderboard', href: '/leaderboard', description: 'See top contributors & rank up.', icon: <Trophy />, badge: 'new' },
     { title: 'Our Team', href: '/our-team', description: 'Meet the people behind InvertisPrep.', icon: <Users />, badge: 'new' },
