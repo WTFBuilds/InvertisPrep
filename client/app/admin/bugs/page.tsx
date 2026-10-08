@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasPermission } from '@/lib/permissions';
 import { bugApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,7 +30,7 @@ export default function AdminBugsPage() {
   const router = useRouter();
   const { user } = useAuth();
   // SRT can view bug reports but cannot change status or delete
-  const canModify = user?.role !== 'srt';
+  const canModify = hasPermission(user, 'bugs.manage');
   const [bugs, setBugs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

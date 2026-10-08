@@ -30,6 +30,8 @@ import {
   User as UserIcon,
   X,
 } from 'lucide-react';
+import { roleDisplayLabel, roleDisplayBadge } from '@/lib/permissions';
+import { cn } from '@/lib/utils';
 
 const getInitials = (name: string) => {
   if (!name) return 'U';
@@ -222,8 +224,8 @@ export default function ProfilePage() {
               </div>
 
               <h2 className="mt-5 text-xl font-bold leading-tight text-slate-900">{user.name}</h2>
-              <Badge variant="indigo" className="mt-2 uppercase tracking-wider">
-                {user.role === 'student' ? 'Student' : user.role === 'super-admin' ? 'Super Admin' : user.role === 'srt' ? 'SRT' : 'Admin'}
+              <Badge className={cn('mt-2 uppercase tracking-wider', roleDisplayBadge(user))}>
+                {roleDisplayLabel(user)}
               </Badge>
 
               {/* followers / following */}

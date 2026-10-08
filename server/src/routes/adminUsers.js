@@ -6,17 +6,21 @@ import {
   updateRole,
   updateStatus,
   deleteUser,
+  createUser,
 } from '../controllers/adminUserController.js';
-import { authenticateJWT, isAdmin, isSuperAdmin } from '../middleware/auth.js';
+import { authenticateJWT, requirePermission, isSuperAdmin } from '../middleware/auth.js';
 
 const router = Router();
 
-// Read endpoints: any admin (or super-admin) can list/search/view users
-router.get('/', authenticateJWT, isAdmin, listUsers);
-router.get('/stats', authenticateJWT, isAdmin, getUserStats);
-router.get('/:id', authenticateJWT, isAdmin, getUserDetail);
+// Create a new staff/user account — super-admin only
+router.post('/', authenticateJWT, isSuperAdmin, createUser);
 
-// Write endpoints: only super-admin can change roles / ban-unban / delete
+// Read endpoints: any role with users.view (built-in admin, or custom role)
+router.get('/', authenticateJWT, requirePermission('users.view'), listUsers);
+router.get('/stats', authenticateJWT, requirePermission('users.view'), getUserStats);
+router.get('/:id', authenticateJWT, requirePermission('users.view'), getUserDetail);
+
+// Write endpoints: only super-admin can create roles / ban-unban / delete
 router.patch('/:id/role', authenticateJWT, isSuperAdmin, updateRole);
 router.patch('/:id/status', authenticateJWT, isSuperAdmin, updateStatus);
 router.delete('/:id', authenticateJWT, isSuperAdmin, deleteUser);

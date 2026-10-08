@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasPermission } from '@/lib/permissions';
 import { paperRequestApi } from '@/lib/api';
 import type { PaperRequest } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -69,7 +70,7 @@ export default function PaperRequestsPage() {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'super-admin';
   // SRT can review (read) but not triage or delete.
-  const canModify = user?.role !== 'srt';
+  const canModify = hasPermission(user, 'requests.manage');
 
   const [requests, setRequests] = useState<PaperRequest[]>([]);
   const [loading, setLoading] = useState(true);

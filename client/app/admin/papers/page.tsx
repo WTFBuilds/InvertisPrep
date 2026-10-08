@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { MultiSelect } from '@/components/admin/multi-select';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasPermission } from '@/lib/permissions';
 import { pyqApi, pdfApi, departmentApi } from '@/lib/api';
 import type { PYQPaper, User, ExamType, Branch } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -23,8 +24,9 @@ export default function PapersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  // SRT can view/verify/upload but cannot edit or delete papers
-  const canModify = user?.role !== 'srt';
+  // Verify is separate from edit/delete: a custom role may hold one and not the other.
+  const canModify = hasPermission(user, 'papers.delete');
+  const canVerify = hasPermission(user, 'papers.verify');
   const [papers, setPapers] = useState<PYQPaper[]>([]);
   const [filteredPapers, setFilteredPapers] = useState<PYQPaper[]>([]);
   const [loading, setLoading] = useState(true);
@@ -516,7 +518,9 @@ export default function PapersPage() {
             </Select>
             <div className="flex items-center gap-2">
               <Button size="sm" onClick={selectAllOnPage}>{selected.length === filteredPapers.length ? 'Unselect' : 'Select All'}</Button>
-              <Button size="sm" onClick={handleBulkVerify} disabled={selected.length===0}>Verify Selected</Button>
+              {canVerify && (
+                <Button size="sm" onClick={handleBulkVerify} disabled={selected.length===0}>Verify Selected</Button>
+              )}
               {canModify && (
                 <Button size="sm" variant="destructive" onClick={handleBulkDelete} disabled={selected.length===0}>Delete Selected</Button>
               )}
@@ -557,7 +561,7 @@ export default function PapersPage() {
                       <Button size="sm" variant="outline" onClick={() => handleView(paper)}>
                         View
                       </Button>
-                      {!paper.verified && (
+                      {!paper.verified && canVerify && (
                         <Button size="sm" variant="default" onClick={() => handleVerify(paper._id)}>
                           ✓ Verify
                         </Button>

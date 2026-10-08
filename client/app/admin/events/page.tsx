@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasPermission } from '@/lib/permissions';
 import { eventApi } from '@/lib/api';
 import type { InvertisEvent } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -29,7 +30,7 @@ import {
 export default function AdminEventsPage() {
   const { user } = useAuth();
   // SRT can view events but cannot create, edit or delete
-  const canModify = user?.role !== 'srt';
+  const canModify = hasPermission(user, 'events.manage');
   const [events, setEvents] = useState<InvertisEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

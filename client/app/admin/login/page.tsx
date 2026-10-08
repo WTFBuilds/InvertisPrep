@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 const isStaffRole = (role?: string) =>
-  role === 'admin' || role === 'super-admin' || role === 'srt';
+  role === 'admin' || role === 'super-admin' || role === 'srt' || role === 'staff';
 
 export default function AdminLoginPage() {
   const router = useRouter();

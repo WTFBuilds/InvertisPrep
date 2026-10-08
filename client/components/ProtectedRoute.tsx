@@ -9,7 +9,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const isStaffRole = (role?: string) =>
-    role === 'admin' || role === 'super-admin' || role === 'srt';
+    role === 'admin' || role === 'super-admin' || role === 'srt' || role === 'staff';
 
   useEffect(() => {
     if (!loading) {

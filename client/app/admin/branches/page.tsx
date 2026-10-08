@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasPermission } from '@/lib/permissions';
 import { branchApi, departmentApi } from '@/lib/api';
 import type { Branch, Department, CreateBranchDTO } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,7 @@ import Link from 'next/link';
 export default function BranchesPage() {
   const { user } = useAuth();
   // SRT can view branches but cannot create, edit or delete
-  const canModify = user?.role !== 'srt';
+  const canModify = hasPermission(user, 'branches.manage');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
