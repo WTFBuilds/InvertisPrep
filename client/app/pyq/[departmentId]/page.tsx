@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/fetcher';
+import { matchesQuery } from '@/lib/search';
 import { pyqApi, sessionApi, reportApi, departmentApi, paperRequestApi } from '@/lib/api';
 import type { PYQPaper, Department, Branch, Session, APIResponse } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -100,11 +101,10 @@ export default function DepartmentPYQPage() {
       filtered = filtered.filter((p) => p.examType === selectedExamType);
     }
     if (searchSubject) {
-      const query = searchSubject.toLowerCase();
+      // Separator/punctuation-insensitive so "BAS 301", "BAS-301" and "BAS301"
+      // all find the same paper regardless of how the code was typed.
       filtered = filtered.filter(
-        (p) =>
-          p.subjectName.toLowerCase().includes(query) ||
-          p.subjectCode?.toLowerCase().includes(query)
+        (p) => matchesQuery(p.subjectName, searchSubject) || matchesQuery(p.subjectCode || '', searchSubject)
       );
     }
 
@@ -173,12 +173,10 @@ export default function DepartmentPYQPage() {
   };
 
   const handleView = async (paper: PYQPaper) => {
-    try {
-      await pyqApi.trackView(paper._id);
-      router.push(`/view/${paper._id}?type=pyq`);
-    } catch (err: unknown) {
-      alert('View failed. Please try again.');
-    }
+    // Count the view (fire-and-forget, so a tracking blip never blocks opening
+    // the paper), then open the protected viewer.
+    pyqApi.trackView(paper._id).catch(() => {});
+    router.push(`/view/${paper._id}?type=pyq`);
   };
 
   const getPaperBranchNames = (paper: PYQPaper): string[] => {
@@ -251,6 +249,10 @@ export default function DepartmentPYQPage() {
   const [submittingRequest, setSubmittingRequest] = useState(false);
   const [requestError, setRequestError] = useState('');
   const [requestSuccess, setRequestSuccess] = useState('');
+  // Existing paper found for the exact subject code + term + year the student
+  // typed. When set, we show "already exists" instead of letting them submit.
+  const [existingPaper, setExistingPaper] = useState<PYQPaper | null>(null);
+  const [checkingExisting, setCheckingExisting] = useState(false);
 
   // Load picker data whenever the request modal opens (department preselected
   // to the page the student is already browsing).
@@ -260,6 +262,7 @@ export default function DepartmentPYQPage() {
     const load = async () => {
       setRequestError('');
       setRequestSuccess('');
+      setExistingPaper(null);
       setRequestBranches([]);
       try {
         const deptRes = await departmentApi.getAll();
@@ -279,6 +282,14 @@ export default function DepartmentPYQPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRequestModalOpen]);
 
+  const handleOpenRequestModal = () => {
+    if (!user) {
+      router.push(`/login?returnUrl=/pyq/${departmentId}`);
+      return;
+    }
+    setIsRequestModalOpen(true);
+  };
+
   // Branch options follow the department chosen inside the modal.
   useEffect(() => {
     if (!isRequestModalOpen || !requestForm.departmentId) return;
@@ -297,13 +308,48 @@ export default function DepartmentPYQPage() {
     };
   }, [isRequestModalOpen, requestForm.departmentId]);
 
-  const handleOpenRequestModal = () => {
-    if (!user) {
-      router.push(`/login?returnUrl=/pyq/${departmentId}`);
+  // Debounced existence check: once the student has typed a subject code AND a
+  // year, ask the server whether that exact paper (code + term + year) is
+  // already uploaded — so we can stop them from requesting a duplicate.
+  useEffect(() => {
+    if (!isRequestModalOpen) return;
+    const code = requestForm.subjectCode.trim();
+    const year = parseInt(requestForm.year, 10);
+    if (!code || Number.isNaN(year)) {
+      setExistingPaper(null);
+      setCheckingExisting(false);
       return;
     }
-    setIsRequestModalOpen(true);
-  };
+
+    let cancelled = false;
+    setCheckingExisting(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await paperRequestApi.check({
+          subjectCode: code,
+          year,
+          examType: requestForm.examType !== 'any' ? requestForm.examType : undefined,
+          departmentId: requestForm.departmentId || undefined,
+        });
+        if (!cancelled) setExistingPaper(res.exists && res.data ? res.data : null);
+      } catch (err: unknown) {
+        if (!cancelled) setExistingPaper(null);
+      } finally {
+        if (!cancelled) setCheckingExisting(false);
+      }
+    }, 450);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [
+    isRequestModalOpen,
+    requestForm.subjectCode,
+    requestForm.year,
+    requestForm.examType,
+    requestForm.departmentId,
+  ]);
 
   const handleRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -314,6 +360,20 @@ export default function DepartmentPYQPage() {
       setRequestError('Department, branch and subject name are required.');
       return;
     }
+    if (!requestForm.subjectCode.trim()) {
+      setRequestError('Subject code is required.');
+      return;
+    }
+    const year = parseInt(requestForm.year, 10);
+    if (Number.isNaN(year) || year < 2000 || year > 2100) {
+      setRequestError('Enter a valid year (2000–2100).');
+      return;
+    }
+    // Guard against a duplicate request when the exact paper already exists.
+    if (existingPaper) {
+      setRequestError('This paper already exists on InvertisPrep.');
+      return;
+    }
 
     setSubmittingRequest(true);
     try {
@@ -321,9 +381,9 @@ export default function DepartmentPYQPage() {
         departmentId: requestForm.departmentId,
         branchId: requestForm.branchId,
         subjectName: requestForm.subjectName.trim(),
-        subjectCode: requestForm.subjectCode.trim() || undefined,
+        subjectCode: requestForm.subjectCode.trim(),
         examType: requestForm.examType as 'any' | 'mid-term' | 'end-term',
-        year: requestForm.year ? parseInt(requestForm.year) : undefined,
+        year,
         note: requestForm.note.trim() || undefined,
       });
 
@@ -348,8 +408,26 @@ export default function DepartmentPYQPage() {
         setRequestError(res.message || 'Failed to submit request.');
       }
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'An error occurred while submitting the request.';
-      setRequestError(errorMessage);
+      if (err.response?.status === 409) {
+        // Server-side duplicate guard: fetch the existing paper so we can
+        // offer the "View it" shortcut right in the error state.
+        setRequestError(err.response?.data?.message || 'This paper already exists on InvertisPrep.');
+        try {
+          const check = await paperRequestApi.check({
+            subjectCode: requestForm.subjectCode.trim(),
+            year,
+            examType: requestForm.examType !== 'any' ? requestForm.examType : undefined,
+            departmentId: requestForm.departmentId || undefined,
+          });
+          if (check.exists && check.data) setExistingPaper(check.data);
+        } catch {
+          /* the error message alone is enough */
+        }
+      } else {
+        setRequestError(
+          err.response?.data?.message || 'An error occurred while submitting the request.'
+        );
+      }
     } finally {
       setSubmittingRequest(false);
     }
@@ -828,6 +906,42 @@ export default function DepartmentPYQPage() {
                   <AlertDescription>{requestError}</AlertDescription>
                 </Alert>
               )}
+              {existingPaper && !requestSuccess && (
+                <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">
+                      ✓
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-emerald-900">
+                        This paper already exists!
+                      </p>
+                      <p className="mt-0.5 text-xs text-emerald-700">
+                        We already have{' '}
+                        <span className="font-semibold">
+                          {existingPaper.subjectName}
+                          {existingPaper.subjectCode ? ` (${existingPaper.subjectCode})` : ''}
+                        </span>{' '}
+                        for {existingPaper.year}
+                        {existingPaper.examType === 'mid-term'
+                          ? ' · Mid-Term'
+                          : existingPaper.examType === 'end-term'
+                            ? ' · End-Term'
+                            : ''}
+                        . No need to request it.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleView(existingPaper)}
+                        className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white transition-colors hover:bg-slate-700"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        View it now
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               {requestSuccess ? (
                 <div className="space-y-4 py-6 text-center">
                   <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-xl font-bold text-emerald-600">
@@ -905,7 +1019,7 @@ export default function DepartmentPYQPage() {
                     </div>
                     <div>
                       <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                        Subject Code (Optional)
+                        Subject Code *
                       </label>
                       <input
                         type="text"
@@ -915,7 +1029,16 @@ export default function DepartmentPYQPage() {
                         }
                         placeholder="e.g., CS-402"
                         className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                        required
                       />
+                      {checkingExisting && (
+                        <p className="mt-1 text-xs text-slate-400">Checking if we already have it…</p>
+                      )}
+                      {existingPaper && !checkingExisting && (
+                        <p className="mt-1 text-xs font-medium text-emerald-600">
+                          Already uploaded — see the notice above.
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -936,7 +1059,7 @@ export default function DepartmentPYQPage() {
                     </div>
                     <div>
                       <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                        Year (Optional)
+                        Year *
                       </label>
                       <input
                         type="number"
@@ -946,6 +1069,7 @@ export default function DepartmentPYQPage() {
                         min="2000"
                         max="2100"
                         className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                        required
                       />
                     </div>
                   </div>
@@ -975,13 +1099,15 @@ export default function DepartmentPYQPage() {
                     <Button
                       type="submit"
                       className="bg-slate-900 text-white hover:bg-slate-700"
-                      disabled={submittingRequest}
+                      disabled={submittingRequest || checkingExisting || Boolean(existingPaper)}
                     >
                       {submittingRequest ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Sending...
                         </>
+                      ) : existingPaper ? (
+                        'Paper already exists'
                       ) : (
                         <>
                           <Send className="mr-2 h-4 w-4" />

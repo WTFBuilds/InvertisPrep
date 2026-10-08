@@ -13,6 +13,7 @@ import type {
   PYQFilterQuery,
   PaperRequest,
   CreatePaperRequestDTO,
+  PaperExistsResponse,
   APIResponse,
   UserResponse,
   PublicUserProfile,
@@ -571,6 +572,18 @@ export const reportApi = {
 export const paperRequestApi = {
   create: async (requestData: CreatePaperRequestDTO): Promise<APIResponse<PaperRequest>> => {
     const { data } = await apiClient.post<APIResponse<PaperRequest>>('/paper-requests', requestData);
+    return data;
+  },
+
+  // Returns exists:true (and the paper) when an exact paper with this subject
+  // code + year (+ exam type) is already on the platform.
+  check: async (params: {
+    subjectCode: string;
+    year: number;
+    examType?: string;
+    departmentId?: string;
+  }): Promise<PaperExistsResponse> => {
+    const { data } = await apiClient.get<PaperExistsResponse>('/paper-requests/check', { params });
     return data;
   },
 
