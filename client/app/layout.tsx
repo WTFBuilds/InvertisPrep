@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { QuizSocketProvider } from "@/contexts/QuizSocketContext";
 import SiteShell from "@/components/layout/SiteShell";
+import { Toaster } from "@/components/ui/sonner";
 import { siteConfig } from "@/lib/seo";
 
 // Using system font fallbacks instead of next/font to avoid Turbopack font-loader issues
@@ -84,6 +85,7 @@ export default function RootLayout({
         {/* Vercel Analytics: no-ops in local dev; collects page views on the
             Vercel deployments (both domains share the same project). */}
         <Analytics />
+        <Toaster position="top-center" />
       </body>
     </html>
   );

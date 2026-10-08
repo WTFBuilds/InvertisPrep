@@ -3,14 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { MultiSelect } from '@/components/admin/multi-select';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasPermission } from '@/lib/permissions';
-import { pyqApi, pdfApi, departmentApi } from '@/lib/api';
-import type { PYQPaper, User, ExamType, Branch } from '@/types';
+import { pyqApi, pdfApi } from '@/lib/api';
+import type { PYQPaper, User } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Select,
   SelectContent,
@@ -18,6 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { EditPaperDialog } from '@/components/admin/edit-paper-dialog';
+import { toast } from 'sonner';
 import Link from 'next/link';
 
 export default function PapersPage() {
@@ -30,8 +30,6 @@ export default function PapersPage() {
   const [papers, setPapers] = useState<PYQPaper[]>([]);
   const [filteredPapers, setFilteredPapers] = useState<PYQPaper[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -40,25 +38,14 @@ export default function PapersPage() {
     searchParams.get('verified') === 'unverified' ? 'unverified' : 'all'
   );
   const [selected, setSelected] = useState<string[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editFormData, setEditFormData] = useState({
-    subjectName: '',
-    subjectCode: '',
-    year: '',
-    examType: '',
-    semester: '',
-  });
-  // Additional-branch editor for the paper being edited: the department's
-  // branches (names for the checkboxes), the paper's primary branch id, and
-  // the currently ticked extra branches.
-  const [editBranches, setEditBranches] = useState<Branch[]>([]);
-  const [editPrimaryBranchId, setEditPrimaryBranchId] = useState('');
-  const [editAdditionalBranchIds, setEditAdditionalBranchIds] = useState<string[]>([]);
-  const [editBranchesLoading, setEditBranchesLoading] = useState(false);
+  const [editPaper, setEditPaper] = useState<PYQPaper | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
-  const fetchPapers = async (opts?: { page?: number; limit?: number }) => {
+  // `silent` keeps the current list mounted while refetching, so the page
+  // height doesn't collapse and the user's scroll position survives an edit.
+  const fetchPapers = async (opts?: { page?: number; limit?: number; silent?: boolean }) => {
     try {
-      setLoading(true);
+      if (!opts?.silent) setLoading(true);
       const params: Record<string, unknown> = {
         page: opts?.page ?? page,
         limit: opts?.limit ?? pageSize,
@@ -71,9 +58,9 @@ export default function PapersPage() {
       setFilteredPapers(res.data || []);
       setTotal(typeof (res as any).total === 'number' ? (res as any).total : (res.count ?? (res.data?.length || 0)));
     } catch (err: unknown) {
-      setError('Failed to load papers');
+      toast.error('Failed to load papers');
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   };
 
@@ -137,10 +124,14 @@ export default function PapersPage() {
     });
   };
 
+  // A new search/filter starts back at page 1...
   useEffect(() => {
-    const filtered = filterPapers(query, verificationFilter, papers);
-    setFilteredPapers(filtered);
     setPage(1);
+  }, [query, verificationFilter]);
+
+  // ...but a refetch must not reset the page the user is browsing.
+  useEffect(() => {
+    setFilteredPapers(filterPapers(query, verificationFilter, papers));
   }, [query, verificationFilter, papers]);
 
   useEffect(() => {
@@ -155,8 +146,8 @@ export default function PapersPage() {
   const handleVerify = async (id: string) => {
     try {
       await pyqApi.verify(id);
-      setSuccess('Paper verified successfully');
-      fetchPapers();
+      toast.success('Paper verified successfully');
+      fetchPapers({ silent: true });
     } catch (err: unknown) {
       let errorMessage = 'Failed to verify paper';
       const axiosError = err as any;
@@ -165,7 +156,7 @@ export default function PapersPage() {
       } else if (err instanceof Error) {
         errorMessage = err.message;
       }
-      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -174,106 +165,18 @@ export default function PapersPage() {
 
     try {
       await pyqApi.delete(id);
-      setSuccess('Paper deleted successfully');
+      toast.success('Paper deleted successfully');
       // deselect if selected
       setSelected((s) => s.filter((sid) => sid !== id));
-      fetchPapers();
+      fetchPapers({ silent: true });
     } catch (err: unknown) {
-      setError('Failed to delete paper');
+      toast.error('Failed to delete paper');
     }
   };
 
-  const handleEdit = async (paper: PYQPaper) => {
-    setEditFormData({
-      subjectName: paper.subjectName,
-      subjectCode: paper.subjectCode || '',
-      year: paper.year.toString(),
-      examType: paper.examType,
-      semester: paper.semester.toString(),
-    });
-    setEditingId(paper._id);
-
-    // Normalize current extra-branch tags (raw ids or populated Branch docs).
-    const currentIds = (paper.additionalBranchIds || [])
-      .map((entry) => (typeof entry === 'string' ? entry : entry?._id))
-      .filter((id): id is string => Boolean(id));
-    setEditAdditionalBranchIds(currentIds);
-
-    const primaryBranchId =
-      typeof paper.branchId === 'string' ? paper.branchId : paper.branchId?._id;
-    setEditPrimaryBranchId(primaryBranchId || '');
-
-    // Load the department's branches so the editor can show real names.
-    const departmentId =
-      typeof paper.departmentId === 'string' ? paper.departmentId : paper.departmentId?._id;
-    setEditBranches([]);
-    if (departmentId) {
-      setEditBranchesLoading(true);
-      try {
-        const res = await departmentApi.getBranches(departmentId);
-        setEditBranches(res.data || []);
-      } catch (err: unknown) {
-        setError('Failed to load branches for editing');
-      } finally {
-        setEditBranchesLoading(false);
-      }
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditFormData({
-      subjectName: '',
-      subjectCode: '',
-      year: '',
-      examType: '',
-      semester: '',
-    });
-    setEditBranches([]);
-    setEditPrimaryBranchId('');
-    setEditAdditionalBranchIds([]);
-  };
-
-  const handleUpdatePaper = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingId) return;
-
-    try {
-      const updateData: Partial<PYQPaper> = {
-        subjectName: editFormData.subjectName,
-        subjectCode: editFormData.subjectCode,
-        year: parseInt(editFormData.year),
-        examType: editFormData.examType as ExamType,
-        semester: parseInt(editFormData.semester),
-        // Always send so unticking every branch clears the tags.
-        additionalBranchIds: editAdditionalBranchIds.filter(
-          (id) => id !== editPrimaryBranchId
-        ),
-      };
-      await pyqApi.update(editingId, updateData);
-      setSuccess('Paper updated successfully');
-      setEditingId(null);
-      setEditFormData({
-        subjectName: '',
-        subjectCode: '',
-        year: '',
-        examType: '',
-        semester: '',
-      });
-      setEditBranches([]);
-      setEditPrimaryBranchId('');
-      setEditAdditionalBranchIds([]);
-      fetchPapers();
-    } catch (err: unknown) {
-      let errorMessage = 'Failed to update paper';
-      const axiosError = err as any;
-      if (axiosError.response?.data?.message) {
-        errorMessage = axiosError.response.data.message;
-      } else if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-      setError(errorMessage);
-    }
+  const handleEdit = (paper: PYQPaper) => {
+    setEditPaper(paper);
+    setEditOpen(true);
   };
 
   const handleView = (paper: PYQPaper) => {
@@ -297,7 +200,7 @@ export default function PapersPage() {
       // Track download for stats (fire and forget)
       pyqApi.trackDownload(paper._id).catch(() => {});
     } catch (err: unknown) {
-      setError('Failed to download paper');
+      toast.error('Failed to download paper');
     }
   };
 
@@ -311,27 +214,27 @@ export default function PapersPage() {
   };
 
   const handleBulkVerify = async () => {
-    if (selected.length === 0) return setError('No papers selected');
+    if (selected.length === 0) return toast.error('No papers selected');
     try {
       await Promise.all(selected.map((id) => pyqApi.verify(id)));
-      setSuccess('Selected papers verified');
+      toast.success('Selected papers verified');
       setSelected([]);
-      fetchPapers({ page, limit: pageSize });
+      fetchPapers({ page, limit: pageSize, silent: true });
     } catch (err: unknown) {
-      setError('Failed to verify selected papers');
+      toast.error('Failed to verify selected papers');
     }
   };
 
   const handleBulkDelete = async () => {
-    if (selected.length === 0) return setError('No papers selected');
+    if (selected.length === 0) return toast.error('No papers selected');
     if (!confirm('Delete selected papers? This cannot be undone.')) return;
     try {
       await Promise.all(selected.map((id) => pyqApi.delete(id)));
-      setSuccess('Selected papers deleted');
+      toast.success('Selected papers deleted');
       setSelected([]);
-      fetchPapers({ page, limit: pageSize });
+      fetchPapers({ page, limit: pageSize, silent: true });
     } catch (err: unknown) {
-      setError('Failed to delete selected papers');
+      toast.error('Failed to delete selected papers');
     }
   };
 
@@ -373,120 +276,18 @@ export default function PapersPage() {
           </Link>
         </div>
 
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {success && (
-          <Alert className="mb-4 bg-green-50 border-green-200">
-            <AlertDescription className="text-green-800">{success}</AlertDescription>
-          </Alert>
-        )}
-
-        {editingId && (
-          <Card className="mb-6 bg-blue-50">
-            <CardHeader>
-              <CardTitle>Edit Paper</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleUpdatePaper} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Subject Name *</label>
-                    <input
-                      type="text"
-                      value={editFormData.subjectName}
-                      onChange={(e) => setEditFormData({ ...editFormData, subjectName: e.target.value })}
-                      className="w-full border rounded px-2 py-1"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Subject Code</label>
-                    <input
-                      type="text"
-                      value={editFormData.subjectCode}
-                      onChange={(e) => setEditFormData({ ...editFormData, subjectCode: e.target.value })}
-                      className="w-full border rounded px-2 py-1"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Year *</label>
-                    <input
-                      type="number"
-                      value={editFormData.year}
-                      onChange={(e) => setEditFormData({ ...editFormData, year: e.target.value })}
-                      className="w-full border rounded px-2 py-1"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Exam Type *</label>
-                    <select
-                      value={editFormData.examType}
-                      onChange={(e) => setEditFormData({ ...editFormData, examType: e.target.value })}
-                      className="w-full border rounded px-2 py-1"
-                      required
-                    >
-                      <option value="">Select exam type</option>
-                      <option value="mid-term">Mid-Term</option>
-                      <option value="end-term">End-Term</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Semester *</label>
-                    <input
-                      type="number"
-                      value={editFormData.semester}
-                      onChange={(e) => setEditFormData({ ...editFormData, semester: e.target.value })}
-                      className="w-full border rounded px-2 py-1"
-                      min="1"
-                      max="10"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Additional branches editor — tick every branch this paper should also appear under */}
-                {editBranches.filter((b) => b._id !== editPrimaryBranchId).length > 0 && (
-                  <div>
-                    <label className="block text-sm font-medium mb-1">
-                      Additional Branches (optional)
-                    </label>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Tick every branch this paper also applies to — it will show up when students
-                      filter by any selected branch.
-                    </p>
-                    {editBranchesLoading ? (
-                      <p className="text-sm text-muted-foreground">Loading branches...</p>
-                    ) : (
-                      <MultiSelect
-                        options={editBranches
-                          .filter((b) => b._id !== editPrimaryBranchId)
-                          .map((b) => ({ value: b._id, label: b.name }))}
-                        selected={editAdditionalBranchIds}
-                        onChange={setEditAdditionalBranchIds}
-                        placeholder="Select additional branches"
-                        searchPlaceholder="Search branches..."
-                        emptyMessage="No other branches in this department"
-                      />
-                    )}
-                  </div>
-                )}
-
-                <div className="flex gap-2">
-                  <Button type="submit" size="sm">Save Changes</Button>
-                  <Button type="button" variant="outline" size="sm" onClick={handleCancelEdit}>Cancel</Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
+        <EditPaperDialog
+          paper={editPaper}
+          open={editOpen}
+          onOpenChange={(next) => {
+            setEditOpen(next);
+            if (!next) setEditPaper(null);
+          }}
+          onSaved={(message) => {
+            toast.success(message);
+            fetchPapers({ silent: true });
+          }}
+        />
 
         <div className="mb-4 text-sm text-muted-foreground flex items-center justify-between">
           <div>
@@ -571,7 +372,11 @@ export default function PapersPage() {
                       </Button>
                       {canModify && (
                         <>
-                          <Button size="sm" variant="secondary" onClick={() => handleEdit(paper)}>
+                          <Button
+                            size="sm"
+                            className="bg-slate-900 text-white hover:bg-slate-800"
+                            onClick={() => handleEdit(paper)}
+                          >
                             Edit
                           </Button>
                           <Button size="sm" variant="destructive" onClick={() => handleDelete(paper._id)}>
