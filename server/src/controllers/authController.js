@@ -10,6 +10,7 @@ const formatUser = (user) => ({
   email: user.email,
   name: user.name,
   role: user.role,
+  roleId: user.roleId && typeof user.roleId === 'object' ? user.roleId._id : user.roleId || null,
   picture: user.picture,
   studentId: user.studentId || '',
   phoneNumber: user.phoneNumber || '',
@@ -19,6 +20,30 @@ const formatUser = (user) => ({
   qcoins: user.qcoins ?? 0,
   freeDownloadsLeft: user.freeDownloadsLeft ?? 2,
 });
+
+/**
+ * Same shape, but custom-role ('staff') users also get their permission list
+ * and the role's display metadata so the client can gate the admin UI. Called
+ * on every endpoint that returns a user the client stores in localStorage —
+ * a response missing these fields would wipe the client's permission snapshot.
+ */
+const formatUserWithRole = async (user) => {
+  const formatted = formatUser(user);
+  if (user.role !== 'staff' || !formatted.roleId) return formatted;
+
+  try {
+    const { Role } = await import('../models/Role.js');
+    const role = await Role.findById(formatted.roleId).select('name label color permissions').lean();
+    if (role) {
+      formatted.roleId = String(role._id);
+      formatted.roleMeta = { id: String(role._id), name: role.name, label: role.label, color: role.color };
+      formatted.permissions = role.permissions || [];
+    }
+  } catch (err) {
+    console.error('[Auth] Failed to load custom role:', err.message);
+  }
+  return formatted;
+};
 
 
 // Cookie options for the refresh token.
@@ -79,7 +104,7 @@ export const login = async (req, res) => {
     res.json({
       success: true,
       token: accessToken,
-      user: formatUser(user),
+      user: await formatUserWithRole(user),
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -109,7 +134,7 @@ export const getCurrentUser = async (req, res) => {
 
     res.json({
       success: true,
-      user: formatUser(user),
+      user: await formatUserWithRole(user),
     });
   } catch (error) {
     console.error('Get current user error:', error);
@@ -216,7 +241,7 @@ export const googleLogin = async (req, res) => {
     res.json({
       success: true,
       token: accessToken,
-      user: formatUser(user),
+      user: await formatUserWithRole(user),
     });
   } catch (error) {
     console.error('Google login error:', error);
@@ -304,7 +329,7 @@ export const updateProfile = async (req, res) => {
     res.json({
       success: true,
       message: 'Profile updated successfully',
-      user: formatUser(user),
+      user: await formatUserWithRole(user),
     });
   } catch (error) {
     console.error('Update profile error:', error);
@@ -421,7 +446,7 @@ export const register = async (req, res) => {
     res.status(201).json({
       success: true,
       token: accessToken,
-      user: formatUser(user),
+      user: await formatUserWithRole(user),
     });
   } catch (error) {
     console.error('Register error:', error);

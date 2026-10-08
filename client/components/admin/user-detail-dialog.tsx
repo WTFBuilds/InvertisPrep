@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { adminUserApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { BUILTIN_ROLE_META, ROLE_COLORS } from '@/lib/permissions';
 import type { AdminUserDetail } from '@/types';
 import {
   Dialog,
@@ -64,17 +65,13 @@ const formatDateTime = (value?: string | null) => {
   });
 };
 
-const roleBadge = (role: string) => {
-  switch (role) {
-    case 'super-admin':
-      return <Badge className="bg-slate-900 text-white">Super Admin</Badge>;
-    case 'admin':
-      return <Badge variant="indigo">Admin</Badge>;
-    case 'srt':
-      return <Badge className="bg-teal-600 text-white">SRT</Badge>;
-    default:
-      return <Badge variant="outline">Student</Badge>;
+const roleBadge = (role: string, roleLabel?: string | null, roleColor?: string | null) => {
+  if (role === 'staff') {
+    const style = ROLE_COLORS[roleColor || 'violet'] || ROLE_COLORS.violet;
+    return <Badge className={style.badge}>{roleLabel || 'Custom Role'}</Badge>;
   }
+  const meta = BUILTIN_ROLE_META[role] || BUILTIN_ROLE_META.student;
+  return <Badge className={meta.badge}>{meta.label}</Badge>;
 };
 
 export function UserDetailDialog({ userId, open, onOpenChange, onDeleted }: UserDetailDialogProps) {
@@ -174,7 +171,7 @@ export function UserDetailDialog({ userId, open, onOpenChange, onDeleted }: User
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-lg font-black text-slate-900">{detail.user.name}</span>
-                    {roleBadge(detail.user.role)}
+                    {roleBadge(detail.user.role, detail.user.roleLabel, detail.user.roleColor)}
                   </div>
                   <p className="text-sm text-slate-500">{detail.user.email}</p>
                   <p className="text-xs text-slate-400">

@@ -103,8 +103,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('user', JSON.stringify(response.user));
         setUser(response.user);
 
-        // Redirect based on role
-        if (response.user.role === 'admin' || response.user.role === 'super-admin') {
+        // Redirect based on role — staff accounts (admins, super admins, SRT
+        // and custom-role holders) go to the admin console
+        if (
+          response.user.role === 'admin' ||
+          response.user.role === 'super-admin' ||
+          response.user.role === 'srt' ||
+          response.user.role === 'staff'
+        ) {
           router.push('/admin/dashboard');
         } else {
           router.push(redirectTo || '/');

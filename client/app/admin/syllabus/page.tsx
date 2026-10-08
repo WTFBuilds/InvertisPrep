@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasPermission } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -27,7 +28,7 @@ export default function SyllabusManagementPage() {
   const router = useRouter();
   const { user } = useAuth();
   // SRT can upload/view syllabus but cannot delete
-  const canModify = user?.role !== 'srt';
+  const canModify = hasPermission(user, 'syllabus.manage');
   const [syllabus, setSyllabus] = useState<Syllabus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

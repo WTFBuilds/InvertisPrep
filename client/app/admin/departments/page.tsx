@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasPermission } from '@/lib/permissions';
 import { departmentApi } from '@/lib/api';
 import type { Department, CreateDepartmentDTO } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,7 @@ import Link from 'next/link';
 export default function DepartmentsPage() {
   const { user } = useAuth();
   // SRT can view departments but cannot create, edit or delete
-  const canModify = user?.role !== 'srt';
+  const canModify = hasPermission(user, 'departments.manage');
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

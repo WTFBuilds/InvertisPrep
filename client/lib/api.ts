@@ -32,6 +32,7 @@ import type {
   AdminUserListMeta,
   UserStats,
   AdminUserDetail,
+  AdminRole,
   Sponsor,
   CreateSponsorDTO,
 } from '@/types';
@@ -443,8 +444,11 @@ export const adminUserApi = {
     return data;
   },
 
-  updateRole: async (id: string, role: UserRole): Promise<APIResponse> => {
-    const { data } = await apiClient.patch<APIResponse>(`/admin/users/${id}/role`, { role });
+  updateRole: async (id: string, role: UserRole, roleId?: string | null): Promise<APIResponse> => {
+    const { data } = await apiClient.patch<APIResponse>(`/admin/users/${id}/role`, {
+      role,
+      roleId: roleId ?? undefined,
+    });
     return data;
   },
 
@@ -455,6 +459,56 @@ export const adminUserApi = {
 
   remove: async (id: string): Promise<APIResponse> => {
     const { data } = await apiClient.delete<APIResponse>(`/admin/users/${id}`);
+    return data;
+  },
+
+  // Create a new account from the admin console (super-admin only)
+  create: async (payload: {
+    name: string;
+    email: string;
+    password: string;
+    role: UserRole;
+    roleId?: string | null;
+    studentId?: string;
+    phoneNumber?: string;
+    course?: string;
+  }): Promise<APIResponse<{ id: string; email: string; role: UserRole }>> => {
+    const { data } = await apiClient.post<APIResponse<{ id: string; email: string; role: UserRole }>>(
+      '/admin/users',
+      payload
+    );
+    return data;
+  },
+};
+
+// Admin role & permission management API
+export const rolesApi = {
+  list: async (): Promise<APIResponse<AdminRole[]>> => {
+    const { data } = await apiClient.get<APIResponse<AdminRole[]>>('/admin/roles');
+    return data;
+  },
+
+  create: async (payload: {
+    name?: string;
+    label: string;
+    description?: string;
+    color?: string;
+    permissions: string[];
+  }): Promise<APIResponse<AdminRole>> => {
+    const { data } = await apiClient.post<APIResponse<AdminRole>>('/admin/roles', payload);
+    return data;
+  },
+
+  update: async (
+    id: string,
+    payload: { label?: string; description?: string; color?: string; permissions?: string[] }
+  ): Promise<APIResponse<AdminRole>> => {
+    const { data } = await apiClient.patch<APIResponse<AdminRole>>(`/admin/roles/${id}`, payload);
+    return data;
+  },
+
+  remove: async (id: string): Promise<APIResponse> => {
+    const { data } = await apiClient.delete<APIResponse>(`/admin/roles/${id}`);
     return data;
   },
 };

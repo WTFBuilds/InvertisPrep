@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasPermission } from '@/lib/permissions';
 import { sessionApi } from '@/lib/api';
 import type { Session, CreateSessionDTO } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -48,7 +49,7 @@ function Field({
 export default function SessionsPage() {
   const { user } = useAuth();
   // SRT can view sessions but cannot create or edit; deletion is super-admin only.
-  const canModify = user?.role !== 'srt';
+  const canModify = hasPermission(user, 'sessions.manage');
   const isSuperAdmin = user?.role === 'super-admin';
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);

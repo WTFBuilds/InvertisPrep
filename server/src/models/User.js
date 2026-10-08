@@ -55,8 +55,15 @@ const userSchema = new Schema(
     ],
     role: {
       type: String,
-      enum: ['student', 'srt', 'admin', 'super-admin'],
+      enum: ['student', 'srt', 'staff', 'admin', 'super-admin'],
       default: 'student',
+    },
+    // Custom role reference — set when role is 'staff'. The Role document
+    // carries the display name, color and permission list.
+    roleId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Role',
+      default: null,
     },
     lastLogin: {
       type: Date,
@@ -96,9 +103,9 @@ const userSchema = new Schema(
 // Indexes
 userSchema.index({ role: 1, isActive: 1 });
 
-// Invalidate Redis cache when role or isActive changes
+// Invalidate Redis cache when role, role assignment or isActive changes
 userSchema.post('save', async function(doc) {
-  if (this.isModified('role') || this.isModified('isActive')) {
+  if (this.isModified('role') || this.isModified('roleId') || this.isModified('isActive')) {
     try {
       const { getRedis } = await import('../shared/redisClient.js');
       const redis = await getRedis();

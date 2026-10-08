@@ -7,7 +7,7 @@ import {
   deleteDepartment,
   getBranchesByDepartment,
 } from '../controllers/departmentController.js';
-import { authenticateJWT, isAdmin } from '../middleware/auth.js';
+import { authenticateJWT, requirePermission } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -17,8 +17,8 @@ router.get('/:departmentId/branches', getBranchesByDepartment);
 router.get('/:id', getDepartmentById);
 
 // Admin routes
-router.post('/', authenticateJWT, isAdmin, createDepartment);
-router.put('/:id', authenticateJWT, isAdmin, updateDepartment);
-router.delete('/:id', authenticateJWT, isAdmin, deleteDepartment);
+router.post('/', authenticateJWT, requirePermission('departments.manage'), createDepartment);
+router.put('/:id', authenticateJWT, requirePermission('departments.manage'), updateDepartment);
+router.delete('/:id', authenticateJWT, requirePermission('departments.manage'), deleteDepartment);
 
 export default router;

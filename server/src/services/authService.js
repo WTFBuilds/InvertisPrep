@@ -75,9 +75,9 @@ export const authService = {
 
       // Fallback to DB, then cache
       const user = await User.findById(decoded.id)
-        .select('role isActive email name picture')
+        .select('role roleId isActive email name picture')
         .lean();
-      
+
       if (user && user.isActive) {
         await this.cacheUser(user);
         return {
@@ -85,6 +85,7 @@ export const authService = {
           email: user.email,
           name: user.name,
           role: user.role,
+          roleId: user.roleId ? user.roleId.toString() : null,
           picture: user.picture,
           isActive: user.isActive
         };
@@ -108,6 +109,7 @@ export const authService = {
         email: user.email,
         name: user.name,
         role: user.role,
+        roleId: user.roleId ? user.roleId.toString() : null,
         picture: user.picture,
         isActive: user.isActive
       };
@@ -160,9 +162,9 @@ export const authService = {
       }
 
       const user = await User.findById(decoded.id)
-        .select('role isActive email name picture')
+        .select('role roleId isActive email name picture')
         .lean();
-      
+
       if (!user || !user.isActive) return null;
 
       return this.login(user);

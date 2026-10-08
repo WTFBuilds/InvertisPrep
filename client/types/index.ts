@@ -1,11 +1,24 @@
 // User types
-export type UserRole = 'student' | 'srt' | 'admin' | 'super-admin';
+// 'staff' = holder of a custom role (see Role / RoleMeta below)
+export type UserRole = 'student' | 'srt' | 'staff' | 'admin' | 'super-admin';
+
+// Display metadata for a custom role, resolved from the server
+export interface RoleMeta {
+  id: string;
+  name: string;
+  label: string;
+  color: string;
+}
 
 export interface User {
   id: string;
   email: string;
   name: string;
   role: UserRole;
+  roleId?: string | null;
+  roleMeta?: RoleMeta | null;
+  /** Permission keys for custom-role ('staff') users; drives admin UI gating */
+  permissions?: string[];
   picture?: string;
   studentId?: string;
   phoneNumber?: string;
@@ -14,6 +27,20 @@ export interface User {
   following?: string[];
   qcoins: number;
   freeDownloadsLeft: number;
+}
+
+// Admin role management types
+export interface AdminRole {
+  id: string;
+  name: string;
+  label: string;
+  description: string;
+  color: string;
+  permissions: string[];
+  isSystem: boolean;
+  memberCount: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Wallet types
@@ -303,6 +330,9 @@ export interface AdminUser {
   email: string;
   picture: string | null;
   role: UserRole;
+  roleId?: string | null;
+  roleLabel?: string | null;
+  roleColor?: string | null;
   isActive: boolean;
   studentId: string;
   course: string;
@@ -324,6 +354,7 @@ export interface UserStats {
   active: number;
   admins: number;
   srt: number;
+  staff: number;
   superAdmins: number;
   banned: number;
 }

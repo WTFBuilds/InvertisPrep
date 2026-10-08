@@ -16,6 +16,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasPermission, BUILTIN_ROLE_META } from '@/lib/permissions';
 import {
   adminUserApi,
   bugApi,
@@ -85,8 +86,9 @@ const branchName = (b: PYQPaper['branchId']) => (typeof b === 'string' ? b : b.n
 export default function AdminDashboard() {
   const { user } = useAuth();
 
-  // SRT has no user management access — hide user-related stats and fetches
-  const isSrt = user?.role === 'srt';
+  // Whether this user may see user-management stats — true for admins,
+  // super admins and any custom role granted users.view.
+  const canViewUsers = hasPermission(user, 'users.view');
 
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [papers, setPapers] = useState<PYQPaper[]>([]);
@@ -111,7 +113,7 @@ export default function AdminDashboard() {
 
       // SRT has no user management access — skip adminUserApi calls (they'd 403)
       const [u, p, un, r, b, e, nu, lb] = await Promise.all([
-        isSrt
+        !canViewUsers
           ? Promise.resolve(null)
           : adminUserApi.stats().catch(() => {
               failed = true;
@@ -137,7 +139,7 @@ export default function AdminDashboard() {
           failed = true;
           return null;
         }),
-        isSrt
+        !canViewUsers
           ? Promise.resolve(null)
           : adminUserApi.list({ sort: 'newest', limit: 5 }).catch(() => {
               failed = true;
@@ -179,13 +181,9 @@ export default function AdminDashboard() {
   const activeEvents = events.filter((ev) => ev.registrationOpen);
 
   const roleLabel =
-    user?.role === 'super-admin'
-      ? 'Super Admin'
-      : user?.role === 'admin'
-        ? 'Admin'
-        : user?.role === 'srt'
-          ? 'SRT'
-          : 'Viewer';
+    user?.role === 'staff'
+      ? user?.roleMeta?.label || 'Custom Role'
+      : BUILTIN_ROLE_META[user?.role || '']?.label || 'Viewer';
 
   const firstName = user?.name?.split(' ')[0] || 'Admin';
   const today = new Date().toLocaleDateString('en-IN', {
@@ -197,7 +195,7 @@ export default function AdminDashboard() {
 
   const statCards = [
     // SRT has no user management access — no Total Users card for them
-    ...(!isSrt
+    ...(!canViewUsers
       ? [
           {
             label: 'Total Users',
@@ -457,7 +455,7 @@ export default function AdminDashboard() {
       {/* Recent activity */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Newest users (hidden for SRT — no user management access) */}
-        {!isSrt && (
+        {!canViewUsers && (
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -569,7 +567,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* User detail dialog (SRT has no user management access) */}
-      {!isSrt && (
+      {!canViewUsers && (
         <UserDetailDialog
           userId={detailUserId}
           open={detailOpen}
