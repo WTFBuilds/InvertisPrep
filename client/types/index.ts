@@ -251,10 +251,19 @@ export interface CreatePaperRequestDTO {
   departmentId: string;
   branchId: string;
   subjectName: string;
-  subjectCode?: string;
+  subjectCode: string;
   examType: 'any' | ExamType;
-  year?: number;
+  year: number;
   note?: string;
+}
+
+// Result of checking whether an exact paper already exists before requesting.
+export interface PaperExistsResponse extends APIResponse<PYQPaper | null> {
+  exists?: boolean;
+  code?: string;
+  paperId?: string;
+  /** Exam terms already uploaded for this code + year (e.g. ['mid-term']). */
+  existingExamTypes?: ExamType[];
 }
 
 // API Response types

@@ -111,6 +111,16 @@ export const getPYQs = async (req, res) => {
       return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
     };
 
+    // Separator-tolerant pattern: matches the query's alphanumerics in order
+    // allowing any punctuation/spaces between them, so "BAS301", "BAS 301"
+    // and "BAS-301" all match each other (and "b.tech" ↔ "btech").
+    const loosePattern = (string) => {
+      if (typeof string !== 'string') return '';
+      const chars = string.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (!chars) return '';
+      return chars.split('').map(escapeRegex).join('[^a-z0-9]*');
+    };
+
     // Build dynamic filter
     const filter = { verified: true, isActive: true };
     if (departmentId) filter.departmentId = departmentId;
@@ -126,17 +136,18 @@ export const getPYQs = async (req, res) => {
     if (sessionId) filter.sessionId = sessionId;
     if (semester) filter.semester = parseInt(semester);
     if (examType) filter.examType = examType;
-    
+
     if (subjectCode) {
-      filter.subjectCode = new RegExp(escapeRegex(subjectCode), 'i');
+      const pattern = loosePattern(subjectCode);
+      if (pattern) filter.subjectCode = new RegExp(pattern, 'i');
     }
 
     if (search) {
-      const escapedSearch = escapeRegex(search);
-      filter.$or = [
-        { subjectName: new RegExp(escapedSearch, 'i') },
-        { subjectCode: new RegExp(escapedSearch, 'i') }
-      ];
+      const pattern = loosePattern(search);
+      if (pattern) {
+        const regex = new RegExp(pattern, 'i');
+        filter.$or = [{ subjectName: regex }, { subjectCode: regex }];
+      }
     }
 
     const pyqs = await PDFDocument.find(filter, { cloudinaryUrl: 0, cloudinaryPublicId: 0 })

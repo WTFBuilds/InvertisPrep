@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasPermission } from '@/lib/permissions';
+import { matchesQuery } from '@/lib/search';
 import { pyqApi, pdfApi } from '@/lib/api';
 import type { PYQPaper, User } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -77,50 +78,27 @@ export default function PapersPage() {
       if (!searchTerm.trim()) {
         return true;
       }
-      const term = searchTerm.toLowerCase();
-      // Search in subject name and code
-      if (
-        paper.subjectName.toLowerCase().includes(term) ||
-        (paper.subjectCode && paper.subjectCode.toLowerCase().includes(term))
-      ) {
-        return true;
-      }
 
-      // Search in department
+      // Separator/punctuation-insensitive across every field, so codes like
+      // "BAS301" / "BAS 301" and names like "b.tech" / "btech" all match.
+      const fields: string[] = [
+        paper.subjectName,
+        paper.subjectCode || '',
+        paper.examType,
+        String(paper.year ?? ''),
+        String(paper.semester ?? ''),
+      ];
       if (typeof paper.departmentId !== 'string') {
-        if (
-          paper.departmentId.name.toLowerCase().includes(term) ||
-          paper.departmentId.displayName?.toLowerCase().includes(term)
-        ) {
-          return true;
-        }
+        fields.push(paper.departmentId.name, paper.departmentId.displayName || '');
       }
-
-      // Search in branch
       if (typeof paper.branchId !== 'string') {
-        if (paper.branchId.name.toLowerCase().includes(term)) {
-          return true;
-        }
+        fields.push(paper.branchId.name);
       }
-
-      // Search in session
       if (typeof paper.sessionId !== 'string') {
-        if (paper.sessionId.name.toLowerCase().includes(term)) {
-          return true;
-        }
+        fields.push(paper.sessionId.name);
       }
 
-      // Search in exam type and year
-      if (paper.examType.toLowerCase().includes(term) || paper.year.toString().includes(term)) {
-        return true;
-      }
-
-      // Search in semester
-      if (paper.semester.toString().includes(term)) {
-        return true;
-      }
-
-      return false;
+      return fields.some((field) => matchesQuery(field, searchTerm));
     });
   };
 
