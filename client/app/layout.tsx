@@ -48,6 +48,11 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png",
   },
   manifest: "/site.webmanifest",
+  // Google AdSense account verification. Next's Metadata API renders this as
+  // <meta name="google-adsense-account" content="…"> in <head>.
+  other: {
+    "google-adsense-account": "ca-pub-5660199982106752",
+  },
   // Google Search Console: set GOOGLE_SITE_VERIFICATION in the environment to
   // the value of the "google-site-verification" meta tag GSC offers.
   ...(process.env.GOOGLE_SITE_VERIFICATION
