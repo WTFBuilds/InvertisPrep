@@ -17,8 +17,15 @@ const userSchema = new Schema(
     },
     role: {
       type: String,
-      enum: ['student', 'admin', 'super-admin', 'srt'],
+      enum: ['student', 'srt', 'staff', 'admin', 'super-admin'],
       default: 'student',
+    },
+    // Custom-role reference (role === 'staff'). Same collection as the main
+    // server, so this is only read here — never written.
+    roleId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Role',
+      default: null,
     },
     isActive: {
       type: Boolean,
