@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { QuizSocketProvider } from "@/contexts/QuizSocketContext";
@@ -82,6 +83,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`antialiased flex flex-col min-h-screen`}>
+        {/* Google AdSense — account verification + Auto ads. Loaded
+            afterInteractive so it never blocks first paint; present on every
+            route because this is the root layout. */}
+        <Script
+          async
+          strategy="afterInteractive"
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5660199982106752"
+          crossOrigin="anonymous"
+        />
         <AuthProvider>
           <QuizSocketProvider>
             <SiteShell>{children}</SiteShell>
