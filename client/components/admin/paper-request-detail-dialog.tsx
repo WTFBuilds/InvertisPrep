@@ -2,6 +2,7 @@
 
 import { paperRequestApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasPermission } from '@/lib/permissions';
 import type { PaperRequest } from '@/types';
 import {
   Dialog,
@@ -75,7 +76,9 @@ export function PaperRequestDetailDialog({
 }: PaperRequestDetailDialogProps) {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'super-admin';
-  const canModify = user?.role !== 'srt';
+  // Triage is permission-gated — SRT holds requests.view only, while a custom
+  // role may or may not have been granted requests.manage.
+  const canModify = hasPermission(user, 'requests.manage');
 
   if (!request) return null;
 

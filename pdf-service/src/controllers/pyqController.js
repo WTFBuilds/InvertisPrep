@@ -391,7 +391,9 @@ export const uploadPYQPublic = async (req, res) => {
 export const getDailyUploadCount = async (req, res) => {
   try {
     const dailyLimit = 10;
-    if (['admin', 'super-admin', 'srt'].includes(req.user.role)) {
+    // Staff accounts (including custom roles) upload for the platform, not for
+    // themselves, so the per-user daily limit doesn't apply to them.
+    if (['admin', 'super-admin', 'srt', 'staff'].includes(req.user.role)) {
       return res.json({ success: true, data: { count: 0, limit: dailyLimit, isExempt: true } });
     }
 
