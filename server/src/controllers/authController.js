@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { User } from '../models/User.js';
 import { verifyGoogleToken } from '../services/googleAuthService.js';
 import { authService } from '../services/authService.js';
+import { sendWelcomeEmail } from '../services/mailService.js';
 
 // Centralised user shape so every response stays consistent
 const formatUser = (user) => ({
@@ -189,6 +190,11 @@ export const googleLogin = async (req, res) => {
           isActive: true,
           lastLogin: new Date(),
         });
+        // Welcome email for a brand-new signup. Fire-and-forget: a mail failure
+        // must never block or fail the login response.
+        sendWelcomeEmail(user).catch((err) =>
+          console.error('[mail] welcome (google) failed:', err?.message)
+        );
       } else if (!user.isActive) {
         res.status(403).json({ success: false, message: 'Your account has been disabled' });
         return;
@@ -434,6 +440,12 @@ export const register = async (req, res) => {
       }
       throw dbError;
     }
+
+    // Welcome email for the new email/password signup. Fire-and-forget: a mail
+    // failure must never block or fail registration.
+    sendWelcomeEmail(user).catch((err) =>
+      console.error('[mail] welcome (register) failed:', err?.message)
+    );
 
     const { accessToken, refreshToken } = await authService.login(user);
     res.cookie('refreshToken', refreshToken, refreshCookieOptions(7 * 24 * 60 * 60 * 1000));
