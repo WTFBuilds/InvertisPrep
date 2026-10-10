@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { adminMailApi } from '@/lib/api';
 import type { InboundMailEntry } from '@/types';
+import { MailDetailDialog, type MailDetailTarget } from '@/components/admin/mail-detail-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -18,6 +19,8 @@ export default function MailboxPage() {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
   const [imapConfigured, setImapConfigured] = useState(true);
+  const [target, setTarget] = useState<MailDetailTarget | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const load = useCallback(async (syncingNow = false) => {
     if (syncingNow) setSyncing(true);
@@ -50,13 +53,20 @@ export default function MailboxPage() {
     }
   };
 
+  const openMail = (id: string) => {
+    setTarget({ id, direction: 'received' });
+    setDetailOpen(true);
+  };
+
   return (
     <ProtectedRoute>
       <div className="space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-black tracking-tight text-slate-900">Mailbox</h1>
-            <p className="text-sm text-slate-500">Received mail synced from the Hostinger mailbox.</p>
+            <p className="text-sm text-slate-500">
+              Received mail synced from the Hostinger mailbox. Click a message to read it.
+            </p>
           </div>
           <Button onClick={sync} disabled={syncing} className="gap-1.5 font-semibold">
             {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -93,24 +103,33 @@ export default function MailboxPage() {
         ) : (
           <div className="space-y-2">
             {items.map((m) => (
-              <Card key={m.id} className="border-slate-200 bg-white shadow-sm transition-all hover:border-slate-300">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-slate-900">{m.subject || '(no subject)'}</p>
-                      <p className="truncate text-xs text-slate-500">{m.from} → {m.to}</p>
-                      <p className="mt-0.5 line-clamp-1 text-xs text-slate-400">{m.preview}</p>
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => openMail(m.id)}
+                className="w-full text-left"
+              >
+                <Card className="border-slate-200 bg-white shadow-sm transition-all hover:border-slate-300 hover:shadow-md">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-900">{m.subject || '(no subject)'}</p>
+                        <p className="truncate text-xs text-slate-500">{m.from} → {m.to}</p>
+                        <p className="mt-0.5 line-clamp-1 text-xs text-slate-400">{m.preview}</p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1.5">
+                        {m.mailType === 'bounce' && <Badge className="bg-rose-100 text-rose-700">Bounce</Badge>}
+                        <span className="text-xs text-slate-400">{formatDate(m.receivedAt)}</span>
+                      </div>
                     </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1.5">
-                      {m.mailType === 'bounce' && <Badge className="bg-rose-100 text-rose-700">Bounce</Badge>}
-                      <span className="text-xs text-slate-400">{formatDate(m.receivedAt)}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </button>
             ))}
           </div>
         )}
+
+        <MailDetailDialog target={target} open={detailOpen} onOpenChange={setDetailOpen} />
       </div>
     </ProtectedRoute>
   );

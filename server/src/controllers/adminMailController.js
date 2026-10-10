@@ -4,7 +4,7 @@ import { Setting } from '../models/Setting.js';
 import { User } from '../models/User.js';
 import { syncInboundMail, isImapConfigured } from '../services/mailSyncService.js';
 import { sendTemplate, sendMail, isWelcomeEmailEnabled, setWelcomeEmailEnabled, getNotifySettings, setNotifyEnabled } from '../services/mailService.js';
-import { getSetting, setSetting } from '../services/settingsService.js';
+import { getSetting, setSetting, DEFAULT_PAPER_REQUEST_ACK_TEMPLATE, DEFAULT_PAPER_REQUEST_FULFILLED_TEMPLATE } from '../services/settingsService.js';
 import { uploadImage } from '../services/cloudinaryService.js';
 
 const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -63,9 +63,10 @@ export const listAutomailLog = async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
-    const { search } = req.query;
+    const { search, status } = req.query;
 
     const filter = { kind: 'welcome' };
+    if (status === 'sent' || status === 'failed') filter.status = status;
     if (search && String(search).trim()) {
       const q = escapeRegExp(String(search).trim());
       filter.$or = [
@@ -75,13 +76,16 @@ export const listAutomailLog = async (req, res) => {
       ];
     }
 
-    const [total, logs] = await Promise.all([
+    const [total, logs, sentCount, failedCount] = await Promise.all([
       EmailLog.countDocuments(filter),
       EmailLog.find(filter)
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
+        .populate('userId', 'name email picture')
         .lean(),
+      EmailLog.countDocuments({ kind: 'welcome', status: 'sent' }),
+      EmailLog.countDocuments({ kind: 'welcome', status: 'failed' }),
     ]);
 
     res.json({
@@ -94,13 +98,50 @@ export const listAutomailLog = async (req, res) => {
         kind: l.kind,
         status: l.status,
         error: l.error,
+        preview: l.preview || '',
+        // The platform user this welcome mail went to (name/avatar for the list)
+        user: l.userId && typeof l.userId === 'object'
+          ? { id: l.userId._id, name: l.userId.name, email: l.userId.email, picture: l.userId.picture || null }
+          : null,
         createdAt: l.createdAt,
       })),
-      meta: pageMeta(page, limit, total),
+      meta: { ...pageMeta(page, limit, total), sentCount, failedCount },
     });
   } catch (error) {
     console.error('List automail log error:', error);
     res.status(500).json({ success: false, message: 'Failed to load automail log' });
+  }
+};
+
+// Full detail for one sent mail (used by Logs + Automail "view").
+export const getSentMail = async (req, res) => {
+  try {
+    const mail = await EmailLog.findById(req.params.id)
+      .populate('userId', 'name email picture')
+      .lean();
+    if (!mail) return res.status(404).json({ success: false, message: 'Mail not found' });
+    res.json({
+      success: true,
+      data: {
+        id: mail._id,
+        direction: 'sent',
+        to: mail.to,
+        from: mail.from,
+        subject: mail.subject,
+        kind: mail.kind,
+        status: mail.status,
+        error: mail.error,
+        preview: mail.preview || '',
+        html: mail.html || '',
+        user: mail.userId && typeof mail.userId === 'object'
+          ? { id: mail.userId._id, name: mail.userId.name, email: mail.userId.email, picture: mail.userId.picture || null }
+          : null,
+        createdAt: mail.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error('Get sent mail error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load mail' });
   }
 };
 
@@ -173,10 +214,23 @@ export const getInboundMail = async (req, res) => {
   }
 };
 
-// ── 5. Notifications: toggles overrides + current state ────────────────────
+// ── 5. Notifications: toggles + editable request templates ─────────────────
 export const getNotifySettingsState = async (_req, res) => {
   try {
-    res.json({ success: true, data: await getNotifySettings() });
+    const [toggles, ackTemplate, fulfilledTemplate] = await Promise.all([
+      getNotifySettings(),
+      getSetting('paperRequestAckTemplate', null, { fresh: true }),
+      getSetting('paperRequestFulfilledTemplate', null, { fresh: true }),
+    ]);
+    res.json({
+      success: true,
+      data: {
+        ...toggles,
+        // Fall back to the built-in defaults when nothing is saved yet.
+        requestAckTemplate: ackTemplate || DEFAULT_PAPER_REQUEST_ACK_TEMPLATE,
+        requestFulfilledTemplate: fulfilledTemplate || DEFAULT_PAPER_REQUEST_FULFILLED_TEMPLATE,
+      },
+    });
   } catch (error) {
     console.error('Get notify settings error:', error);
     res.status(500).json({ success: false, message: 'Failed to load notification settings' });
@@ -185,10 +239,28 @@ export const getNotifySettingsState = async (_req, res) => {
 
 export const updateNotifySettings = async (req, res) => {
   try {
-    const { requestAck, requestFulfilled } = req.body || {};
+    const { requestAck, requestFulfilled, requestAckTemplate, requestFulfilledTemplate } = req.body || {};
     if (typeof requestAck === 'boolean') await setNotifyEnabled('requestAck', requestAck);
     if (typeof requestFulfilled === 'boolean') await setNotifyEnabled('requestFulfilled', requestFulfilled);
-    res.json({ success: true, data: await getNotifySettings() });
+    if (requestAckTemplate && typeof requestAckTemplate === 'object') {
+      await setSetting('paperRequestAckTemplate', requestAckTemplate);
+    }
+    if (requestFulfilledTemplate && typeof requestFulfilledTemplate === 'object') {
+      await setSetting('paperRequestFulfilledTemplate', requestFulfilledTemplate);
+    }
+    const [toggles, ackTemplate, fulfilledTemplate] = await Promise.all([
+      getNotifySettings(),
+      getSetting('paperRequestAckTemplate', null, { fresh: true }),
+      getSetting('paperRequestFulfilledTemplate', null, { fresh: true }),
+    ]);
+    res.json({
+      success: true,
+      data: {
+        ...toggles,
+        requestAckTemplate: ackTemplate || DEFAULT_PAPER_REQUEST_ACK_TEMPLATE,
+        requestFulfilledTemplate: fulfilledTemplate || DEFAULT_PAPER_REQUEST_FULFILLED_TEMPLATE,
+      },
+    });
   } catch (error) {
     console.error('Update notify settings error:', error);
     res.status(500).json({ success: false, message: 'Failed to update notification settings' });
@@ -249,6 +321,7 @@ export const sendCampaign = async (req, res) => {
             tpl,
             vars: { name: user.name?.trim() || 'there', email: user.email },
             kind: 'campaign',
+            userId: user._id || null,
           });
         } catch (err) {
           console.error('[mail] campaign send failed for', user.email, err?.message);
@@ -300,7 +373,7 @@ export const listUnifiedLogs = async (req, res) => {
         : EmailLog.find(outFilter)
             .sort({ createdAt: -1 })
             .limit(take)
-            .select('to from subject kind status error createdAt')
+            .select('to from subject kind status error preview createdAt')
             .lean(),
       direction === 'sent'
         ? []
@@ -322,7 +395,7 @@ export const listUnifiedLogs = async (req, res) => {
         kind: e.kind,
         status: e.status === 'sent' ? 'sent' : 'failed',
         error: e.error,
-        preview: '',
+        preview: e.preview || '',
       })),
       ...inbound.map((m) => ({
         id: m._id,

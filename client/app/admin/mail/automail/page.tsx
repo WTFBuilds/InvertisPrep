@@ -6,9 +6,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { adminMailApi } from '@/lib/api';
 import type { MailLogEntry, MailSettings, MailTemplate } from '@/types';
 import { MailTemplateEditor, blankTemplate } from '@/components/admin/mail-template-editor';
+import { MailDetailDialog, type MailDetailTarget } from '@/components/admin/mail-detail-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertCircle, CheckCircle2, Loader2, MailWarning, Search } from 'lucide-react';
@@ -21,7 +23,7 @@ export default function AutomailPage() {
 
   const [settings, setSettings] = useState<MailSettings | null>(null);
   const [log, setLog] = useState<MailLogEntry[]>([]);
-  const [logMeta, setLogMeta] = useState({ page: 1, total: 0, pages: 1 });
+  const [logMeta, setLogMeta] = useState<{ page: number; total: number; pages: number; sentCount?: number; failedCount?: number }>({ page: 1, total: 0, pages: 1 });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -29,6 +31,13 @@ export default function AutomailPage() {
   const [savingTpl, setSavingTpl] = useState(false);
   const [tpl, setTpl] = useState<MailTemplate | null>(null);
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [detailTarget, setDetailTarget] = useState<MailDetailTarget | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  const openMail = (id: string) => {
+    setDetailTarget({ id, direction: 'sent' });
+    setDetailOpen(true);
+  };
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search), 400);
@@ -48,7 +57,15 @@ export default function AutomailPage() {
       }
       if (l.success) {
         setLog(l.data || []);
-        if (l.meta) setLogMeta((m) => ({ ...m, total: l.meta!.total, pages: l.meta!.pages }));
+        if (l.meta) {
+          setLogMeta((m) => ({
+            ...m,
+            total: l.meta!.total,
+            pages: l.meta!.pages,
+            sentCount: (l.meta as any).sentCount,
+            failedCount: (l.meta as any).failedCount,
+          }));
+        }
       }
     } catch {
       setFeedback({ kind: 'err', text: 'Failed to load automail settings' });
@@ -167,7 +184,15 @@ export default function AutomailPage() {
         <Card className="border-slate-200 bg-white">
           <CardContent className="space-y-3 p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-base font-bold text-slate-900">Automail log</p>
+              <div className="flex items-center gap-2">
+                <p className="text-base font-bold text-slate-900">Welcome emails sent</p>
+                {(logMeta.sentCount || logMeta.failedCount) ? (
+                  <span className="text-xs text-slate-500">
+                    {logMeta.sentCount ?? 0} sent
+                    {logMeta.failedCount ? ` · ${logMeta.failedCount} failed` : ''}
+                  </span>
+                ) : null}
+              </div>
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by email or subject…" className="h-9 pl-9" />
@@ -184,23 +209,37 @@ export default function AutomailPage() {
               <div className="flex flex-col items-center gap-2 py-10 text-center">
                 <MailWarning className="h-8 w-8 text-slate-300" />
                 <p className="text-sm font-semibold text-slate-600">No welcome emails yet</p>
-                <p className="text-xs text-slate-400">Welcome sends (sent or failed) will appear here.</p>
+                <p className="text-xs text-slate-400">
+                  Once welcome mails go out to new signups, every recipient appears here.
+                </p>
               </div>
             ) : (
               <div className="space-y-2">
                 {log.map((entry) => (
-                  <div key={entry.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-slate-900">{entry.to}</p>
-                      <p className="truncate text-xs text-slate-500">{entry.subject}</p>
+                  <button key={entry.id} type="button" onClick={() => openMail(entry.id)} className="w-full text-left">
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3 transition-colors hover:border-slate-200 hover:bg-slate-50">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <Avatar className="h-8 w-8 shrink-0">
+                          {entry.user?.picture && <AvatarImage src={entry.user.picture} alt={entry.user?.name || ''} />}
+                          <AvatarFallback className="bg-emerald-100 text-xs font-bold text-emerald-700">
+                            {(entry.user?.name || entry.to || '?').charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-900">
+                            {entry.user?.name || entry.to}
+                          </p>
+                          <p className="truncate text-xs text-slate-500">{entry.to}</p>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <Badge className={entry.status === 'sent' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}>
+                          {entry.status}
+                        </Badge>
+                        <span className="text-xs text-slate-400">{formatDate(entry.createdAt)}</span>
+                      </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <Badge className={entry.status === 'sent' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}>
-                        {entry.status}
-                      </Badge>
-                      <span className="text-xs text-slate-400">{formatDate(entry.createdAt)}</span>
-                    </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -218,6 +257,8 @@ export default function AutomailPage() {
             )}
           </CardContent>
         </Card>
+
+        <MailDetailDialog target={detailTarget} open={detailOpen} onOpenChange={setDetailOpen} />
       </div>
     </ProtectedRoute>
   );

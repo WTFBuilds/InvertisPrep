@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { adminMailApi } from '@/lib/api';
 import type { UnifiedMailLog } from '@/types';
+import { MailDetailDialog, type MailDetailTarget } from '@/components/admin/mail-detail-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +38,13 @@ export default function LogsPage() {
   const [direction, setDirection] = useState<'all' | 'sent' | 'received'>('all');
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
+  const [target, setTarget] = useState<MailDetailTarget | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  const openMail = (l: UnifiedMailLog) => {
+    setTarget({ id: l.id, direction: l.direction });
+    setDetailOpen(true);
+  };
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search), 400);
@@ -101,24 +109,26 @@ export default function LogsPage() {
         ) : (
           <div className="space-y-2">
             {logs.map((l) => (
-              <Card key={`${l.direction}-${l.id}`} className="border-slate-200 bg-white shadow-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-slate-900">{l.subject || '(no subject)'}</p>
-                      <p className="truncate text-xs text-slate-500">
-                        {l.direction === 'sent' ? `To: ${l.to || '—'}` : `From: ${l.from || '—'}`}
-                        {l.preview ? ` — ${l.preview}` : ''}
-                      </p>
+              <button key={`${l.direction}-${l.id}`} type="button" onClick={() => openMail(l)} className="w-full text-left">
+                <Card className="border-slate-200 bg-white shadow-sm transition-all hover:border-slate-300 hover:shadow-md">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-900">{l.subject || '(no subject)'}</p>
+                        <p className="truncate text-xs text-slate-500">
+                          {l.direction === 'sent' ? `To: ${l.to || '—'}` : `From: ${l.from || '—'}`}
+                          {l.preview ? ` — ${l.preview}` : ''}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {directionBadge(l.direction)}
+                        {statusBadge(l.status)}
+                        <span className="text-xs text-slate-400">{formatDate(l.ts)}</span>
+                      </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      {directionBadge(l.direction)}
-                      {statusBadge(l.status)}
-                      <span className="text-xs text-slate-400">{formatDate(l.ts)}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </button>
             ))}
           </div>
         )}
@@ -130,6 +140,8 @@ export default function LogsPage() {
             <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>Next</Button>
           </div>
         )}
+
+        <MailDetailDialog target={target} open={detailOpen} onOpenChange={setDetailOpen} />
       </div>
     </ProtectedRoute>
   );

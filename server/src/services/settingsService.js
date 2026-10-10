@@ -52,3 +52,32 @@ export const DEFAULT_WELCOME_TEMPLATE = {
   footer: 'You received this because you signed up for InvertisPrep.',
   email: 'support@invertisprep.in',
 };
+
+// Editable defaults for the automatic paper-request emails. Available
+// placeholders: {{name}}, {{subject}}, {{subjectCode}}, {{year}}, {{examType}}.
+export const DEFAULT_PAPER_REQUEST_ACK_TEMPLATE = {
+  bannerUrl: '',
+  heading: 'We got your request, {{name}}.',
+  intro: 'Thanks for letting us know — our team is on it.',
+  sections: [
+    { type: 'heading', text: 'What you asked for', fontSize: 18, align: 'left' },
+    { type: 'paragraph', text: 'Subject: {{subject}}' },
+    { type: 'paragraph', text: 'Code / year: {{subjectCode}} · {{year}} · {{examType}}' },
+    { type: 'paragraph', text: "We'll look for this previous-year paper and email you the moment it's available." },
+  ],
+  footer: '— Team InvertisPrep',
+  email: 'support@invertisprep.in',
+};
+
+export const DEFAULT_PAPER_REQUEST_FULFILLED_TEMPLATE = {
+  bannerUrl: '',
+  heading: 'Good news, {{name}} 🎉',
+  intro: 'The paper you requested has been found and added to the library.',
+  sections: [
+    { type: 'paragraph', text: 'Subject: {{subject}}' },
+    { type: 'paragraph', text: 'Code / year: {{subjectCode}} · {{year}} · {{examType}}' },
+    { type: 'button', text: 'Open papers', url: 'https://invertisprep.in/pyq', align: 'left' },
+  ],
+  footer: '— Team InvertisPrep',
+  email: 'support@invertisprep.in',
+};
