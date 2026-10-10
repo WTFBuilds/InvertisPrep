@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ViewableAvatar } from '@/components/admin/viewable-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -111,14 +111,6 @@ export function UserDetailDialog({ userId, open, onOpenChange, onDeleted }: User
     };
   }, [open, userId]);
 
-  const initials = (name: string) =>
-    name
-      .split(' ')
-      .map((p) => p[0])
-      .slice(0, 2)
-      .join('')
-      .toUpperCase();
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
@@ -160,14 +152,12 @@ export function UserDetailDialog({ userId, open, onOpenChange, onDeleted }: User
             {/* Profile header */}
             <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
-                <Avatar className="h-14 w-14">
-                  {detail.user.picture && (
-                    <AvatarImage src={detail.user.picture} alt={detail.user.name} />
-                  )}
-                  <AvatarFallback className="bg-indigo-100 text-indigo-700">
-                    {initials(detail.user.name)}
-                  </AvatarFallback>
-                </Avatar>
+                <ViewableAvatar
+                  src={detail.user.picture}
+                  name={detail.user.name}
+                  className="h-14 w-14"
+                  fallbackClassName="bg-indigo-100 text-lg font-bold text-indigo-700"
+                />
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-lg font-black text-slate-900">{detail.user.name}</span>

@@ -9,7 +9,7 @@ import type { PaperRequest } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ViewableAvatar } from '@/components/admin/viewable-avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -254,14 +254,12 @@ export default function PaperRequestsPage() {
                     <div className="flex flex-col gap-3.5 lg:flex-row lg:items-center lg:justify-between">
                       {/* Left — paper summary (full details live in the View dialog) */}
                       <div className="flex min-w-0 flex-1 items-start gap-3">
-                        <Avatar className="h-9 w-9 shrink-0">
-                          {requester.picture && (
-                            <AvatarImage src={requester.picture} alt={requester.name} />
-                          )}
-                          <AvatarFallback className="bg-indigo-100 text-xs font-bold text-indigo-700">
-                            {requester.name.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
+                        <ViewableAvatar
+                          src={requester.picture}
+                          name={requester.name}
+                          className="h-9 w-9 shrink-0"
+                          fallbackClassName="bg-indigo-100 text-xs font-bold text-indigo-700"
+                        />
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-baseline gap-x-2">
                             <p className="truncate text-sm font-bold text-slate-900">

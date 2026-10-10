@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ViewableAvatar } from '@/components/admin/viewable-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CalendarDays, CheckCircle2, Loader2, Trash2, XCircle } from 'lucide-react';
@@ -99,14 +99,12 @@ export function PaperRequestDetailDialog({
         <div className="space-y-5">
           {/* Requester */}
           <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <Avatar className="h-11 w-11">
-              {requester.picture && (
-                <AvatarImage src={requester.picture} alt={requester.name} />
-              )}
-              <AvatarFallback className="bg-indigo-100 text-sm font-bold text-indigo-700">
-                {requester.name.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            <ViewableAvatar
+              src={requester.picture}
+              name={requester.name}
+              className="h-12 w-12"
+              fallbackClassName="bg-indigo-100 text-sm font-bold text-indigo-700"
+            />
             <div className="min-w-0">
               <p className="truncate font-bold text-slate-900">{requester.name}</p>
               <p className="truncate text-sm text-slate-500">{requester.email}</p>
