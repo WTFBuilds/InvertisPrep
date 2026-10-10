@@ -2,13 +2,18 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import { login, googleLogin, register, checkEmail, getCurrentUser, logout, updateProfile, refresh } from '../controllers/authController.js';
 import { authenticateJWT } from '../middleware/auth.js';
+import { authLimiter } from '../middleware/rateLimit.js';
 
 const router = Router();
 
-router.post('/login', login);
-router.post('/register', register);
-router.post('/check-email', checkEmail);
-router.post('/google-login', googleLogin);
+// authLimiter (20/15min) protects only credential-verification endpoints —
+// brute-force targets. Session routes (/me, /profile, /logout, /refresh) are
+// called on every page load / token expiry and must not share that bucket;
+// they're covered by the general apiLimiter instead.
+router.post('/login', authLimiter, login);
+router.post('/register', authLimiter, register);
+router.post('/check-email', authLimiter, checkEmail);
+router.post('/google-login', authLimiter, googleLogin);
 router.get('/me', authenticateJWT, getCurrentUser);
 router.put('/profile', authenticateJWT, updateProfile);
 router.post('/logout', logout);
