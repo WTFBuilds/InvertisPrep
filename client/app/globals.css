@@ -275,6 +275,41 @@ html.printing-clean .resume-print-watermark {
 }
 .pdf-page-anim { animation: pdf-page-in 0.2s ease-out; }
 
+/* Protected PDF viewer -----------------------------------------------------
+   The paper canvas is marked .protected-doc. Printing produces a blank sheet
+   instead of the document, and text selection / drag on it is disabled so the
+   content can't be trivially copied out. Focus/visibility shielding is handled
+   in the viewer component. */
+.protected-doc {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.protected-doc .react-pdf__Page__textContent {
+  /* keep the text layer present for a11y/selection highlight but inert */
+  pointer-events: none;
+  user-select: none;
+}
+.protected-doc canvas {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+@media print {
+  .protected-doc,
+  .protected-doc * {
+    visibility: hidden !important;
+  }
+  .protected-doc::after {
+    content: "This document cannot be printed.";
+    visibility: visible !important;
+    display: block;
+    padding: 24px;
+    font-size: 14px;
+    color: #0f172a;
+  }
+}
+
 @media (max-width: 700px) {
   .resume-page { width: 8.27in; }
 }

@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/fetcher';
 import { matchesQuery } from '@/lib/search';
+import { InstagramFollowGate, isUnlocked } from '@/components/instagram-follow-gate';
 import { pyqApi, sessionApi, reportApi, departmentApi, paperRequestApi } from '@/lib/api';
 import type { PYQPaper, Department, Branch, Session, APIResponse } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -113,6 +114,11 @@ export default function DepartmentPYQPage() {
 
   const { user } = useAuth();
 
+  // Instagram follow gate: intercepts "View paper" and shows a popup until the
+  // student confirms they follow us. The paper opens on confirm, and the unlock
+  // is remembered per user so it appears only once.
+  const [gatePaper, setGatePaper] = useState<PYQPaper | null>(null);
+
   // Report states
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [selectedPaperToReport, setSelectedPaperToReport] = useState<PYQPaper | null>(null);
@@ -172,11 +178,26 @@ export default function DepartmentPYQPage() {
     }
   };
 
-  const handleView = async (paper: PYQPaper) => {
-    // Count the view (fire-and-forget, so a tracking blip never blocks opening
-    // the paper), then open the protected viewer.
+  // Open the protected viewer, counting the view first (fire-and-forget so a
+  // tracking blip never blocks the paper).
+  const openPaper = (paper: PYQPaper) => {
     pyqApi.trackView(paper._id).catch(() => {});
     router.push(`/view/${paper._id}?type=pyq`);
+  };
+
+  const handleView = (paper: PYQPaper) => {
+    if (!user) {
+      router.push(`/login?returnUrl=/pyq/${departmentId}`);
+      return;
+    }
+    // Staff/students keep the same student gate; only staff skip it.
+    const staff = user.role === 'admin' || user.role === 'super-admin' || user.role === 'staff';
+    if (staff || isUnlocked(user.id)) {
+      openPaper(paper);
+      return;
+    }
+    // Show the follow popup first; it opens the paper on confirm.
+    setGatePaper(paper);
   };
 
   const getPaperBranchNames = (paper: PYQPaper): string[] => {
@@ -1122,6 +1143,18 @@ export default function DepartmentPYQPage() {
           </Card>
         </div>
       )}
+
+      {/* Instagram follow gate — popup over the department page */}
+      <InstagramFollowGate
+        open={Boolean(gatePaper)}
+        userId={user?.id}
+        onUnlocked={() => {
+          const paper = gatePaper;
+          setGatePaper(null);
+          if (paper) openPaper(paper);
+        }}
+        onClose={() => setGatePaper(null)}
+      />
     </div>
   );
 }
