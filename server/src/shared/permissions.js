@@ -37,6 +37,10 @@ export const PERMISSIONS = {
   'reports.manage': 'Resolve or dismiss reports',
   'bugs.view': 'View bug reports',
   'bugs.manage': 'Update or delete bug reports',
+
+  // Mail center
+  'emails.view': 'View the mail center (automail, mailbox, logs)',
+  'emails.manage': 'Send broadcasts and edit mail templates',
 };
 
 // Reserved for the super-admin — never grantable to custom roles.

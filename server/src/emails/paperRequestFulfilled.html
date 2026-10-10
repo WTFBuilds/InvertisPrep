@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Your paper request was fulfilled</title>
+    <style>
+      body { margin: 0; padding: 0; background: #f4f5f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; }
+      .wrapper { padding: 32px 16px; }
+      .card { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 32px; border: 1px solid #e5e7eb; }
+      .logo { font-size: 20px; font-weight: 800; color: #0f172a; }
+      .logo span { color: #6366f1; }
+      h1 { font-size: 20px; color: #0f172a; margin: 20px 0 8px; }
+      p { color: #475569; font-size: 14px; line-height: 1.6; margin: 8px 0; }
+      .req { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin: 16px 0; }
+      .req p { margin: 2px 0; color: #334155; }
+      .req .label { color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+      .req .value { font-weight: 600; font-size: 15px; }
+      .cta { display: inline-block; margin-top: 8px; padding: 12px 22px; background: #0f172a; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 14px; }
+      .footer { margin-top: 24px; font-size: 12px; color: #94a3b8; }
+    </style>
+  </head>
+  <body>
+    <div class="wrapper">
+      <div class="card">
+        <div class="logo">Invertis<span>Prep</span></div>
+        <h1>Good news, {{name}} 🎉</h1>
+        <p>The paper you requested has been found and added to the library.</p>
+        <div class="req">
+          <p><span class="label">Subject</span></p>
+          <p class="value">{{subject}}</p>
+          <p><span class="label">Code &amp; year</span></p>
+          <p class="value">{{subjectCode}} &middot; {{year}} &middot; {{examType}}</p>
+        </div>
+        <p>You can now find it in the papers section of InvertisPrep.</p>
+        <a class="cta" href="https://invertisprep.in/pyq">Open papers</a>
+        <div class="footer">
+          InvertisPrep &middot; support@invertisprep.in &middot;
+          <a href="https://invertisprep.in">invertisprep.in</a>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
