@@ -8,7 +8,7 @@ import { BUILTIN_ROLE_META, ROLE_COLORS } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ViewableAvatar } from '@/components/admin/viewable-avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -103,14 +103,6 @@ const formatDateTime = (value?: string | null) => {
     minute: '2-digit',
   });
 };
-
-const initials = (name: string) =>
-  name
-    .split(' ')
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
 
 export default function AdminUsersPage() {
   const { user: currentUser } = useAuth();
@@ -444,12 +436,12 @@ export default function AdminUsersPage() {
                 <TableRow key={u.id} className="hover:bg-slate-50/60">
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
-                        {u.picture && <AvatarImage src={u.picture} alt={u.name} />}
-                        <AvatarFallback className="bg-indigo-100 text-indigo-700">
-                          {initials(u.name)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <ViewableAvatar
+                        src={u.picture}
+                        name={u.name}
+                        className="h-8 w-8"
+                        fallbackClassName="bg-indigo-100 text-indigo-700"
+                      />
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-slate-800">{u.name}</p>
                         <p className="truncate text-xs text-slate-400">{u.email}</p>

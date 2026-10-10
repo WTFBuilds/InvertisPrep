@@ -27,7 +27,7 @@ import {
 } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ViewableAvatar } from '@/components/admin/viewable-avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { AdminUser, APIResponse, InvertisEvent, PYQPaper, Report, UserStats } from '@/types';
 import { UserDetailDialog } from '@/components/admin/user-detail-dialog';
@@ -70,14 +70,6 @@ const getGreeting = () => {
   if (hour < 17) return 'Good afternoon';
   return 'Good evening';
 };
-
-const initials = (name: string) =>
-  name
-    .split(' ')
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
 
 const deptName = (d: PYQPaper['departmentId']) =>
   typeof d === 'string' ? d : d.displayName || d.name;
@@ -194,8 +186,8 @@ export default function AdminDashboard() {
   });
 
   const statCards = [
-    // SRT has no user management access — no Total Users card for them
-    ...(!canViewUsers
+    // Only users who can view user management get the Total Users card.
+    ...(canViewUsers
       ? [
           {
             label: 'Total Users',
@@ -454,8 +446,8 @@ export default function AdminDashboard() {
 
       {/* Recent activity */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Newest users (hidden for SRT — no user management access) */}
-        {!canViewUsers && (
+        {/* Newest users — shown to anyone who can view user management */}
+        {canViewUsers && (
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -483,12 +475,12 @@ export default function AdminDashboard() {
               {!loading &&
                 newestUsers.map((u) => (
                   <div key={u.id} className="flex items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-slate-50">
-                    <Avatar className="h-8 w-8">
-                      {u.picture && <AvatarImage src={u.picture} alt={u.name} />}
-                      <AvatarFallback className="bg-indigo-100 text-indigo-700">
-                        {initials(u.name)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <ViewableAvatar
+                      src={u.picture}
+                      name={u.name}
+                      className="h-8 w-8"
+                      fallbackClassName="bg-indigo-100 text-indigo-700"
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-slate-800">{u.name}</p>
                       <p className="truncate text-xs text-slate-400">{u.email}</p>
@@ -566,8 +558,8 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* User detail dialog (SRT has no user management access) */}
-      {!canViewUsers && (
+      {/* User detail dialog (only for users who can view user management) */}
+      {canViewUsers && (
         <UserDetailDialog
           userId={detailUserId}
           open={detailOpen}
