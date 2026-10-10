@@ -284,6 +284,8 @@ export interface MailLogEntry {
   kind: 'welcome' | 'campaign' | 'administrative' | 'other';
   status: 'sent' | 'failed';
   error?: string;
+  preview?: string;
+  user?: { id: string; name?: string; email?: string; picture?: string | null } | null;
   createdAt: string;
 }
 
@@ -344,6 +346,8 @@ export interface MailTemplate {
 export interface NotifySettings {
   requestAck: boolean;
   requestFulfilled: boolean;
+  requestAckTemplate?: MailTemplate;
+  requestFulfilledTemplate?: MailTemplate;
 }
 
 // Report types

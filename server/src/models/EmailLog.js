@@ -19,6 +19,11 @@ const emailLogSchema = new Schema(
     messageId: { type: String, trim: true, default: '' },
     status: { type: String, enum: ['sent', 'failed'], default: 'sent', index: true },
     error: { type: String, trim: true, default: '' },
+    // A short plain-text preview for list rows (cheap to send in list payloads).
+    preview: { type: String, default: '', maxlength: 600 },
+    // The rendered HTML actually sent, so Sent logs can be opened and read in
+    // full. Capped so a large campaign can't bloat a single document.
+    html: { type: String, default: '', maxlength: 102400 },
   },
   { timestamps: true }
 );

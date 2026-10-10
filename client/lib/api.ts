@@ -559,6 +559,25 @@ export const adminMailApi = {
     );
     return data;
   },
+  // Full detail for a SENT mail (from the logs) — includes the rendered body.
+  getSent: async (id: string) => {
+    const { data } = await apiClient.get<
+      APIResponse<{
+        id: string;
+        to: string;
+        from: string;
+        subject: string;
+        kind: string;
+        status: string;
+        error?: string;
+        preview?: string;
+        html?: string;
+        createdAt: string;
+        user?: { id: string; name?: string; email?: string; picture?: string | null } | null;
+      }>
+    >(`/admin/mail/logs/${id}`);
+    return data;
+  },
 
   // Compose
   recipients: async (): Promise<APIResponse<{ recipientCount: number }>> => {

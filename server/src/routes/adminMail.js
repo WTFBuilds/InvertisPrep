@@ -12,6 +12,7 @@ import {
   getNotifySettingsState,
   updateNotifySettings,
   uploadBanner,
+  getSentMail,
 } from '../controllers/adminMailController.js';
 import { authenticateJWT, requirePermission, isSuperAdmin } from '../middleware/auth.js';
 import { uploadImage } from '../middleware/upload.js';
@@ -25,6 +26,7 @@ router.get('/mailbox', authenticateJWT, requirePermission('emails.view'), listIn
 router.post('/mailbox/sync', authenticateJWT, requirePermission('emails.view'), triggerSync);
 router.get('/mailbox/:id', authenticateJWT, requirePermission('emails.view'), getInboundMail);
 router.get('/logs', authenticateJWT, requirePermission('emails.view'), listUnifiedLogs);
+router.get('/logs/:id', authenticateJWT, requirePermission('emails.view'), getSentMail);
 
 // Notification toggles (paper-request ack + fulfillment). Read: emails.view;
 // write: super-admin (or emails.manage when granted).

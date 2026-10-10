@@ -2,6 +2,10 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import nodemailer from 'nodemailer';
+import {
+  DEFAULT_PAPER_REQUEST_ACK_TEMPLATE,
+  DEFAULT_PAPER_REQUEST_FULFILLED_TEMPLATE,
+} from './settingsService.js';
 
 // ── Config ───────────────────────────────────────────────────────────────────
 // All values come from the environment (see .env.example). When SMTP is not
@@ -100,7 +104,7 @@ export const sendMail = async ({ to, subject, html, text, meta = {} }) => {
     }
   }
 
-  recordOutbound(to, { subject, ...meta }, result).catch((err) =>
+  recordOutbound(to, { subject, html, ...meta }, result).catch((err) =>
     console.warn('[mail] log record failed:', err?.message)
   );
   return result;
@@ -174,8 +178,10 @@ export const renderMailTemplate = (tpl, vars = {}) => {
 const recordOutbound = async (to, mail, result) => {
   try {
     const { EmailLog } = await import('../models/EmailLog.js');
+    const html = typeof mail.html === 'string' ? mail.html : '';
     await EmailLog.create({
       to,
+      userId: mail.userId || undefined,
       from: MAIL_FROM,
       subject: mail.subject || '',
       kind: mail.kind || 'other',
@@ -183,6 +189,10 @@ const recordOutbound = async (to, mail, result) => {
       messageId: result.messageId || '',
       status: result.sent ? 'sent' : 'failed',
       error: result.sent ? '' : (result.error || ''),
+      // Short plain-text preview + the (capped) HTML body, so Sent logs can be
+      // opened and read in full.
+      preview: html ? htmlToText(html).slice(0, 600) : '',
+      html: html.slice(0, 102400),
     });
   } catch (error) {
     // Never let logging break a send path.
@@ -194,7 +204,7 @@ const recordOutbound = async (to, mail, result) => {
  * `vars` are injected into {{placeholders}}; user-supplied values are escaped
  * for the HTML body automatically.
  */
-export const sendTemplate = async ({ to, subject, template, vars = {}, tpl = null, kind = 'other' }) => {
+export const sendTemplate = async ({ to, subject, template, vars = {}, tpl = null, kind = 'other', userId = null }) => {
   let html;
   try {
     // When an editor-built template JSON is provided, render it directly —
@@ -207,7 +217,7 @@ export const sendTemplate = async ({ to, subject, template, vars = {}, tpl = nul
     console.error(`[mail] template "${template}" load failed:`, error.message);
     return { sent: false, error: 'template_error' };
   }
-  return sendMail({ to, subject, html, meta: { template, kind } });
+  return sendMail({ to, subject, html, meta: { template, kind, userId } });
 };
 
 /**
@@ -237,6 +247,7 @@ export const sendWelcomeEmail = async (user) => {
     tpl,
     vars: { name: user.name?.trim() || 'there' },
     kind: 'welcome',
+    userId: user._id || user.id || null,
   });
 };
 
@@ -325,24 +336,23 @@ export const getNotifySettings = async () => {
 };
 
 // Acknowledgement email when a student requests a paper — confirms we got it
-// and that the team is looking.
+// and that the team is looking. Uses the admin-edited template when saved.
 export const sendPaperRequestAck = (user, request) => {
   if (!user?.email || !request) return Promise.resolve({ sent: false, error: 'no_email' });
-  return isNotifyEnabled('requestAck').then((enabled) => {
+  return isNotifyEnabled('requestAck').then(async (enabled) => {
     if (!enabled) return { sent: false, error: 'disabled' };
-    const subjectName = request.subjectName || 'your paper';
+    const tpl = await loadEditableTemplate(
+      'paperRequestAckTemplate',
+      DEFAULT_PAPER_REQUEST_ACK_TEMPLATE
+    );
     return sendTemplate({
       to: user.email,
       subject: 'We got your paper request ✔️',
       template: 'paperRequestAck',
-      vars: {
-        name: user.name?.trim() || 'there',
-        subject: subjectName,
-        subjectCode: request.subjectCode || '',
-        examType: request.examType === 'any' ? 'Any exam' : request.examType,
-        year: request.year || '',
-      },
+      tpl,
+      vars: requestVars(user, request),
       kind: 'administrative',
+      userId: user._id || user.id || null,
     });
   });
 };
@@ -350,21 +360,43 @@ export const sendPaperRequestAck = (user, request) => {
 // Fulfillment email when staff marks the request fulfilled.
 export const sendPaperRequestFulfilled = (user, request) => {
   if (!user?.email || !request) return Promise.resolve({ sent: false, error: 'no_email' });
-  return isNotifyEnabled('requestFulfilled').then((enabled) => {
+  return isNotifyEnabled('requestFulfilled').then(async (enabled) => {
     if (!enabled) return { sent: false, error: 'disabled' };
-    const subjectName = request.subjectName || 'your paper';
+    const tpl = await loadEditableTemplate(
+      'paperRequestFulfilledTemplate',
+      DEFAULT_PAPER_REQUEST_FULFILLED_TEMPLATE
+    );
     return sendTemplate({
       to: user.email,
       subject: 'Your paper request was fulfilled 🎉',
       template: 'paperRequestFulfilled',
-      vars: {
-        name: user.name?.trim() || 'there',
-        subject: subjectName,
-        subjectCode: request.subjectCode || '',
-        examType: request.examType === 'any' ? 'Any exam' : request.examType,
-        year: request.year || '',
-      },
+      tpl,
+      vars: requestVars(user, request),
       kind: 'administrative',
+      userId: user._id || user.id || null,
     });
   });
+};
+
+// Shared placeholder values for the paper-request emails.
+const requestVars = (user, request) => ({
+  name: user.name?.trim() || 'there',
+  subject: request.subjectName || 'your paper',
+  subjectCode: request.subjectCode || '',
+  examType: request.examType === 'any' ? 'Any exam' : request.examType,
+  year: request.year || '',
+});
+
+// Load an admin-editable template from Setting, falling back to the built-in
+// default when nothing (valid) has been saved yet.
+const loadEditableTemplate = async (key, fallback) => {
+  try {
+    const { Setting } = await import('../models/Setting.js');
+    const doc = await Setting.findOne({ key }).lean();
+    const v = doc?.value;
+    if (v && (Array.isArray(v.sections) || v.rawHtml)) return v;
+  } catch {
+    // fall through to the default
+  }
+  return fallback;
 };
