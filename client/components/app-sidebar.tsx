@@ -19,6 +19,11 @@ import {
   Users,
   HandCoins,
   KeyRound,
+  Mail,
+  MailOpen,
+  PenSquare,
+  ScrollText,
+  BellRing,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -49,7 +54,19 @@ export const adminNavItems = [
   { title: "Reports", url: "/admin/reports", icon: Flag },
   { title: "Paper Requests", url: "/admin/requests", icon: FileQuestion },
   { title: "Bug Reports", url: "/admin/bugs", icon: Bug },
-  { title: "Events", url: "/admin/events", icon: CalendarDays }
+  { title: "Events", url: "/admin/events", icon: CalendarDays },
+  {
+    title: "Mail",
+    url: "/admin/mail",
+    icon: Mail,
+    items: [
+      { title: "Automail", url: "/admin/mail/automail" },
+      { title: "Mailbox", url: "/admin/mail/mailbox" },
+      { title: "Compose", url: "/admin/mail/compose" },
+      { title: "Logs", url: "/admin/mail/logs" },
+      { title: "Notifications", url: "/admin/mail/notifications" },
+    ],
+  },
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {

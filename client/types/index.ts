@@ -275,6 +275,77 @@ export interface APIResponse<T = unknown> {
   error?: string;
 }
 
+// ── Admin Mail Center types ─────────────────────────────────────────────────
+export interface MailLogEntry {
+  id: string;
+  to: string;
+  from: string;
+  subject: string;
+  kind: 'welcome' | 'campaign' | 'administrative' | 'other';
+  status: 'sent' | 'failed';
+  error?: string;
+  createdAt: string;
+}
+
+export interface InboundMailEntry {
+  id: string;
+  uid: number;
+  from: string;
+  to: string;
+  subject: string;
+  preview: string;
+  mailType: 'plain' | 'bounce';
+  receivedAt: string;
+}
+
+export interface UnifiedMailLog {
+  id: string;
+  ts: string;
+  direction: 'sent' | 'received';
+  from?: string;
+  to?: string;
+  subject: string;
+  kind: string;
+  status: 'sent' | 'failed' | 'synced' | 'bounced';
+  error?: string;
+  preview?: string;
+}
+
+export interface MailSettings {
+  welcomeEmailEnabled: boolean;
+  welcomeTemplate: MailTemplate | null;
+  mailSetupDone: boolean;
+  imapConfigured: boolean;
+}
+
+export interface MailTemplateSection {
+  type: 'heading' | 'paragraph' | 'image' | 'button' | 'divider';
+  text?: string;
+  url?: string;
+  imageUrl?: string;
+  align?: 'left' | 'center' | 'right';
+  fontSize?: number;
+  color?: string;
+  /** Button background color (buttons only) */
+  bgColor?: string;
+}
+
+export interface MailTemplate {
+  bannerUrl: string;
+  heading: string;
+  intro: string;
+  sections: MailTemplateSection[];
+  footer: string;
+  email: string;
+  /** When set, this raw HTML is sent verbatim (with {{placeholders}} substituted). */
+  rawHtml?: string;
+}
+
+export interface NotifySettings {
+  requestAck: boolean;
+  requestFulfilled: boolean;
+}
+
 // Report types
 export interface Report {
   _id: string;

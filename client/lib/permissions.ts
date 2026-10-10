@@ -69,6 +69,15 @@ export const PERMISSION_GROUPS = [
       { key: 'bugs.manage', label: 'Manage bug reports', description: 'Update status or delete bug reports' },
     ],
   },
+  {
+    id: 'mail',
+    label: 'Mail Center',
+    description: 'Automail, mailbox, broadcasts and mail logs',
+    permissions: [
+      { key: 'emails.view', label: 'View mail center', description: 'See automail, mailbox, compose and logs' },
+      { key: 'emails.manage', label: 'Manage mail', description: 'Send broadcasts and edit mail templates (super-admin can grant)' },
+    ],
+  },
 ] as const;
 
 export const ALL_PERMISSION_KEYS: string[] = PERMISSION_GROUPS.flatMap((g) =>
@@ -177,6 +186,12 @@ export const NAV_PERMISSIONS: Record<string, string[]> = {
   '/admin/requests': ['requests.view'],
   '/admin/bugs': ['bugs.view'],
   '/admin/events': ['events.view'],
+  '/admin/mail': ['emails.view'],
+  '/admin/mail/automail': ['emails.view'],
+  '/admin/mail/mailbox': ['emails.view'],
+  '/admin/mail/compose': ['emails.view'],
+  '/admin/mail/logs': ['emails.view'],
+  '/admin/mail/notifications': ['emails.view'],
 };
 
 export const SUPER_ADMIN_ONLY_ROUTES = ['/admin/roles'];

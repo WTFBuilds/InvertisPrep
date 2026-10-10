@@ -36,6 +36,13 @@ import type {
   AdminRole,
   Sponsor,
   CreateSponsorDTO,
+  MailLogEntry,
+  InboundMailEntry,
+  MailTemplateSection,
+  MailSettings,
+  MailTemplate,
+  UnifiedMailLog,
+  NotifySettings,
 } from '@/types';
 
 // Same-origin proxy paths — next.config.ts rewrites forward these to the
@@ -510,6 +517,119 @@ export const rolesApi = {
 
   remove: async (id: string): Promise<APIResponse> => {
     const { data } = await apiClient.delete<APIResponse>(`/admin/roles/${id}`);
+    return data;
+  },
+};
+
+// Admin Mail Center API — automail, mailbox, compose, logs, notifications
+export const adminMailApi = {
+  // Automail
+  automail: async (params?: { page?: number; limit?: number; search?: string }) => {
+    const query: Record<string, unknown> = {};
+    if (params?.page) query.page = params.page;
+    if (params?.limit) query.limit = params.limit;
+    if (params?.search) query.search = params.search;
+    const { data } = await apiClient.get<APIResponse<MailLogEntry[]> & { meta?: TransactionMeta }>(
+      '/admin/mail/automail',
+      { params: query }
+    );
+    return data;
+  },
+
+  // Mailbox
+  inbox: async (params?: { page?: number; limit?: number }) => {
+    const query: Record<string, unknown> = {};
+    if (params?.page) query.page = params.page;
+    if (params?.limit) query.limit = params.limit;
+    const { data } = await apiClient.get<APIResponse<InboundMailEntry[]> & { meta?: TransactionMeta; imapConfigured?: boolean }>(
+      '/admin/mail/mailbox',
+      { params: query }
+    );
+    return data;
+  },
+  sync: async () => {
+    const { data } = await apiClient.post<APIResponse & { synced?: number; total?: number }>(
+      '/admin/mail/mailbox/sync'
+    );
+    return data;
+  },
+  getInbound: async (id: string) => {
+    const { data } = await apiClient.get<APIResponse<InboundMailEntry & { html?: string; text?: string }>>(
+      `/admin/mail/mailbox/${id}`
+    );
+    return data;
+  },
+
+  // Compose
+  recipients: async (): Promise<APIResponse<{ recipientCount: number }>> => {
+    const { data } = await apiClient.get<APIResponse<{ recipientCount: number }>>(
+      '/admin/mail/compose/recipients'
+    );
+    return data;
+  },
+  sendCampaign: async (payload: {
+    subject: string;
+    bannerUrl?: string;
+    heading?: string;
+    intro?: string;
+    sections?: MailTemplateSection[];
+    footer?: string;
+    rawHtml?: string;
+  }): Promise<APIResponse<{ recipientCount: number }>> => {
+    const { data } = await apiClient.post<APIResponse<{ recipientCount: number }>>(
+      '/admin/mail/compose/send',
+      payload
+    );
+    return data;
+  },
+  uploadBanner: async (file: File): Promise<APIResponse<{ url: string }>> => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const { data } = await apiClient.post<APIResponse<{ url: string }>>(
+      '/admin/mail/compose/upload-banner',
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return data;
+  },
+
+  // Settings (welcome toggle + templates)
+  settings: async (): Promise<APIResponse<MailSettings>> => {
+    const { data } = await apiClient.get<APIResponse<MailSettings>>('/admin/mail/settings');
+    return data;
+  },
+  updateSettings: async (payload: {
+    welcomeEmailEnabled?: boolean;
+    welcomeTemplate?: MailTemplate;
+  }): Promise<APIResponse<{ welcomeEmailEnabled: boolean }>> => {
+    const { data } = await apiClient.put<APIResponse<{ welcomeEmailEnabled: boolean }>>(
+      '/admin/mail/settings',
+      payload
+    );
+    return data;
+  },
+
+  // Logs
+  logs: async (params?: { page?: number; limit?: number; search?: string; direction?: 'sent' | 'received' | 'all' }) => {
+    const query: Record<string, unknown> = {};
+    if (params?.page) query.page = params.page;
+    if (params?.limit) query.limit = params.limit;
+    if (params?.search) query.search = params.search;
+    if (params?.direction && params.direction !== 'all') query.direction = params.direction;
+    const { data } = await apiClient.get<APIResponse<UnifiedMailLog[]> & { meta?: TransactionMeta }>(
+      '/admin/mail/logs',
+      { params: query }
+    );
+    return data;
+  },
+
+  // Notifications (paper-request ack + fulfillment toggles)
+  notifications: async (): Promise<APIResponse<NotifySettings>> => {
+    const { data } = await apiClient.get<APIResponse<NotifySettings>>('/admin/mail/notifications');
+    return data;
+  },
+  updateNotifications: async (payload: Partial<NotifySettings>): Promise<APIResponse<NotifySettings>> => {
+    const { data } = await apiClient.put<APIResponse<NotifySettings>>('/admin/mail/notifications', payload);
     return data;
   },
 };

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { PaperRequest } from '../models/PaperRequest.js';
 import { PYQPaper } from '../models/PYQPaper.js';
+import { sendPaperRequestAck, sendPaperRequestFulfilled } from '../services/mailService.js';
 
 const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -181,6 +182,12 @@ export const createRequest = async (req, res) => {
       requestedBy: req.user.id,
     });
 
+    // Acknowledgement email — "we got your request, here's what you asked for".
+    // Toggled from the admin Mail section; never blocks the response.
+    sendPaperRequestAck(req.user, request).catch((err) =>
+      console.error('[mail] paper-request ack failed:', err?.message)
+    );
+
     res.status(201).json({
       success: true,
       message: 'Request submitted! Our team will look for this paper.',
@@ -250,6 +257,19 @@ export const updateStatus = async (req, res) => {
     if (!updated) {
       res.status(404).json({ success: false, message: 'Request not found' });
       return;
+    }
+
+    // Fulfillment email — "your paper is ready". Only when marking fulfilled,
+    // and only to the requester. Toggled from the admin Mail section; never
+    // blocks the status change.
+    if (status === 'fulfilled' && updated.requestedBy) {
+      const { User } = await import('../models/User.js');
+      const requester = await User.findById(updated.requestedBy).select('email name').lean();
+      if (requester) {
+        sendPaperRequestFulfilled(requester, updated).catch((err) =>
+          console.error('[mail] paper-request fulfilled failed:', err?.message)
+        );
+      }
     }
 
     res.json({ success: true, message: `Request marked ${status}`, data: updated });

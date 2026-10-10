@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>We got your paper request</title>
+    <style>
+      body { margin: 0; padding: 0; background: #f4f5f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; }
+      .wrapper { padding: 32px 16px; }
+      .card { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 32px; border: 1px solid #e5e7eb; }
+      .logo { font-size: 20px; font-weight: 800; color: #0f172a; }
+      .logo span { color: #6366f1; }
+      h1 { font-size: 20px; color: #0f172a; margin: 20px 0 8px; }
+      p { color: #475569; font-size: 14px; line-height: 1.6; margin: 8px 0; }
+      .req { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin: 16px 0; }
+      .req p { margin: 2px 0; color: #334155; }
+      .req .label { color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+      .req .value { font-weight: 600; font-size: 15px; }
+      .footer { margin-top: 24px; font-size: 12px; color: #94a3b8; }
+    </style>
+  </head>
+  <body>
+    <div class="wrapper">
+      <div class="card">
+        <div class="logo">Invertis<span>Prep</span></div>
+        <h1>We got your request, {{name}}.</h1>
+        <p>
+          Thanks for letting us know — our team is on it. Here&rsquo;s what you
+          asked for:
+        </p>
+        <div class="req">
+          <p><span class="label">Subject</span></p>
+          <p class="value">{{subject}}</p>
+          <p><span class="label">Code &amp; year</span></p>
+          <p class="value">{{subjectCode}} &middot; {{year}} &middot; {{examType}}</p>
+        </div>
+        <p>
+          We&rsquo;ll look for this previous-year paper and email you the moment
+          it&rsquo;s available in the papers section.
+        </p>
+        <div class="footer">InvertisPrep &middot; support@invertisprep.in</div>
+      </div>
+    </div>
+  </body>
+</html>

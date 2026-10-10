@@ -32,6 +32,7 @@ import adminUserRoutes from './routes/adminUsers.js';
 import roleRoutes from './routes/roles.js';
 import sponsorRoutes from './routes/sponsors.js';
 import paperRequestRoutes from './routes/paperRequests.js';
+import adminMailRoutes from './routes/adminMail.js';
 
 // Initialize Express app
 const app = express();
@@ -134,6 +135,7 @@ app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/admin/roles', roleRoutes);
+app.use('/api/admin/mail', adminMailRoutes);
 app.use('/api/sponsors', sponsorRoutes);
 
   // Apply write limiter to mutation-heavy routes
