@@ -77,15 +77,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const parsed = JSON.parse(storedUser);
           setUser(parsed);
           preloadAvatar(parsed.picture);
-          // Optionally verify token with backend
+          // Revalidate against the backend. A failure here must NOT sign the
+          // user out unless the backend actually rejected the token — a 404,
+          // 429 rate-limit, 5xx or network blip must leave the session intact
+          // (the axios interceptor already handles any 401 via the refresh
+          // flow). Only 401/403 after the interceptor gives up clears state.
           const response = await authApi.getCurrentUser();
           if (response.success && response.user) {
             setUser(response.user);
             localStorage.setItem('user', JSON.stringify(response.user));
           }
         } catch (error) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          const status = (error as { response?: { status?: number } })?.response?.status;
+          if (status === 401 || status === 403) {
+            // Token genuinely rejected (and refresh failed) → clear session.
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+          }
+          // Any other error: keep the stored session and continue optimistically.
         }
       }
       setLoading(false);

@@ -122,52 +122,63 @@ const esc = (v) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-const sectionHtml = (s) => {
+// Builds a {{placeholder}} substituter over `vars`. `escapeValues` controls
+// whether injected values are HTML-escaped at substitution time — required for
+// raw-HTML mode, where the surrounding markup is sent verbatim and can't be
+// escaped afterwards.
+const makeFiller = (vars, escapeValues) => (str) =>
+  String(str ?? '').replace(/\{\{(\w+)\}\}/g, (m, key) => {
+    if (!Object.prototype.hasOwnProperty.call(vars, key)) return '';
+    const value = String(vars[key] ?? '');
+    return escapeValues ? esc(value) : value;
+  });
+
+const sectionHtml = (s, fill) => {
   const align = s.align || 'left';
   const style = `text-align:${align};`;
   switch (s.type) {
     case 'heading':
       return s.text
-        ? `<h3 style="margin:12px 0 4px;font-size:${s.fontSize || 18}px;font-weight:700;color:${s.color || '#0f172a'};${style}">${esc(s.text)}</h3>`
+        ? `<h3 style="margin:12px 0 4px;font-size:${s.fontSize || 18}px;font-weight:700;color:${s.color || '#0f172a'};${style}">${esc(fill(s.text))}</h3>`
         : '';
     case 'image':
       return s.imageUrl
-        ? `<img src="${esc(s.imageUrl)}" alt="" style="max-width:100%;border-radius:8px;display:block;margin:12px 0;" />`
+        ? `<img src="${esc(fill(s.imageUrl))}" alt="" style="max-width:100%;border-radius:8px;display:block;margin:12px 0;" />`
         : '';
     case 'button':
       return s.url && s.text
-        ? `<div style="margin:12px 0;${style}"><a href="${esc(s.url)}" style="display:inline-block;padding:12px 22px;background:${s.bgColor || '#0f172a'};color:#ffffff;border-radius:8px;font-weight:700;text-decoration:none;font-size:${s.fontSize || 14}px;">${esc(s.text)}</a></div>`
+        ? `<div style="margin:12px 0;${style}"><a href="${esc(fill(s.url))}" style="display:inline-block;padding:12px 22px;background:${s.bgColor || '#0f172a'};color:#ffffff;border-radius:8px;font-weight:700;text-decoration:none;font-size:${s.fontSize || 14}px;">${esc(fill(s.text))}</a></div>`
         : '';
     case 'divider':
       return '<hr style="border:none;border-top:1px solid #eef2f7;margin:14px 0;" />';
     default:
       return s.text
-        ? `<p style="color:${s.color || '#475569'};font-size:${s.fontSize || 15}px;line-height:1.6;margin:8px 0;${style}">${esc(s.text)}</p>`
+        ? `<p style="color:${s.color || '#475569'};font-size:${s.fontSize || 15}px;line-height:1.6;margin:8px 0;${style}">${esc(fill(s.text))}</p>`
         : '';
   }
 };
 
 export const renderMailTemplate = (tpl, vars = {}) => {
   if (!tpl) return '';
-  const rendered = (str) =>
-    String(str ?? '').replace(/\{\{(\w+)\}\}/g, (m, key) =>
-      Object.prototype.hasOwnProperty.call(vars, key) ? esc(vars[key]) : ''
-    );
-  // Raw-HTML mode: the admin pasted a full HTML email. Send it verbatim (with
-  // {{placeholders}} substituted) — full control, no wrapper.
-  if (tpl.rawHtml) return rendered(tpl.rawHtml);
-  const title = rendered(tpl.heading);
-  const sections = (tpl.sections || []).map(sectionHtml).join('');
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${esc(title)}</title></head>
+  // Raw-HTML mode: the admin pasted a full HTML email. Send it verbatim, with
+  // values escaped at substitution (the markup around them can't be escaped).
+  if (tpl.rawHtml) return makeFiller(vars, true)(tpl.rawHtml);
+
+  // Builder mode: substitute with raw values first, then escape the final
+  // string once at each injection point — never double-escaped.
+  const fill = makeFiller(vars, false);
+  const title = esc(fill(tpl.heading));
+  const sections = (tpl.sections || []).map((s) => sectionHtml(s, fill)).join('');
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${title}</title></head>
 <body style="margin:0;padding:0;background:#f4f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
 <div style="padding:24px 12px;">
   <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
     ${tpl.bannerUrl ? `<img src="${esc(tpl.bannerUrl)}" alt="" style="width:100%;display:block;" />` : ''}
     <div style="padding:24px 28px;">
-      <h1 style="font-size:22px;color:#0f172a;margin:0 0 8px;">${rendered(tpl.heading)}</h1>
-      <p style="color:#475569;font-size:15px;margin:0 0 12px;">${rendered(tpl.intro)}</p>
+      <h1 style="font-size:22px;color:#0f172a;margin:0 0 8px;">${esc(fill(tpl.heading))}</h1>
+      <p style="color:#475569;font-size:15px;margin:0 0 12px;">${esc(fill(tpl.intro))}</p>
       ${sections}
-      <div style="margin-top:18px;font-size:12px;color:#94a3b8;border-top:1px solid #eef2f7;padding-top:12px;">${rendered(tpl.footer)}</div>
+      <div style="margin-top:18px;font-size:12px;color:#94a3b8;border-top:1px solid #eef2f7;padding-top:12px;">${esc(fill(tpl.footer))}</div>
     </div>
   </div>
 </div></body></html>`;
@@ -217,7 +228,15 @@ export const sendTemplate = async ({ to, subject, template, vars = {}, tpl = nul
     console.error(`[mail] template "${template}" load failed:`, error.message);
     return { sent: false, error: 'template_error' };
   }
-  return sendMail({ to, subject, html, meta: { template, kind, userId } });
+  // Subjects are plain text — substitute {{placeholders}} (no HTML escaping),
+  // collapsing whitespace so a multi-line value can't break the header.
+  const finalSubject = String(subject ?? '')
+    .replace(/\{\{(\w+)\}\}/g, (m, key) =>
+      Object.prototype.hasOwnProperty.call(vars, key) ? String(vars[key] ?? '').replace(/\s+/g, ' ').trim() : m
+    )
+    .replace(/\s+/g, ' ')
+    .trim();
+  return sendMail({ to, subject: finalSubject, html, meta: { template, kind, userId } });
 };
 
 /**
