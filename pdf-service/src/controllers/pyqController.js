@@ -10,6 +10,11 @@ const awardPoints = async (userId, points, type, description) => {
   console.log(`[Points] Should award ${points} points to ${userId} for ${type}: ${description}`);
 };
 
+// The caller id may surface as `_id` (optional-user attach, fresh DB lookup)
+// or `id` (legacy Redis cache entries) — normalize so activity attribution
+// can't be silently dropped when the field a controller reads is missing.
+const callerId = (req) => req?.user?._id || req?.user?.id || null;
+
 // Sanitize the multi-branch tags sent by the upload form (JSON string from
 // FormData, a comma-separated list, or an array) — strings only, deduped,
 // primary branch excluded, capped at 20.
@@ -160,6 +165,26 @@ export const getPYQs = async (req, res) => {
       .limit(100)
       .lean();
 
+    // Search analytics — attribute the query to the caller when a token is
+    // present (the route is public, so guests are skipped). Deduped so
+    // keystroke-level refetches don't flood the trail.
+    if (search && callerId(req)) {
+      const queryKey = search.trim().toLowerCase().slice(0, 64);
+      const seen = await hasRecentEvent({ userId: callerId(req), type: 'search', entityId: queryKey, withinMs: SEARCH_DEDUPE_MS });
+      if (!seen) {
+        logActivity(
+          {
+            user: callerId(req),
+            type: 'search',
+            entityId: queryKey,
+            title: search.trim().slice(0, 120),
+            path: '/pyq',
+          },
+          req
+        );
+      }
+    }
+
     res.json({ success: true, count: pyqs.length, data: pyqs });
   } catch (error) {
     console.error('Get PYQs error:', error);
@@ -170,7 +195,7 @@ export const getPYQs = async (req, res) => {
 // Get all PYQs (admin only)
 export const getAllPYQs = async (req, res) => {
   try {
-    const { page = '1', limit = '100', verified } = req.query;
+    const { page = '1', limit = '100', verified, search } = req.query;
     const pageNum = Math.max(parseInt(page.toString(), 10) || 1, 1);
     const pageSize = Math.min(Math.max(parseInt(limit.toString(), 10) || 100, 1), 1000);
 
@@ -194,25 +219,6 @@ export const getAllPYQs = async (req, res) => {
         .lean(),
     ]);
 
-    // Search analytics — attribute the query to the caller when a token is
-    // present (the route is public, so guests are skipped). Deduped so
-    // keystroke-level refetches don't flood the trail.
-    if (search && req.user?._id) {
-      const queryKey = search.trim().toLowerCase().slice(0, 64);
-      const seen = await hasRecentEvent({ userId: req.user._id, type: 'search', entityId: queryKey, withinMs: SEARCH_DEDUPE_MS });
-      if (!seen) {
-        logActivity(
-          {
-            user: req.user._id,
-            type: 'search',
-            entityId: queryKey,
-            title: search.trim().slice(0, 120),
-            path: '/pyq',
-          },
-          req
-        );
-      }
-    }
 
     res.json({ success: true, count: papers.length, total, page: pageNum, pageSize, data: papers });
   } catch (error) {
@@ -235,11 +241,11 @@ export const trackDownload = async (req, res) => {
 
     // Land the download in the shared activity trail (deduped — a double-click
     // shouldn't read as two downloads).
-    const seen = await hasRecentEvent({ userId: req.user?._id, type: 'paper_download', entityId: id, withinMs: DOWNLOAD_DEDUPE_MS });
+    const seen = await hasRecentEvent({ userId: callerId(req), type: 'paper_download', entityId: id, withinMs: DOWNLOAD_DEDUPE_MS });
     if (!seen) {
       logActivity(
         {
-          user: req.user?._id,
+          user: callerId(req),
           type: 'paper_download',
           entityType: 'paper',
           entityId: id,
@@ -275,11 +281,11 @@ export const trackView = async (req, res) => {
 
     // The per-user "what is he viewing" answer. Deduped on the 30-min window:
     // PDF viewers re-request documents frequently while scrolling.
-    const seen = await hasRecentEvent({ userId: req.user?._id, type: 'paper_view', entityId: id, withinMs: VIEW_DEDUPE_MS });
+    const seen = await hasRecentEvent({ userId: callerId(req), type: 'paper_view', entityId: id, withinMs: VIEW_DEDUPE_MS });
     if (!seen) {
       logActivity(
         {
-          user: req.user?._id,
+          user: callerId(req),
           type: 'paper_view',
           entityType: 'paper',
           entityId: id,

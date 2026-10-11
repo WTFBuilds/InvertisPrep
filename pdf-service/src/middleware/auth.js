@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { getRedis } from '../shared/redisClient.js';
 import { Role } from '../models/Role.js';
+import { User } from '../models/User.js';
 
 // Read the secret lazily (at call time), NOT at module load.
 // ESM hoists imports, so this module evaluates before dotenv.config()
@@ -58,7 +59,8 @@ const loadRolePermissionsFromDb = async (roleId) => {
 };
 
 // Fallback path (only when the DB read errored): ask the main server. Kept so
-// a transient DB hiccup can't take paper access down entirely.
+// a transient DB hiccup can't take paper access down entirely. Bounded by a
+// 5s timeout — a hung main server must never stall paper requests.
 const fetchRolePermissionsFromServer = async (roleId) => {
   try {
     const response = await fetch(
@@ -67,6 +69,7 @@ const fetchRolePermissionsFromServer = async (roleId) => {
         headers: {
           'X-Service-Token': process.env.INTERNAL_SERVICE_TOKEN || '',
         },
+        signal: AbortSignal.timeout(5000),
       }
     );
     if (!response.ok) return null;
@@ -106,6 +109,20 @@ const permissionSatisfied = (user, permission) =>
   user.permissions === 'all' ||
   (Array.isArray(user.permissions) && user.permissions.includes(permission));
 
+// Map a raw user doc/payload into the request user. `id` and `_id` are both
+// set — controllers read either (`req.user._id` in the activity trail, `id`
+// elsewhere), and a missing `_id` silently dropped every activity log entry.
+const toRequestUser = (u) => ({
+  id: String(u._id || u.id),
+  _id: String(u._id || u.id),
+  email: u.email,
+  name: u.name,
+  role: u.role,
+  roleId: u.roleId ? String(u.roleId) : null,
+  picture: u.picture || null,
+  isActive: u.isActive,
+});
+
 export const authenticateJWT = async (req, res, next) => {
   try {
     let token = req.headers.authorization || req.cookies?.token;
@@ -124,55 +141,70 @@ export const authenticateJWT = async (req, res, next) => {
     token = token.trim();
 
     const decoded = jwt.verify(token, getJwtSecret());
-
-    // Check Redis cache first
-    const redis = await getRedis();
     const cacheKey = `user:${decoded.id}`;
-    const cached = await redis.get(cacheKey);
-    
-    if (cached) {
-      const user = JSON.parse(cached);
-      if (user.isActive) {
-        user.permissions = await resolvePermissions(user);
-        req.user = user;
-        return next();
-      }
-    }
 
-    // If not in cache or inactive, fetch from main server (as fallback)
-    // This should rarely happen if main server properly caches on login
+    // Redis is an optional cache, never a dependency — an unreachable Redis
+    // must not 401 an otherwise-valid session.
     try {
-      const response = await fetch(`${process.env.MAIN_SERVER_URL || 'http://localhost:5000'}/api/auth/internal/user/${decoded.id}`, {
-        headers: {
-          'X-Service-Token': process.env.INTERNAL_SERVICE_TOKEN || '',
-        },
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        const user = userData.data;
-
-        if (user && user.isActive) {
-          const resolved = {
-            id: user._id || user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-            roleId: user.roleId ? String(user.roleId) : null,
-            picture: user.picture,
-            isActive: user.isActive
-          };
-          resolved.permissions = await resolvePermissions(resolved);
-
-          // Cache for future requests (permissions are re-resolved per request)
-          await redis.setEx(cacheKey, USER_CACHE_TTL, JSON.stringify(resolved));
-
-          req.user = resolved;
+      const redis = await getRedis();
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        const user = JSON.parse(cached);
+        if (user.isActive) {
+          user.permissions = await resolvePermissions(user);
+          req.user = user;
           return next();
         }
       }
-    } catch (fetchError) {
-      console.error('[Auth] Failed to fetch user from main server:', fetchError);
+    } catch (cacheErr) {
+      console.warn('[Auth] Redis cache unavailable, falling back to DB:', cacheErr.message);
+    }
+
+    // Primary lookup: read the user straight from the shared MongoDB — the
+    // pdf-service and the main server use one cluster, so auth doesn't depend
+    // on the main server process being reachable.
+    let user = null;
+    try {
+      const doc = await User.findById(decoded.id)
+        .select('name email role roleId isActive picture')
+        .lean();
+      if (doc && doc.isActive) user = toRequestUser(doc);
+    } catch (dbErr) {
+      console.error('[Auth] DB user lookup failed:', dbErr.message);
+    }
+
+    // Last resort (DB read errored): ask the main server, bounded by a 5s
+    // timeout so a hung main server can't stall paper requests.
+    if (!user) {
+      try {
+        const response = await fetch(`${process.env.MAIN_SERVER_URL || 'http://localhost:5000'}/api/auth/internal/user/${decoded.id}`, {
+          headers: {
+            'X-Service-Token': process.env.INTERNAL_SERVICE_TOKEN || '',
+          },
+          signal: AbortSignal.timeout(5000),
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          const raw = userData.data;
+          if (raw && raw.isActive) user = toRequestUser(raw);
+        }
+      } catch (fetchError) {
+        console.error('[Auth] Failed to fetch user from main server:', fetchError.message);
+      }
+    }
+
+    if (user) {
+      user.permissions = await resolvePermissions(user);
+
+      // Best-effort cache write; failures never block the request.
+      try {
+        const redis = await getRedis();
+        await redis.setEx(cacheKey, USER_CACHE_TTL, JSON.stringify(user));
+      } catch { /* cache unavailable — fine */ }
+
+      req.user = user;
+      return next();
     }
 
     return res.status(401).json({

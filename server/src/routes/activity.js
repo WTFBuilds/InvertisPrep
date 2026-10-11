@@ -27,7 +27,7 @@ router.post('/', authenticateJWT, async (req, res) => {
 
   await logActivity(
     {
-      user: req.user._id,
+      user: req.user._id ?? req.user.id,
       type,
       title,
       path,
@@ -43,7 +43,7 @@ router.post('/', authenticateJWT, async (req, res) => {
   // A page view doubles as a presence beat, so a fresh navigation shows the
   // user online immediately without waiting for the next heartbeat.
   if (type === 'page_view') {
-    await touchPresence(req.user._id, { path, title, sessionKey, visible: true }, req);
+    await touchPresence(req.user._id ?? req.user.id, { path, title, sessionKey, visible: true }, req);
   }
 
   res.json({ success: true });
@@ -55,7 +55,7 @@ router.post('/', authenticateJWT, async (req, res) => {
  */
 router.post('/presence', authenticateJWT, async (req, res) => {
   const { path, title, sessionKey, visible } = req.body || {};
-  await touchPresence(req.user._id, { path, title, sessionKey, visible }, req);
+  await touchPresence(req.user._id ?? req.user.id, { path, title, sessionKey, visible }, req);
   res.json({ success: true, onlineWindowSec: ONLINE_WINDOW_MS / 1000 });
 });
 
