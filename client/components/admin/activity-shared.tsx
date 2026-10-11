@@ -174,35 +174,47 @@ export function InteractiveBarChart({
           const barH = Math.max(2, (d.value / max) * barArea);
           const isHover = hover === i;
           return (
-            <rect
-              key={d.label}
-              x={i * w + w * 0.15}
-              y={height - barH}
-              width={w * 0.7}
-              height={barH}
-              rx={0.6}
-              className={
-                d.value === 0
-                  ? 'fill-slate-200'
-                  : isHover
-                    ? hoverBarClass
-                    : barClass
-              }
-              onMouseEnter={() => setHover(i)}
-              onMouseLeave={() => setHover(null)}
-              onFocus={() => setHover(i)}
-              onBlur={() => setHover(null)}
-              onClick={() => onBarClick?.(d)}
-              onKeyDown={(e) => {
-                if (onBarClick && (e.key === 'Enter' || e.key === ' ')) {
-                  e.preventDefault();
-                  onBarClick(d);
+            <g key={d.label}>
+              {/* Visible bar — purely decorative; the column hit-area carries all events */}
+              <rect
+                x={i * w + w * 0.15}
+                y={height - barH}
+                width={w * 0.7}
+                height={barH}
+                rx={0.6}
+                className={
+                  d.value === 0
+                    ? 'fill-slate-200'
+                    : isHover
+                      ? hoverBarClass
+                      : barClass
                 }
-              }}
-              tabIndex={onBarClick ? 0 : -1}
-              role={onBarClick ? 'button' : undefined}
-              aria-label={formatTooltip ? formatTooltip(d) : `${showLabel(d.label)}: ${d.value}`}
-            />
+              />
+              {/* Full-column hit area: hover/click anywhere in the slot, even
+                  on 2px zero-bars or dense 30-day charts */}
+              <rect
+                x={i * w}
+                y={0}
+                width={w}
+                height={height}
+                fill="transparent"
+                className={`${onBarClick ? 'cursor-pointer' : ''} ${isHover ? 'fill-slate-400/10' : ''}`}
+                onMouseEnter={() => setHover(i)}
+                onMouseLeave={() => setHover(null)}
+                onFocus={() => setHover(i)}
+                onBlur={() => setHover(null)}
+                onClick={() => onBarClick?.(d)}
+                onKeyDown={(e) => {
+                  if (onBarClick && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    onBarClick(d);
+                  }
+                }}
+                tabIndex={onBarClick ? 0 : -1}
+                role={onBarClick ? 'button' : undefined}
+                aria-label={formatTooltip ? formatTooltip(d) : `${showLabel(d.label)}: ${d.value}`}
+              />
+            </g>
           );
         })}
       </svg>
