@@ -41,17 +41,17 @@ import {
 import { ViewableAvatar } from '@/components/admin/viewable-avatar';
 import {
   EVENT_META,
-  InteractiveBarChart,
   LEAD_STATUS_META,
   UsersRangeDialog,
+  chartTickLabel,
   deviceLabel,
   eventDescription,
   formatDateTime,
-  istDayBounds,
-  isoWeekBounds,
+  pointBounds,
   timeAgo,
 } from '@/components/admin/activity-shared';
-import type { ActivityUserRow, MarketingLead, MarketingLeadDetail, MarketingOverview } from '@/types';
+import { RangePicker, StatAreaChart } from '@/components/admin/stat-charts';
+import type { ActivityUserRow, MarketingLead, MarketingLeadDetail, MarketingOverview, SeriesPoint, StatRange } from '@/types';
 
 const StatCard = ({
   icon: Icon,
@@ -236,6 +236,29 @@ const SORT_OPTIONS = [
   { value: 'name', label: 'Name (A–Z)' },
 ];
 
+// Polls one /series endpoint for a range-picker graph (module-scope custom
+// hook so React sees a stable hook across renders).
+function useSeries(metric: 'signups' | 'active', range: StatRange): SeriesPoint[] {
+  const [series, setSeries] = useState<SeriesPoint[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    const load = () =>
+      adminActivityApi
+        .series(metric, range)
+        .then((r) => {
+          if (!cancelled && r.success && r.data) setSeries(r.data.series);
+        })
+        .catch(() => {});
+    load();
+    const interval = setInterval(load, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [metric, range]);
+  return series;
+}
+
 export default function MarketingPage() {
   const [overview, setOverview] = useState<MarketingOverview | null>(null);
   const [leads, setLeads] = useState<MarketingLead[]>([]);
@@ -305,15 +328,14 @@ export default function MarketingPage() {
 
   const pages = Math.max(1, Math.ceil(total / limit));
 
-  const signupChart = (overview?.signupSeries ?? []).map((p) => ({
-    label: p.date,
-    value: p.count,
-  }));
-  const weeklyChart = (overview?.signupWeeklySeries ?? []).map((p) => ({
-    label: p.week,
-    value: p.count,
-  }));
-  const dauChart = (overview?.dauSeries ?? []).map((p) => ({
+  // Range-picker graphs — each chart gets its own Vercel-style dropdown.
+  const [signupsRange, setSignupsRange] = useState<StatRange>('30d');
+  const [dauRange, setDauRange] = useState<StatRange>('30d');
+  const signupsSeries = useSeries('signups', signupsRange);
+  const dauSeriesData = useSeries('active', dauRange);
+
+  const signupChart = signupsSeries.map((p) => ({ label: p.date, value: p.count }));
+  const dauChart = dauSeriesData.map((p) => ({
     label: p.date,
     value: p.count,
     sub: p.events != null ? `${p.events} events` : undefined,
@@ -395,88 +417,55 @@ export default function MarketingPage() {
         <StatCard icon={Snowflake} label="Dormant" value={overview?.dormant} tint="bg-slate-100 text-slate-500" sub="inactive 30+ days" />
       </div>
 
-      {/* Growth charts */}
+      {/* Growth graphs — Vercel-style range pickers */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 lg:col-span-2">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-black tracking-tight text-slate-800">New signups · last 30 days</h2>
-            <Badge variant="outline" className="text-[11px] font-semibold text-slate-500">
-              {overview?.newMonth ?? '—'} in 30 days
-            </Badge>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-sm font-black tracking-tight text-slate-800">New signups</h2>
+            <RangePicker value={signupsRange} onChange={setSignupsRange} />
           </div>
           {overview === null ? (
             <Skeleton className="h-16 w-full" />
           ) : (
-            <InteractiveBarChart
+            <StatAreaChart
               data={signupChart}
-              height={92}
-              formatLabel={dayLabel}
-              formatTooltip={(d) => `${dayLabel(d.label)} · ${d.value} joined`}
+              height={220}
+              color="#6366f1"
+              formatLabel={chartTickLabel}
+              formatTooltipTitle={(d) => `${chartTickLabel(d.label)} — ${d.value} joined`}
               onBarClick={(d) => {
-                const b = istDayBounds(d.label);
-                openSignupsFor(b, `Joined on ${dayLabel(d.label)}`, `${d.value} new user${d.value === 1 ? '' : 's'} that day`);
+                const b = pointBounds(d.label);
+                openSignupsFor(b, `Joined ${chartTickLabel(d.label)}`, `${d.value} new user${d.value === 1 ? '' : 's'} in that period`);
               }}
             />
           )}
-          <p className="mt-1 text-[10px] font-medium text-slate-400">Click a bar to see exactly who joined that day.</p>
-          <div className="mt-1.5 flex justify-between text-[10px] text-slate-400">
-            <span>{signupChart.length ? dayLabel(signupChart[0].label) : ''}</span>
-            <span>Today</span>
-          </div>
+          <p className="mt-1 text-[10px] font-medium text-slate-400">Click the graph to see exactly who joined.</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-black tracking-tight text-slate-800">Weekly joins · 8 weeks</h2>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-sm font-black tracking-tight text-slate-800">Active users</h2>
+            <RangePicker value={dauRange} onChange={setDauRange} />
           </div>
           {overview === null ? (
             <Skeleton className="h-16 w-full" />
           ) : (
-            <InteractiveBarChart
-              data={weeklyChart}
-              height={92}
-              barClass="fill-emerald-500"
-              hoverBarClass="fill-emerald-700"
-              formatTooltip={(d) => `${d.label} · ${d.value} joined`}
+            <StatAreaChart
+              data={dauChart}
+              height={220}
+              color="#0ea5e9"
+              formatLabel={chartTickLabel}
+              formatTooltipTitle={(d) => `${chartTickLabel(d.label)} — ${d.value} active${d.sub ? ` · ${d.sub}` : ''}`}
               onBarClick={(d) => {
-                const b = isoWeekBounds(d.label);
-                openSignupsFor(b, `Joined in ${d.label}`, `${d.value} new user${d.value === 1 ? '' : 's'} that week`);
+                const b = pointBounds(d.label);
+                openActiveFor(b, `Active ${chartTickLabel(d.label)}`, `${d.value} user${d.value === 1 ? '' : 's'} did something in that period`);
               }}
             />
           )}
-          <p className="mt-1 text-[10px] font-medium text-slate-400">Click a bar to see who joined that week.</p>
-          <div className="mt-1.5 flex justify-between text-[10px] text-slate-400">
-            <span>{weeklyChart[0]?.label ?? ''}</span>
-            <span>{weeklyChart[weeklyChart.length - 1]?.label ?? ''}</span>
-          </div>
+          <p className="mt-1 text-[10px] font-medium text-slate-400">Click the graph to see who was active.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* DAU chart + interests */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-black tracking-tight text-slate-800">Daily active users · 30 days</h2>
-          {overview === null ? (
-            <Skeleton className="h-16 w-full" />
-          ) : (
-            <InteractiveBarChart
-              data={dauChart}
-              height={84}
-              barClass="fill-sky-500"
-              hoverBarClass="fill-sky-700"
-              formatLabel={dayLabel}
-              formatTooltip={(d) => `${dayLabel(d.label)} · ${d.value} active${d.sub ? ` · ${d.sub}` : ''}`}
-              onBarClick={(d) => {
-                const b = istDayBounds(d.label);
-                openActiveFor(b, `Active on ${dayLabel(d.label)}`, `${d.value} user${d.value === 1 ? '' : 's'} did something that day`);
-              }}
-            />
-          )}
-          <p className="mt-1 text-[10px] font-medium text-slate-400">Click a bar to see who was active that day.</p>
-          <p className="mt-2 text-[11px] text-slate-400">
-            {overview?.activeMonth ?? '—'} distinct students active this month.
-          </p>
-        </div>
-
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
           <h2 className="mb-3 flex items-center gap-1.5 text-sm font-black tracking-tight text-slate-800">
             <Sparkles className="h-4 w-4 text-violet-500" /> Top interests · 30d

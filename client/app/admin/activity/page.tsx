@@ -119,7 +119,7 @@ export default function ActivityMonitorPage() {
   useEffect(() => {
     const load = async () => {
       const [ov, on] = await Promise.all([
-        adminActivityApi.overview(30).catch(() => null),
+        adminActivityApi.overview().catch(() => null),
         adminActivityApi.online().catch(() => null),
       ]);
       if (ov?.success && ov.data) setOverview(ov.data);

@@ -346,6 +346,14 @@ export interface MailSettings {
   imapConfigured: boolean;
 }
 
+/** Compact user row for the compose recipient picker. */
+export interface MailRecipientUser {
+  id: string;
+  name: string;
+  email: string;
+  picture?: string | null;
+}
+
 export interface MailTemplateSection {
   type: 'heading' | 'paragraph' | 'image' | 'button' | 'divider';
   text?: string;
@@ -609,11 +617,6 @@ export interface SeriesPoint {
   events?: number;
 }
 
-export interface WeeklyPoint {
-  week: string;
-  count: number;
-}
-
 export interface TopItem {
   path?: string;
   title?: string;
@@ -640,9 +643,6 @@ export interface ActivityOverview {
   newWeek: number;
   new30d: number;
   totalUsers: number;
-  dauSeries: SeriesPoint[];
-  signupSeries: SeriesPoint[];
-  signupWeeklySeries: WeeklyPoint[];
   topPages: TopItem[];
   topPapers: TopItem[];
   topSearches: TopItem[];
@@ -725,9 +725,6 @@ export interface MarketingOverview {
   dormant: number;
   activated: number;
   activationRate: number;
-  signupSeries: SeriesPoint[];
-  signupWeeklySeries: WeeklyPoint[];
-  dauSeries: SeriesPoint[];
   topReferrers: TopItem[];
   topDepartments: TopItem[];
   topBranches: TopItem[];
@@ -829,6 +826,9 @@ export interface ImportPreviewSummary {
   totalDocuments: number;
   collections: { name: string; count: number }[];
 }
+
+// Analytics time range for the chart pickers (Vercel-style)
+export type StatRange = '24h' | '7d' | '30d' | '90d';
 
 // One row in a chart drill-down (who joined / who was active in a range)
 export interface ActivityUserRow {

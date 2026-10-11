@@ -32,51 +32,48 @@ function daysBack(n) {
   return new Date(start.getTime() - n * 24 * 60 * 60 * 1000);
 }
 
-// ISO-8601 week key ("2026-W41") for the weekly signups trend, aligned to the
-// IST day the event fell on (matches the $dateToString %G-W%V grouping).
-function isoWeekKey(date) {
-  const d = new Date(date.getTime() + IST_OFFSET_MS);
-  const utc = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const dayNum = utc.getUTCDay() || 7;
-  utc.setUTCDate(utc.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
-  const week = Math.ceil(((utc - yearStart) / 86400000 + 1) / 7);
-  return `${utc.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
-}
+// ── Time-range series (range-picker graphs) ─────────────────────────────────
+// 24h → 24 hourly IST buckets; 7d/30d/90d → daily IST buckets.
+const SERIES_RANGES = ['24h', '7d', '30d', '90d'];
 
-function filledWeeklySeries(rows, weeks) {
-  const map = new Map(rows.map((r) => [r.week, r.count]));
-  const now = Date.now();
-  const out = [];
-  for (let i = weeks - 1; i >= 0; i--) {
-    const key = isoWeekKey(new Date(now - i * 7 * 24 * 60 * 60 * 1000));
-    out.push({ week: key, count: map.get(key) || 0 });
+function seriesWindow(range) {
+  if (range === '24h') {
+    const topOfHour = new Date();
+    topOfHour.setUTCMinutes(0, 0, 0);
+    return {
+      from: new Date(topOfHour.getTime() - 23 * 60 * 60 * 1000),
+      fmt: '%Y-%m-%dT%H:00',
+      buckets: 24,
+      stepMs: 60 * 60 * 1000,
+      hourly: true,
+    };
   }
-  return out;
+  const days = range === '7d' ? 7 : range === '30d' ? 30 : 90;
+  return {
+    from: daysBack(days - 1),
+    fmt: '%Y-%m-%d',
+    buckets: days,
+    stepMs: 24 * 60 * 60 * 1000,
+    hourly: false,
+  };
 }
 
-function filledSeries(aggRows, days) {
-  const map = new Map(aggRows.map((r) => [r.date, r]));
+// Bucket key matching $dateToString output in the given IST format
+function bucketKey(instant, hourly) {
+  const shifted = new Date(instant.getTime() + IST_OFFSET_MS).toISOString();
+  return hourly ? `${shifted.slice(0, 13)}:00` : shifted.slice(0, 10);
+}
+
+function fillBuckets(rows, { from, buckets, stepMs, hourly }) {
+  const map = new Map(rows.map((r) => [r.date, r]));
   const out = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const key = istDayKey(daysBack(i));
+  for (let i = 0; i < buckets; i++) {
+    const key = bucketKey(new Date(from.getTime() + i * stepMs), hourly);
     const row = map.get(key);
     out.push({ date: key, count: row?.count || 0, events: row?.events || 0 });
   }
   return out;
 }
-
-const dauGroup = [
-  {
-    $group: {
-      _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: IST_TZ } },
-      users: { $addToSet: '$user' },
-      events: { $sum: 1 },
-    },
-  },
-  { $project: { _id: 0, date: '$_id', count: { $size: '$users' }, events: 1 } },
-  { $sort: { date: 1 } },
-];
 
 // IP / user-agent are only surfaced to super-admins — custom roles granted
 // activity.view see behaviour, not network identifiers.
@@ -96,17 +93,15 @@ function parsePagination(query) {
 }
 
 /**
- * GET /api/admin/activity/overview?days=30
- * Headline stats + daily series + top pages/papers for the monitor & dashboard.
+ * GET /api/admin/activity/overview
+ * Headline stats + top pages/papers for the monitor & dashboard. Time-range
+ * graphs come from /series.
  */
 router.get('/overview', requirePermission('activity.view'), async (req, res) => {
   try {
-    const days = Math.min(90, Math.max(7, parseInt(req.query.days, 10) || 30));
-    const since = daysBack(days);
     const weekAgo = daysBack(7);
     const todayStart = istDayStart();
     const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const weeksAgo8 = new Date(Date.now() - 8 * 7 * 24 * 60 * 60 * 1000);
 
     const [onlineNow, activeToday, activeWeek, activeMonth, eventsToday, viewsToday, downloadsToday, newToday, new24h, newWeek, new30d, totalUsers] =
       await Promise.all([
@@ -124,30 +119,7 @@ router.get('/overview', requirePermission('activity.view'), async (req, res) => 
         User.countDocuments({}),
       ]);
 
-    const [dauRows, signupRows, signupWeeklyRows, topPages, topPapers, topSearches] = await Promise.all([
-      ActivityLog.aggregate([{ $match: { createdAt: { $gte: since } } }, ...dauGroup]),
-      User.aggregate([
-        { $match: { createdAt: { $gte: since } } },
-        {
-          $group: {
-            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: IST_TZ } },
-            count: { $sum: 1 },
-          },
-        },
-        { $project: { _id: 0, date: '$_id', count: 1 } },
-        { $sort: { date: 1 } },
-      ]),
-      User.aggregate([
-        { $match: { createdAt: { $gte: weeksAgo8 } } },
-        {
-          $group: {
-            _id: { $dateToString: { format: '%G-W%V', date: '$createdAt', timezone: IST_TZ } },
-            count: { $sum: 1 },
-          },
-        },
-        { $project: { _id: 0, week: '$_id', count: 1 } },
-        { $sort: { week: 1 } },
-      ]),
+    const [topPages, topPapers, topSearches] = await Promise.all([
       ActivityLog.aggregate([
         { $match: { type: 'page_view', createdAt: { $gte: weekAgo } } },
         { $group: { _id: '$path', count: { $sum: 1 }, users: { $addToSet: '$user' }, title: { $last: '$title' } } },
@@ -198,9 +170,6 @@ router.get('/overview', requirePermission('activity.view'), async (req, res) => 
         newWeek,
         new30d,
         totalUsers,
-        dauSeries: filledSeries(dauRows, days),
-        signupSeries: filledSeries(signupRows, days),
-        signupWeeklySeries: filledWeeklySeries(signupWeeklyRows, 8),
         topPages,
         topPapers,
         topSearches,
@@ -209,6 +178,53 @@ router.get('/overview', requirePermission('activity.view'), async (req, res) => 
   } catch (error) {
     console.error('[AdminActivity] overview error:', error);
     res.status(500).json({ success: false, message: 'Failed to load activity overview' });
+  }
+});
+
+/**
+ * GET /api/admin/activity/series?metric=signups|active&range=24h|7d|30d|90d
+ * Range-picker graph data: hourly buckets for 24h, daily IST buckets for the
+ * day ranges. 'signups' → new accounts per bucket; 'active' → distinct users
+ * with at least one recorded event per bucket.
+ */
+router.get('/series', requirePermission('activity.view', 'marketing.view'), async (req, res) => {
+  try {
+    const metric = req.query.metric === 'active' ? 'active' : 'signups';
+    const range = SERIES_RANGES.includes(req.query.range) ? req.query.range : '30d';
+    const win = seriesWindow(range);
+
+    let rows;
+    if (metric === 'signups') {
+      rows = await User.aggregate([
+        { $match: { createdAt: { $gte: win.from } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: win.fmt, date: '$createdAt', timezone: IST_TZ } },
+            count: { $sum: 1 },
+          },
+        },
+        { $project: { _id: 0, date: '$_id', count: 1 } },
+        { $sort: { date: 1 } },
+      ]);
+    } else {
+      rows = await ActivityLog.aggregate([
+        { $match: { createdAt: { $gte: win.from } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: win.fmt, date: '$createdAt', timezone: IST_TZ } },
+            users: { $addToSet: '$user' },
+            events: { $sum: 1 },
+          },
+        },
+        { $project: { _id: 0, date: '$_id', count: { $size: '$users' }, events: 1 } },
+        { $sort: { date: 1 } },
+      ]);
+    }
+
+    res.json({ success: true, data: { metric, range, series: fillBuckets(rows, win) } });
+  } catch (error) {
+    console.error('[AdminActivity] series error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load series' });
   }
 });
 

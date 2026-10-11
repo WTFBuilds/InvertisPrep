@@ -30,38 +30,6 @@ function daysBack(n) {
   return new Date(start.getTime() - n * 24 * 60 * 60 * 1000);
 }
 
-function filledSeries(rows, days) {
-  const map = new Map(rows.map((r) => [r.date, r]));
-  const out = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const key = new Date(daysBack(i).getTime() + IST_OFFSET_MS).toISOString().slice(0, 10);
-    out.push({ date: key, count: map.get(key)?.count || 0 });
-  }
-  return out;
-}
-
-// ISO-8601 week key ("2026-W41"), aligned to the IST day (matches %G-W%V).
-function isoWeekKey(date) {
-  const d = new Date(date.getTime() + IST_OFFSET_MS);
-  const utc = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const dayNum = utc.getUTCDay() || 7;
-  utc.setUTCDate(utc.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
-  const week = Math.ceil(((utc - yearStart) / 86400000 + 1) / 7);
-  return `${utc.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
-}
-
-function filledWeeklySeries(rows, weeks) {
-  const map = new Map(rows.map((r) => [r.week, r.count]));
-  const now = Date.now();
-  const out = [];
-  for (let i = weeks - 1; i >= 0; i--) {
-    const key = isoWeekKey(new Date(now - i * 7 * 24 * 60 * 60 * 1000));
-    out.push({ week: key, count: map.get(key) || 0 });
-  }
-  return out;
-}
-
 function escapeCsv(value) {
   const s = value === null || value === undefined ? '' : String(value);
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -77,7 +45,6 @@ router.get('/overview', async (req, res) => {
     const weekAgo = daysBack(7);
     const monthAgo = daysBack(30);
     const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const weeksAgo8 = new Date(Date.now() - 8 * 7 * 24 * 60 * 60 * 1000);
 
     const [totalStudents, newToday, new24h, newWeek, newMonth, onlineNow, totalUsers] = await Promise.all([
       User.countDocuments({ role: MARKET_ROLE }),
@@ -105,41 +72,8 @@ router.get('/overview', async (req, res) => {
       countStudents(activatedIds),
     ]);
 
-    const [signupRows, signupWeeklyRows, dauRows, topReferrers, topDepartments, topBranches, topPapers, topSearches] =
+    const [topReferrers, topDepartments, topBranches, topPapers, topSearches] =
       await Promise.all([
-        User.aggregate([
-          { $match: { role: MARKET_ROLE, createdAt: { $gte: monthAgo } } },
-          {
-            $group: {
-              _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: IST_TZ } },
-              count: { $sum: 1 },
-            },
-          },
-          { $project: { _id: 0, date: '$_id', count: 1 } },
-          { $sort: { date: 1 } },
-        ]),
-        User.aggregate([
-          { $match: { role: MARKET_ROLE, createdAt: { $gte: weeksAgo8 } } },
-          {
-            $group: {
-              _id: { $dateToString: { format: '%G-W%V', date: '$createdAt', timezone: IST_TZ } },
-              count: { $sum: 1 },
-            },
-          },
-          { $project: { _id: 0, week: '$_id', count: 1 } },
-          { $sort: { week: 1 } },
-        ]),
-        ActivityLog.aggregate([
-          { $match: { createdAt: { $gte: monthAgo } } },
-          {
-            $group: {
-              _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: IST_TZ } },
-              users: { $addToSet: '$user' },
-            },
-          },
-          { $project: { _id: 0, date: '$_id', count: { $size: '$users' } } },
-          { $sort: { date: 1 } },
-        ]),
         ActivityLog.aggregate([
           { $match: { type: 'page_view', createdAt: { $gte: monthAgo }, referrerDomain: { $ne: '' } } },
           { $group: { _id: '$referrerDomain', count: { $sum: 1 }, users: { $addToSet: '$user' } } },
@@ -207,9 +141,6 @@ router.get('/overview', async (req, res) => {
         dormant: Math.max(0, totalStudents - activeMonth),
         activated,
         activationRate: totalStudents ? Math.round((activated / totalStudents) * 100) : 0,
-        signupSeries: filledSeries(signupRows, 30),
-        signupWeeklySeries: filledWeeklySeries(signupWeeklyRows, 8),
-        dauSeries: filledSeries(dauRows, 30),
         topReferrers,
         topDepartments,
         topBranches,
