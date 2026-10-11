@@ -7,6 +7,7 @@ import {
   triggerSync,
   getInboundMail,
   composeRecipients,
+  composeUsers,
   sendCampaign,
   listUnifiedLogs,
   getNotifySettingsState,
@@ -35,6 +36,10 @@ router.put('/notifications', authenticateJWT, isSuperAdmin, updateNotifySettings
 
 // Compose preview (recipient count) — readable by emails.view
 router.get('/compose/recipients', authenticateJWT, requirePermission('emails.view'), composeRecipients);
+
+// Compose user picker — lists user emails (PII), so super-admin only, matching
+// the send endpoint it feeds.
+router.get('/compose/users', authenticateJWT, isSuperAdmin, composeUsers);
 
 // Write endpoints: sending campaigns + editing the welcome template are
 // powerful actions — super-admin only (or a custom role later granted

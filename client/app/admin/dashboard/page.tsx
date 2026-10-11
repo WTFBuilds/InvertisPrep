@@ -35,12 +35,12 @@ import { Badge } from '@/components/ui/badge';
 import { ViewableAvatar } from '@/components/admin/viewable-avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  InteractiveBarChart,
   UsersRangeDialog,
-  istDayBounds,
-  isoWeekBounds,
+  chartTickLabel,
+  pointBounds,
   timeAgo,
 } from '@/components/admin/activity-shared';
+import { RangePicker, StatAreaChart } from '@/components/admin/stat-charts';
 import type {
   AdminUser,
   APIResponse,
@@ -51,6 +51,8 @@ import type {
   PresenceInfo,
   PYQPaper,
   Report,
+  SeriesPoint,
+  StatRange,
   UserStats,
 } from '@/types';
 import { UserDetailDialog } from '@/components/admin/user-detail-dialog';
@@ -98,9 +100,6 @@ const deptName = (d: PYQPaper['departmentId']) =>
   typeof d === 'string' ? d : d.displayName || d.name;
 const branchName = (b: PYQPaper['branchId']) => (typeof b === 'string' ? b : b.name);
 
-const dayLabel = (iso: string) =>
-  new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-
 // One automatic retry after a short delay — covers the seconds when a backend
 // is restarting (e.g. during a deploy) so the dashboard never settles on zeros.
 const withRetry = async <T,>(fn: () => Promise<T>, delayMs = 1500): Promise<T> => {
@@ -111,6 +110,30 @@ const withRetry = async <T,>(fn: () => Promise<T>, delayMs = 1500): Promise<T> =
     return fn();
   }
 };
+
+// Polls one /series endpoint for a range-picker graph. Lives at module scope
+// so it stays a stable custom hook across renders.
+function useSeries(metric: 'signups' | 'active', range: StatRange, enabled: boolean): SeriesPoint[] {
+  const [series, setSeries] = useState<SeriesPoint[]>([]);
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    const load = () =>
+      adminActivityApi
+        .series(metric, range)
+        .then((r) => {
+          if (!cancelled && r.success && r.data) setSeries(r.data.series);
+        })
+        .catch(() => {});
+    load();
+    const interval = setInterval(load, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [metric, range, enabled]);
+  return series;
+}
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -228,7 +251,7 @@ export default function AdminDashboard() {
     const load = async () => {
       const [ov, on] = await Promise.all([
         canActivity
-          ? adminActivityApi.overview(30).catch(() => null)
+          ? adminActivityApi.overview().catch(() => null)
           : marketingApi.overview().catch(() => null),
         canActivity ? adminActivityApi.online().catch(() => null) : Promise.resolve(null),
       ]);
@@ -239,6 +262,14 @@ export default function AdminDashboard() {
     const interval = setInterval(load, 30_000);
     return () => clearInterval(interval);
   }, [canMonitor, canActivity]);
+
+  // Range-picker graphs — each chart has its own Vercel-style range dropdown.
+  const [signupsRange, setSignupsRange] = useState<StatRange>('30d');
+  const [dauRange, setDauRange] = useState<StatRange>('30d');
+  const [growthRange, setGrowthRange] = useState<StatRange>('7d');
+  const signupsSeries = useSeries('signups', signupsRange, canMonitor);
+  const dauSeriesData = useSeries('active', dauRange, canMonitor);
+  const growthSeries = useSeries('signups', growthRange, canMonitor);
 
   const verifiedCount = papers.filter((p) => p.verified).length;
   const unverified = unverifiedPapers; // server-filtered list (accurate total via unverifiedTotal)
@@ -354,13 +385,13 @@ export default function AdminDashboard() {
           ? 'bg-orange-100 text-orange-700'
           : 'bg-slate-100 text-slate-500';
 
-  const signupChart = (overview?.signupSeries ?? []).map((p) => ({ label: p.date, value: p.count }));
-  const weeklyChart = (overview?.signupWeeklySeries ?? []).map((p) => ({ label: p.week, value: p.count }));
-  const dauChart = (overview?.dauSeries ?? []).map((p) => ({
+  const signupChart = signupsSeries.map((p) => ({ label: p.date, value: p.count }));
+  const dauChart = dauSeriesData.map((p) => ({
     label: p.date,
     value: p.count,
     sub: p.events != null ? `${p.events} events` : undefined,
   }));
+  const growthChart = growthSeries.map((p) => ({ label: p.date, value: p.count }));
 
   const openSignupsFor = (b: { from: string; to: string }, title: string, subtitle: string) =>
     setRangeDialog({
@@ -539,80 +570,77 @@ export default function AdminDashboard() {
               ))}
             </div>
 
-            {overview !== null && (
-              <div className="mt-4">
-                <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Weekly joins · 8 weeks
+            <div className="mt-4">
+              <div className="mb-1.5 flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Signups
                 </p>
-                <InteractiveBarChart
-                  data={weeklyChart}
-                  height={60}
-                  barClass="fill-emerald-500"
-                  hoverBarClass="fill-emerald-700"
-                  formatTooltip={(d) => `${d.label} · ${d.value} joined`}
-                  onBarClick={(d) => {
-                    const b = isoWeekBounds(d.label);
-                    openSignupsFor(b, `Joined in ${d.label}`, `${d.value} new user${d.value === 1 ? '' : 's'} that week`);
-                  }}
-                />
-                <p className="mt-1 text-[10px] font-medium text-slate-400">Click a bar to see who joined that week.</p>
+                <RangePicker value={growthRange} onChange={setGrowthRange} />
               </div>
-            )}
+              <StatAreaChart
+                data={growthChart}
+                height={150}
+                color="#10b981"
+                formatLabel={chartTickLabel}
+                formatTooltipTitle={(d) => `${chartTickLabel(d.label)} — ${d.value} joined`}
+                onBarClick={(d) => {
+                  const b = pointBounds(d.label);
+                  openSignupsFor(b, `Joined ${chartTickLabel(d.label)}`, `${d.value} new user${d.value === 1 ? '' : 's'} in that period`);
+                }}
+              />
+              <p className="mt-1 text-[10px] font-medium text-slate-400">Click the graph to see who joined.</p>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Signup analytics — daily series on the main dash */}
+      {/* Signup analytics — range-picker graphs on the main dash */}
       {canMonitor && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-black tracking-tight text-slate-800">New signups · last 30 days</h3>
-              <Badge variant="outline" className="text-[11px] font-semibold text-slate-500">
-                {overview ? ((overview as MarketingOverview).newMonth ?? (overview as ActivityOverview).new30d) : '—'} total
-              </Badge>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h3 className="text-sm font-black tracking-tight text-slate-800">New signups</h3>
+              <RangePicker value={signupsRange} onChange={setSignupsRange} />
             </div>
             {overview === null ? (
               <Skeleton className="h-16 w-full" />
             ) : (
-              <InteractiveBarChart
+              <StatAreaChart
                 data={signupChart}
-                height={88}
-                formatLabel={dayLabel}
-                formatTooltip={(d) => `${dayLabel(d.label)} · ${d.value} joined`}
+                height={210}
+                color="#6366f1"
+                formatLabel={chartTickLabel}
+                formatTooltipTitle={(d) => `${chartTickLabel(d.label)} — ${d.value} joined`}
                 onBarClick={(d) => {
-                  const b = istDayBounds(d.label);
-                  openSignupsFor(b, `Joined on ${dayLabel(d.label)}`, `${d.value} new user${d.value === 1 ? '' : 's'} that day`);
+                  const b = pointBounds(d.label);
+                  openSignupsFor(b, `Joined ${chartTickLabel(d.label)}`, `${d.value} new user${d.value === 1 ? '' : 's'} in that period`);
                 }}
               />
             )}
-            <p className="mt-1 text-[10px] font-medium text-slate-400">Click a bar to see exactly who joined that day.</p>
-            <div className="mt-1.5 flex justify-between text-[10px] text-slate-400">
-              <span>{signupChart.length ? dayLabel(signupChart[0].label) : ''}</span>
-              <span>Today</span>
-            </div>
+            <p className="mt-1 text-[10px] font-medium text-slate-400">Click the graph to see exactly who joined.</p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <h3 className="mb-3 text-sm font-black tracking-tight text-slate-800">Daily active users · last 30 days</h3>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h3 className="text-sm font-black tracking-tight text-slate-800">Daily active users</h3>
+              <RangePicker value={dauRange} onChange={setDauRange} />
+            </div>
             {overview === null ? (
               <Skeleton className="h-16 w-full" />
             ) : (
-              <InteractiveBarChart
+              <StatAreaChart
                 data={dauChart}
-                height={88}
-                barClass="fill-sky-500"
-                hoverBarClass="fill-sky-700"
-                formatLabel={dayLabel}
-                formatTooltip={(d) => `${dayLabel(d.label)} · ${d.value} active${d.sub ? ` · ${d.sub}` : ''}`}
+                height={210}
+                color="#0ea5e9"
+                formatLabel={chartTickLabel}
+                formatTooltipTitle={(d) => `${chartTickLabel(d.label)} — ${d.value} active${d.sub ? ` · ${d.sub}` : ''}`}
                 onBarClick={(d) => {
-                  const b = istDayBounds(d.label);
-                  openActiveFor(b, `Active on ${dayLabel(d.label)}`, `${d.value} user${d.value === 1 ? '' : 's'} did something that day`);
+                  const b = pointBounds(d.label);
+                  openActiveFor(b, `Active ${chartTickLabel(d.label)}`, `${d.value} user${d.value === 1 ? '' : 's'} did something in that period`);
                 }}
               />
             )}
-            <p className="mt-1 text-[10px] font-medium text-slate-400">Click a bar to see who was active that day.</p>
-            <div className="mt-1.5 flex justify-between text-[10px] text-slate-400">
-              <span>{dauChart.length ? dayLabel(dauChart[0].label) : ''}</span>
+            <p className="mt-1 text-[10px] font-medium text-slate-400">Click the graph to see who was active.</p>
+            <div className="mt-1.5 text-right text-[10px] text-slate-400">
               <span>{overview?.activeMonth ?? '—'} active this month</span>
             </div>
           </div>

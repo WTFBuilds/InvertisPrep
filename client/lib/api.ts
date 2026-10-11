@@ -43,10 +43,13 @@ import type {
   MailTemplateSection,
   MailSettings,
   MailTemplate,
+  MailRecipientUser,
   UnifiedMailLog,
   NotifySettings,
   ActivityEvent,
   ActivityUserRow,
+  SeriesPoint,
+  StatRange,
   ActivityOverview,
   ActivityUserSummary,
   PresenceInfo,
@@ -599,6 +602,18 @@ export const adminMailApi = {
     );
     return data;
   },
+  // Searchable user list for the "select users" recipient picker (paginated).
+  composeUsers: async (params?: { search?: string; page?: number; limit?: number }) => {
+    const query: Record<string, unknown> = {};
+    if (params?.search) query.search = params.search;
+    if (params?.page) query.page = params.page;
+    if (params?.limit) query.limit = params.limit;
+    const { data } = await apiClient.get<APIResponse<MailRecipientUser[]> & { meta?: TransactionMeta }>(
+      '/admin/mail/compose/users',
+      { params: query }
+    );
+    return data;
+  },
   sendCampaign: async (payload: {
     subject: string;
     bannerUrl?: string;
@@ -607,6 +622,9 @@ export const adminMailApi = {
     sections?: MailTemplateSection[];
     footer?: string;
     rawHtml?: string;
+    recipients?: 'all' | 'selected' | 'manual';
+    userIds?: string[];
+    emails?: string[];
   }): Promise<APIResponse<{ recipientCount: number }>> => {
     const { data } = await apiClient.post<APIResponse<{ recipientCount: number }>>(
       '/admin/mail/compose/send',
@@ -954,10 +972,19 @@ export interface PagedResponse<T> extends APIResponse<T[]> {
 }
 
 export const adminActivityApi = {
-  overview: async (days = 30): Promise<APIResponse<ActivityOverview>> => {
-    const { data } = await apiClient.get<APIResponse<ActivityOverview>>('/admin/activity/overview', {
-      params: { days },
-    });
+  overview: async (): Promise<APIResponse<ActivityOverview>> => {
+    const { data } = await apiClient.get<APIResponse<ActivityOverview>>('/admin/activity/overview');
+    return data;
+  },
+
+  // Range-picker graph data — hourly buckets for 24h, daily otherwise.
+  series: async (
+    metric: 'signups' | 'active',
+    range: StatRange
+  ): Promise<APIResponse<{ metric: string; range: StatRange; series: SeriesPoint[] }>> => {
+    const { data } = await apiClient.get<
+      APIResponse<{ metric: string; range: StatRange; series: SeriesPoint[] }>
+    >('/admin/activity/series', { params: { metric, range } });
     return data;
   },
 

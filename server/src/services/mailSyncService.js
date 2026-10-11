@@ -13,9 +13,10 @@ const IMAP_MAILBOX = process.env.IMAP_MAILBOX || 'INBOX';
 
 export const isImapConfigured = Boolean(IMAP_USER && IMAP_PASS);
 
-// ── Sync throttle ────────────────────────────────────────────────────────────
-// On-demand syncing (auto on inbox visit + manual Sync button). A short
-// in-process throttle keeps rapid visits from hammering IMAP; `force` overrides.
+// ── Sync trigger ─────────────────────────────────────────────────────────────
+// Manual only — the admin "Sync now" button (POST /mailbox/sync). List reads
+// never touch IMAP. A short in-process throttle keeps rapid clicks from
+// hammering IMAP; `force` overrides.
 const SYNC_THROTTLE_MS = 45 * 1000;
 let lastSyncAt = 0;
 let syncInFlight = null;

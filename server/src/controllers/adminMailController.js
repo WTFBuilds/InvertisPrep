@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { EmailLog } from '../models/EmailLog.js';
 import { InboundMail } from '../models/InboundMail.js';
 import { Setting } from '../models/Setting.js';
@@ -148,8 +149,9 @@ export const getSentMail = async (req, res) => {
 // ── 2. Mailbox: synced inbound ──────────────────────────────────────────────
 export const listInbox = async (req, res) => {
   try {
-    // Auto-sync on visit (throttled inside the service) so the list is fresh.
-    await syncInboundMail({ force: false });
+    // Pure DB read — mail lands in InboundMail when the admin hits "Sync now"
+    // (POST /mailbox/sync). No IMAP on list reads, so opening the mailbox is
+    // instant no matter how many times it's visited.
 
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
@@ -292,6 +294,52 @@ export const composeRecipients = async (_req, res) => {
   }
 };
 
+// Searchable, paginated user list for the compose "select users" picker.
+// Same audience the campaign delivers to: active users with an email on file.
+export const composeUsers = async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 50));
+    const { search } = req.query;
+
+    const filter = { email: { $exists: true, $ne: '' }, isActive: true };
+    if (search && String(search).trim()) {
+      const q = escapeRegExp(String(search).trim());
+      filter.$or = [
+        { name: { $regex: q, $options: 'i' } },
+        { email: { $regex: q, $options: 'i' } },
+      ];
+    }
+
+    const [total, users] = await Promise.all([
+      User.countDocuments(filter),
+      User.find(filter)
+        .sort({ name: 1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .select('name email picture')
+        .lean(),
+    ]);
+
+    res.json({
+      success: true,
+      data: users.map((u) => ({
+        id: u._id,
+        name: u.name,
+        email: u.email,
+        picture: u.picture || null,
+      })),
+      meta: pageMeta(page, limit, total),
+    });
+  } catch (error) {
+    console.error('Compose users error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load users' });
+  }
+};
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_MANUAL_RECIPIENTS = 500;
+
 export const sendCampaign = async (req, res) => {
   try {
     const { subject, sections, bannerUrl, heading, intro, footer, rawHtml } = req.body || {};
@@ -304,35 +352,90 @@ export const sendCampaign = async (req, res) => {
       ? { rawHtml }
       : { bannerUrl, heading, intro, sections: Array.isArray(sections) ? sections : [], footer };
 
-    const users = await User.find({ email: { $exists: true, $ne: '' }, isActive: true })
-      .select('email name')
-      .lean();
-    if (users.length === 0) {
-      return res.status(400).json({ success: false, message: 'No active users to send to' });
+    // Recipient mode: 'all' (every active user), 'selected' (picked user ids)
+    // or 'manual' (freely entered addresses). Normalized to [{ email, name,
+    // userId }] so the send loop is identical for every mode.
+    const mode = ['all', 'selected', 'manual'].includes(req.body?.recipients)
+      ? req.body.recipients
+      : 'all';
+    let recipients;
+    if (mode === 'selected') {
+      const rawIds = Array.isArray(req.body?.userIds) ? req.body.userIds : [];
+      const ids = [...new Set(rawIds.filter((id) => mongoose.isValidObjectId(id)))];
+      if (ids.length === 0) {
+        return res.status(400).json({ success: false, message: 'Select at least one user' });
+      }
+      const users = await User.find({
+        _id: { $in: ids },
+        email: { $exists: true, $ne: '' },
+        isActive: true,
+      })
+        .select('email name')
+        .lean();
+      if (users.length === 0) {
+        return res.status(400).json({ success: false, message: 'None of the selected users can receive mail' });
+      }
+      recipients = users.map((u) => ({ email: u.email, name: u.name, userId: u._id }));
+    } else if (mode === 'manual') {
+      const raw = Array.isArray(req.body?.emails) ? req.body.emails : [];
+      const emails = [
+        ...new Set(
+          raw.map((e) => String(e).trim().toLowerCase()).filter((e) => EMAIL_RE.test(e))
+        ),
+      ];
+      if (emails.length === 0) {
+        return res.status(400).json({ success: false, message: 'Enter at least one valid email address' });
+      }
+      if (emails.length > MAX_MANUAL_RECIPIENTS) {
+        return res.status(400).json({
+          success: false,
+          message: `Too many recipients — manual sends are limited to ${MAX_MANUAL_RECIPIENTS} addresses`,
+        });
+      }
+      // Personalize for addresses that belong to platform users; unknown
+      // addresses still get the mail with a generic greeting and no linked user.
+      const known = await User.find({ email: { $in: emails } }).select('email name').lean();
+      const byEmail = new Map(known.map((u) => [String(u.email).toLowerCase(), u]));
+      recipients = emails.map((email) => {
+        const u = byEmail.get(email);
+        return { email, name: u?.name, userId: u?._id || null };
+      });
+    } else {
+      const users = await User.find({ email: { $exists: true, $ne: '' }, isActive: true })
+        .select('email name')
+        .lean();
+      if (users.length === 0) {
+        return res.status(400).json({ success: false, message: 'No active users to send to' });
+      }
+      recipients = users.map((u) => ({ email: u.email, name: u.name, userId: u._id }));
     }
 
+    const recipientCount = recipients.length;
     setImmediate(async () => {
-      for (const user of users) {
+      for (const r of recipients) {
         try {
           await sendTemplate({
-            to: user.email,
+            to: r.email,
             subject,
             template: 'campaign',
             tpl,
-            vars: { name: user.name?.trim() || 'there', email: user.email },
+            vars: { name: r.name?.trim() || 'there', email: r.email },
             kind: 'campaign',
-            userId: user._id || null,
+            userId: r.userId || null,
           });
         } catch (err) {
-          console.error('[mail] campaign send failed for', user.email, err?.message);
+          console.error('[mail] campaign send failed for', r.email, err?.message);
         }
       }
     });
 
     res.json({
       success: true,
-      message: `Campaign queued to ${users.length} active users`,
-      data: { recipientCount: users.length },
+      message:
+        mode === 'all'
+          ? `Campaign queued to ${recipientCount} active users`
+          : `Campaign queued to ${recipientCount} recipient${recipientCount === 1 ? '' : 's'}`,
+      data: { recipientCount },
     });
   } catch (error) {
     console.error('Send campaign error:', error);

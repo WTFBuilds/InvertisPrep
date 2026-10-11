@@ -126,122 +126,6 @@ export const LEAD_STATUS_META: Record<string, { label: string; badge: string; hi
   new: { label: 'New', badge: 'bg-sky-100 text-sky-700', hint: 'Joined in the last 7 days' },
 };
 
-// ── Interactive SVG bar chart (no chart dependency) ─────────────────────────
-// Hover shows an exact tooltip, and every bar can be clicked (onBarClick) to
-// drill into the real data behind it. X-axis ticks are HTML so they never
-// distort; gridlines keep their 1px stroke via vector-effect.
-export function InteractiveBarChart({
-  data,
-  height = 96,
-  barClass = 'fill-indigo-500',
-  hoverBarClass = 'fill-indigo-700',
-  formatLabel,
-  formatTooltip,
-  onBarClick,
-}: {
-  data: { label: string; value: number; sub?: string }[];
-  height?: number;
-  barClass?: string;
-  hoverBarClass?: string;
-  formatLabel?: (label: string) => string;
-  formatTooltip?: (item: { label: string; value: number; sub?: string }) => string;
-  onBarClick?: (item: { label: string; value: number; sub?: string }) => void;
-}) {
-  const [hover, setHover] = useState<number | null>(null);
-  if (!data.length) return null;
-  const max = Math.max(1, ...data.map((d) => d.value));
-  const w = 100 / data.length;
-  const barArea = height - 16;
-  const showLabel = (label: string) => (formatLabel ? formatLabel(label) : label);
-  // ~4 evenly spread x ticks
-  const ticks = data.length > 6 ? [0, Math.floor(data.length / 3), Math.floor((2 * data.length) / 3), data.length - 1] : [0, data.length - 1];
-
-  return (
-    <div className="relative">
-      {/* Y gridlines with value labels */}
-      <div className="pointer-events-none absolute inset-0" aria-hidden>
-        {[1, 0.5].map((f) => (
-          <div key={f} className="absolute left-0 right-0 border-t border-slate-100" style={{ top: `${height - barArea * f}px` }}>
-            <span className="absolute -top-2 right-0 rounded bg-white/85 px-1 text-[9px] font-bold text-slate-300">
-              {Math.round(max * f)}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      <svg viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" className="w-full" style={{ height }}>
-        {data.map((d, i) => {
-          const barH = Math.max(2, (d.value / max) * barArea);
-          const isHover = hover === i;
-          return (
-            <g key={d.label}>
-              {/* Visible bar — purely decorative; the column hit-area carries all events */}
-              <rect
-                x={i * w + w * 0.15}
-                y={height - barH}
-                width={w * 0.7}
-                height={barH}
-                rx={0.6}
-                className={
-                  d.value === 0
-                    ? 'fill-slate-200'
-                    : isHover
-                      ? hoverBarClass
-                      : barClass
-                }
-              />
-              {/* Full-column hit area: hover/click anywhere in the slot, even
-                  on 2px zero-bars or dense 30-day charts */}
-              <rect
-                x={i * w}
-                y={0}
-                width={w}
-                height={height}
-                fill="transparent"
-                className={`${onBarClick ? 'cursor-pointer' : ''} ${isHover ? 'fill-slate-400/10' : ''}`}
-                onMouseEnter={() => setHover(i)}
-                onMouseLeave={() => setHover(null)}
-                onFocus={() => setHover(i)}
-                onBlur={() => setHover(null)}
-                onClick={() => onBarClick?.(d)}
-                onKeyDown={(e) => {
-                  if (onBarClick && (e.key === 'Enter' || e.key === ' ')) {
-                    e.preventDefault();
-                    onBarClick(d);
-                  }
-                }}
-                tabIndex={onBarClick ? 0 : -1}
-                role={onBarClick ? 'button' : undefined}
-                aria-label={formatTooltip ? formatTooltip(d) : `${showLabel(d.label)}: ${d.value}`}
-              />
-            </g>
-          );
-        })}
-      </svg>
-
-      {/* Hover tooltip */}
-      {hover !== null && (
-        <div
-          className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 shadow-md"
-          style={{ left: `${Math.min(90, Math.max(10, ((hover + 0.5) / data.length) * 100))}%`, bottom: '100%', marginBottom: 4 }}
-        >
-          <p className="whitespace-nowrap text-[10px] font-bold text-slate-500">
-            {formatTooltip ? formatTooltip(data[hover]) : showLabel(data[hover].label)}
-          </p>
-          <p className="whitespace-nowrap text-sm font-black leading-tight text-slate-900">{data[hover].value}</p>
-        </div>
-      )}
-
-      {/* X-axis ticks */}
-      <div className="mt-1 flex justify-between text-[9px] font-semibold text-slate-400">
-        {ticks.map((t) => (
-          <span key={t}>{showLabel(data[t].label)}</span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ── Chart drill-down dialog ──────────────────────────────────────────────────
 export function UsersRangeDialog({
   open,
@@ -347,18 +231,24 @@ export function istDayBounds(dateKey: string): { from: string; to: string } {
   return { from: from.toISOString(), to: to.toISOString() };
 }
 
-/** [from, to) ISO bounds of an ISO week ('2026-W41'), IST-aligned. */
-export function isoWeekBounds(weekKey: string): { from: string; to: string } {
-  const m = /^(\d{4})-W(\d{1,2})$/.exec(weekKey);
-  if (!m) return { from: new Date(0).toISOString(), to: new Date(0).toISOString() };
-  const year = parseInt(m[1], 10);
-  const week = parseInt(m[2], 10);
-  // ISO week 1 always contains Jan 4; its Monday anchors the grid.
-  const jan4 = new Date(Date.UTC(year, 0, 4));
-  const dow = jan4.getUTCDay() || 7;
-  const monday = new Date(jan4);
-  monday.setUTCDate(jan4.getUTCDate() - (dow - 1) + (week - 1) * 7);
-  const from = new Date(monday.getTime() - 5.5 * 60 * 60 * 1000);
-  const to = new Date(from.getTime() + 7 * 24 * 60 * 60 * 1000);
-  return { from: from.toISOString(), to: to.toISOString() };
+/** Axis/tooltip label for a series point — hour keys render "2 PM", days "5 Oct". */
+export function chartTickLabel(key: string): string {
+  if (key.includes('T')) {
+    const h = parseInt(key.slice(11, 13), 10);
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12} ${h >= 12 ? 'PM' : 'AM'}`;
+  }
+  return new Date(`${key}T12:00:00Z`).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+  });
+}
+
+/** [from, to) ISO bounds of a series point — one hour for '24h' keys, else a day. */
+export function pointBounds(key: string): { from: string; to: string } {
+  if (key.includes('T')) {
+    const from = new Date(`${key}+05:30`);
+    return { from: from.toISOString(), to: new Date(from.getTime() + 60 * 60 * 1000).toISOString() };
+  }
+  return istDayBounds(key);
 }
