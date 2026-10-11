@@ -34,11 +34,18 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ViewableAvatar } from '@/components/admin/viewable-avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MiniBarChart, timeAgo } from '@/components/admin/activity-shared';
+import {
+  InteractiveBarChart,
+  UsersRangeDialog,
+  istDayBounds,
+  isoWeekBounds,
+  timeAgo,
+} from '@/components/admin/activity-shared';
 import type {
   AdminUser,
   APIResponse,
   ActivityOverview,
+  ActivityUserRow,
   InvertisEvent,
   MarketingOverview,
   PresenceInfo,
@@ -137,6 +144,13 @@ export default function AdminDashboard() {
 
   const [detailUserId, setDetailUserId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+
+  // Chart drill-down — clicking a bar opens the real users behind it.
+  const [rangeDialog, setRangeDialog] = useState<{
+    title: string;
+    subtitle?: string;
+    load: () => Promise<ActivityUserRow[]>;
+  } | null>(null);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -342,7 +356,33 @@ export default function AdminDashboard() {
 
   const signupChart = (overview?.signupSeries ?? []).map((p) => ({ label: p.date, value: p.count }));
   const weeklyChart = (overview?.signupWeeklySeries ?? []).map((p) => ({ label: p.week, value: p.count }));
-  const dauChart = (overview?.dauSeries ?? []).map((p) => ({ label: p.date, value: p.count }));
+  const dauChart = (overview?.dauSeries ?? []).map((p) => ({
+    label: p.date,
+    value: p.count,
+    sub: p.events != null ? `${p.events} events` : undefined,
+  }));
+
+  const openSignupsFor = (b: { from: string; to: string }, title: string, subtitle: string) =>
+    setRangeDialog({
+      title,
+      subtitle,
+      load: async () => {
+        const res = await adminActivityApi.signupsInRange(b.from, b.to);
+        if (res.success && res.data) return res.data.users;
+        throw new Error('failed');
+      },
+    });
+
+  const openActiveFor = (b: { from: string; to: string }, title: string, subtitle: string) =>
+    setRangeDialog({
+      title,
+      subtitle,
+      load: async () => {
+        const res = await adminActivityApi.activeUsersInRange(b.from, b.to);
+        if (res.success && res.data) return res.data.users;
+        throw new Error('failed');
+      },
+    });
 
   const growthNumbers = [
     { label: 'Last 24 hrs', value: overview?.new24h, tint: 'text-emerald-600', chip: 'bg-emerald-50 border-emerald-100' },
@@ -504,7 +544,18 @@ export default function AdminDashboard() {
                 <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
                   Weekly joins · 8 weeks
                 </p>
-                <MiniBarChart data={weeklyChart} height={52} barClass="fill-emerald-500" />
+                <InteractiveBarChart
+                  data={weeklyChart}
+                  height={60}
+                  barClass="fill-emerald-500"
+                  hoverBarClass="fill-emerald-700"
+                  formatTooltip={(d) => `${d.label} · ${d.value} joined`}
+                  onBarClick={(d) => {
+                    const b = isoWeekBounds(d.label);
+                    openSignupsFor(b, `Joined in ${d.label}`, `${d.value} new user${d.value === 1 ? '' : 's'} that week`);
+                  }}
+                />
+                <p className="mt-1 text-[10px] font-medium text-slate-400">Click a bar to see who joined that week.</p>
               </div>
             )}
           </div>
@@ -524,8 +575,18 @@ export default function AdminDashboard() {
             {overview === null ? (
               <Skeleton className="h-16 w-full" />
             ) : (
-              <MiniBarChart data={signupChart} height={72} formatLabel={dayLabel} />
+              <InteractiveBarChart
+                data={signupChart}
+                height={88}
+                formatLabel={dayLabel}
+                formatTooltip={(d) => `${dayLabel(d.label)} · ${d.value} joined`}
+                onBarClick={(d) => {
+                  const b = istDayBounds(d.label);
+                  openSignupsFor(b, `Joined on ${dayLabel(d.label)}`, `${d.value} new user${d.value === 1 ? '' : 's'} that day`);
+                }}
+              />
             )}
+            <p className="mt-1 text-[10px] font-medium text-slate-400">Click a bar to see exactly who joined that day.</p>
             <div className="mt-1.5 flex justify-between text-[10px] text-slate-400">
               <span>{signupChart.length ? dayLabel(signupChart[0].label) : ''}</span>
               <span>Today</span>
@@ -536,8 +597,20 @@ export default function AdminDashboard() {
             {overview === null ? (
               <Skeleton className="h-16 w-full" />
             ) : (
-              <MiniBarChart data={dauChart} height={72} barClass="fill-sky-500" formatLabel={dayLabel} />
+              <InteractiveBarChart
+                data={dauChart}
+                height={88}
+                barClass="fill-sky-500"
+                hoverBarClass="fill-sky-700"
+                formatLabel={dayLabel}
+                formatTooltip={(d) => `${dayLabel(d.label)} · ${d.value} active${d.sub ? ` · ${d.sub}` : ''}`}
+                onBarClick={(d) => {
+                  const b = istDayBounds(d.label);
+                  openActiveFor(b, `Active on ${dayLabel(d.label)}`, `${d.value} user${d.value === 1 ? '' : 's'} did something that day`);
+                }}
+              />
             )}
+            <p className="mt-1 text-[10px] font-medium text-slate-400">Click a bar to see who was active that day.</p>
             <div className="mt-1.5 flex justify-between text-[10px] text-slate-400">
               <span>{dauChart.length ? dayLabel(dauChart[0].label) : ''}</span>
               <span>{overview?.activeMonth ?? '—'} active this month</span>
@@ -790,6 +863,19 @@ export default function AdminDashboard() {
           ))}
         </div>
       </div>
+
+      {/* Chart drill-down dialog */}
+      {rangeDialog && (
+        <UsersRangeDialog
+          open={!!rangeDialog}
+          onOpenChange={(o) => {
+            if (!o) setRangeDialog(null);
+          }}
+          title={rangeDialog.title}
+          subtitle={rangeDialog.subtitle}
+          load={rangeDialog.load}
+        />
+      )}
 
       {/* User detail dialog (only for users who can view user management) */}
       {canViewUsers && (

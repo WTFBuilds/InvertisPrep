@@ -19,7 +19,7 @@ import {
   Users,
 } from 'lucide-react';
 
-import { marketingApi } from '@/lib/api';
+import { adminActivityApi, marketingApi } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,14 +41,17 @@ import {
 import { ViewableAvatar } from '@/components/admin/viewable-avatar';
 import {
   EVENT_META,
+  InteractiveBarChart,
   LEAD_STATUS_META,
-  MiniBarChart,
+  UsersRangeDialog,
   deviceLabel,
   eventDescription,
   formatDateTime,
+  istDayBounds,
+  isoWeekBounds,
   timeAgo,
 } from '@/components/admin/activity-shared';
-import type { MarketingLead, MarketingLeadDetail, MarketingOverview } from '@/types';
+import type { ActivityUserRow, MarketingLead, MarketingLeadDetail, MarketingOverview } from '@/types';
 
 const StatCard = ({
   icon: Icon,
@@ -250,6 +253,13 @@ export default function MarketingPage() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
+  // Chart drill-down — clicking a bar opens the actual users behind it.
+  const [rangeDialog, setRangeDialog] = useState<{
+    title: string;
+    subtitle?: string;
+    load: () => Promise<ActivityUserRow[]>;
+  } | null>(null);
+
   const limit = 25;
 
   useEffect(() => {
@@ -303,7 +313,33 @@ export default function MarketingPage() {
     label: p.week,
     value: p.count,
   }));
-  const dauChart = (overview?.dauSeries ?? []).map((p) => ({ label: p.date, value: p.count }));
+  const dauChart = (overview?.dauSeries ?? []).map((p) => ({
+    label: p.date,
+    value: p.count,
+    sub: p.events != null ? `${p.events} events` : undefined,
+  }));
+
+  const openSignupsFor = (b: { from: string; to: string }, title: string, subtitle: string) =>
+    setRangeDialog({
+      title,
+      subtitle,
+      load: async () => {
+        const res = await adminActivityApi.signupsInRange(b.from, b.to);
+        if (res.success && res.data) return res.data.users;
+        throw new Error('failed');
+      },
+    });
+
+  const openActiveFor = (b: { from: string; to: string }, title: string, subtitle: string) =>
+    setRangeDialog({
+      title,
+      subtitle,
+      load: async () => {
+        const res = await adminActivityApi.activeUsersInRange(b.from, b.to);
+        if (res.success && res.data) return res.data.users;
+        throw new Error('failed');
+      },
+    });
 
   const dayLabel = (iso: string) =>
     new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
@@ -345,7 +381,7 @@ export default function MarketingPage() {
 
       {/* Stat strip */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <StatCard icon={Users} label="Total Students" value={overview?.totalStudents} tint="bg-indigo-100 text-indigo-600" sub={`${overview?.activated ?? '—'} opened a paper`} />
+        <StatCard icon={Users} label="Total Students" value={overview?.totalStudents} tint="bg-indigo-100 text-indigo-600" sub={`${overview?.activated ?? '—'} opened a paper · ${overview?.staffCount ?? '—'} staff/admin excluded`} />
         <StatCard icon={Radio} label="Online Now" value={overview?.onlineNow} tint="bg-emerald-100 text-emerald-600" />
         <StatCard icon={Flame} label="Active Today" value={overview?.activeToday} tint="bg-sky-100 text-sky-600" sub={`${overview?.activeWeek ?? '—'} this week`} />
         <StatCard
@@ -371,8 +407,18 @@ export default function MarketingPage() {
           {overview === null ? (
             <Skeleton className="h-16 w-full" />
           ) : (
-            <MiniBarChart data={signupChart} height={72} formatLabel={dayLabel} />
+            <InteractiveBarChart
+              data={signupChart}
+              height={92}
+              formatLabel={dayLabel}
+              formatTooltip={(d) => `${dayLabel(d.label)} · ${d.value} joined`}
+              onBarClick={(d) => {
+                const b = istDayBounds(d.label);
+                openSignupsFor(b, `Joined on ${dayLabel(d.label)}`, `${d.value} new user${d.value === 1 ? '' : 's'} that day`);
+              }}
+            />
           )}
+          <p className="mt-1 text-[10px] font-medium text-slate-400">Click a bar to see exactly who joined that day.</p>
           <div className="mt-1.5 flex justify-between text-[10px] text-slate-400">
             <span>{signupChart.length ? dayLabel(signupChart[0].label) : ''}</span>
             <span>Today</span>
@@ -385,8 +431,19 @@ export default function MarketingPage() {
           {overview === null ? (
             <Skeleton className="h-16 w-full" />
           ) : (
-            <MiniBarChart data={weeklyChart} height={72} barClass="fill-emerald-500" />
+            <InteractiveBarChart
+              data={weeklyChart}
+              height={92}
+              barClass="fill-emerald-500"
+              hoverBarClass="fill-emerald-700"
+              formatTooltip={(d) => `${d.label} · ${d.value} joined`}
+              onBarClick={(d) => {
+                const b = isoWeekBounds(d.label);
+                openSignupsFor(b, `Joined in ${d.label}`, `${d.value} new user${d.value === 1 ? '' : 's'} that week`);
+              }}
+            />
           )}
+          <p className="mt-1 text-[10px] font-medium text-slate-400">Click a bar to see who joined that week.</p>
           <div className="mt-1.5 flex justify-between text-[10px] text-slate-400">
             <span>{weeklyChart[0]?.label ?? ''}</span>
             <span>{weeklyChart[weeklyChart.length - 1]?.label ?? ''}</span>
@@ -401,8 +458,20 @@ export default function MarketingPage() {
           {overview === null ? (
             <Skeleton className="h-16 w-full" />
           ) : (
-            <MiniBarChart data={dauChart} height={64} barClass="fill-sky-500" formatLabel={dayLabel} />
+            <InteractiveBarChart
+              data={dauChart}
+              height={84}
+              barClass="fill-sky-500"
+              hoverBarClass="fill-sky-700"
+              formatLabel={dayLabel}
+              formatTooltip={(d) => `${dayLabel(d.label)} · ${d.value} active${d.sub ? ` · ${d.sub}` : ''}`}
+              onBarClick={(d) => {
+                const b = istDayBounds(d.label);
+                openActiveFor(b, `Active on ${dayLabel(d.label)}`, `${d.value} user${d.value === 1 ? '' : 's'} did something that day`);
+              }}
+            />
           )}
+          <p className="mt-1 text-[10px] font-medium text-slate-400">Click a bar to see who was active that day.</p>
           <p className="mt-2 text-[11px] text-slate-400">
             {overview?.activeMonth ?? '—'} distinct students active this month.
           </p>
@@ -573,6 +642,19 @@ export default function MarketingPage() {
       </div>
 
       <LeadDetailDialog leadId={detailId} open={detailOpen} onOpenChange={setDetailOpen} />
+
+      {/* Chart drill-down dialog */}
+      {rangeDialog && (
+        <UsersRangeDialog
+          open={!!rangeDialog}
+          onOpenChange={(o) => {
+            if (!o) setRangeDialog(null);
+          }}
+          title={rangeDialog.title}
+          subtitle={rangeDialog.subtitle}
+          load={rangeDialog.load}
+        />
+      )}
     </div>
   );
 }

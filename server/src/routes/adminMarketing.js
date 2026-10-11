@@ -79,13 +79,14 @@ router.get('/overview', async (req, res) => {
     const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const weeksAgo8 = new Date(Date.now() - 8 * 7 * 24 * 60 * 60 * 1000);
 
-    const [totalStudents, newToday, new24h, newWeek, newMonth, onlineNow] = await Promise.all([
+    const [totalStudents, newToday, new24h, newWeek, newMonth, onlineNow, totalUsers] = await Promise.all([
       User.countDocuments({ role: MARKET_ROLE }),
       User.countDocuments({ role: MARKET_ROLE, createdAt: { $gte: todayStart } }),
       User.countDocuments({ role: MARKET_ROLE, createdAt: { $gte: last24h } }),
       User.countDocuments({ role: MARKET_ROLE, createdAt: { $gte: weekAgo } }),
       User.countDocuments({ role: MARKET_ROLE, createdAt: { $gte: monthAgo } }),
       Presence.countDocuments({ lastSeenAt: { $gte: new Date(Date.now() - ONLINE_WINDOW_MS) } }),
+      User.countDocuments({}),
     ]);
 
     // Distinct active users per window, then filter down to students.
@@ -191,6 +192,10 @@ router.get('/overview', async (req, res) => {
       success: true,
       data: {
         totalStudents,
+        // Reconciles with the dashboard's "Total Users" card: leads are
+        // students only, so surface how many accounts are excluded and why.
+        totalUsers,
+        staffCount: Math.max(0, totalUsers - totalStudents),
         newToday,
         new24h,
         newWeek,

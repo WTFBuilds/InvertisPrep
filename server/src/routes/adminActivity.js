@@ -8,7 +8,10 @@ import { ONLINE_WINDOW_MS } from '../services/activityService.js';
 
 const router = Router();
 
-router.use(authenticateJWT, requirePermission('activity.view'));
+// Every route resolves its own permission gate: monitor endpoints need
+// activity.view, the chart drill-downs accept activity.view OR marketing.view
+// (both dashboards click through to them).
+router.use(authenticateJWT);
 
 // ── Date helpers (IST day boundaries — the audience is India-based) ─────────
 const IST_TZ = '+05:30';
@@ -96,7 +99,7 @@ function parsePagination(query) {
  * GET /api/admin/activity/overview?days=30
  * Headline stats + daily series + top pages/papers for the monitor & dashboard.
  */
-router.get('/overview', async (req, res) => {
+router.get('/overview', requirePermission('activity.view'), async (req, res) => {
   try {
     const days = Math.min(90, Math.max(7, parseInt(req.query.days, 10) || 30));
     const since = daysBack(days);
@@ -213,7 +216,7 @@ router.get('/overview', async (req, res) => {
  * GET /api/admin/activity/online — everyone currently online with the page
  * they're on right now.
  */
-router.get('/online', async (req, res) => {
+router.get('/online', requirePermission('activity.view'), async (req, res) => {
   try {
     const cutoff = new Date(Date.now() - ONLINE_WINDOW_MS);
     const rows = await Presence.find({ lastSeenAt: { $gte: cutoff } })
@@ -245,7 +248,7 @@ router.get('/online', async (req, res) => {
  * GET /api/admin/activity/feed — global filterable event stream.
  * Query: page, limit, type, userId, search (user name/email), from, to.
  */
-router.get('/feed', async (req, res) => {
+router.get('/feed', requirePermission('activity.view'), async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query);
     const query = {};
@@ -292,7 +295,7 @@ router.get('/feed', async (req, res) => {
  * GET /api/admin/activity/users/:id/summary — profile + engagement rollup +
  * session list for one user (the monitor's deep-dive header).
  */
-router.get('/users/:id/summary', async (req, res) => {
+router.get('/users/:id/summary', requirePermission('activity.view'), async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) {
@@ -378,7 +381,7 @@ router.get('/users/:id/summary', async (req, res) => {
 /**
  * GET /api/admin/activity/users/:id/logs — one user's full event timeline.
  */
-router.get('/users/:id/logs', async (req, res) => {
+router.get('/users/:id/logs', requirePermission('activity.view'), async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) {
@@ -410,7 +413,7 @@ router.get('/users/:id/logs', async (req, res) => {
  * GET /api/admin/activity/users/:id/papers — every paper the user has viewed
  * or downloaded, with counts (the "what is he viewing" answer).
  */
-router.get('/users/:id/papers', async (req, res) => {
+router.get('/users/:id/papers', requirePermission('activity.view'), async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) {
@@ -446,6 +449,69 @@ router.get('/users/:id/papers', async (req, res) => {
   } catch (error) {
     console.error('[AdminActivity] user papers error:', error);
     res.status(500).json({ success: false, message: 'Failed to load user papers' });
+  }
+});
+
+/**
+ * GET /api/admin/activity/signups?from=ISO&to=ISO
+ * Chart drill-down: everyone who created an account inside [from, to).
+ * Client passes IST bounds (single day or ISO week). Capped at 500 rows.
+ */
+router.get('/signups', requirePermission('activity.view', 'marketing.view'), async (req, res) => {
+  try {
+    const from = new Date(req.query.from);
+    const to = new Date(req.query.to);
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from >= to) {
+      return res.status(400).json({ success: false, message: 'Invalid date range' });
+    }
+
+    const users = await User.find({ createdAt: { $gte: from, $lt: to } })
+      .select('name email picture role course studentId phoneNumber createdAt lastLogin')
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .lean();
+
+    res.json({ success: true, data: { count: users.length, users } });
+  } catch (error) {
+    console.error('[AdminActivity] signups error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load signups' });
+  }
+});
+
+/**
+ * GET /api/admin/activity/active-users?from=ISO&to=ISO
+ * Chart drill-down: distinct users with at least one recorded event in the
+ * window, richest-activity first, with per-user event counts.
+ */
+router.get('/active-users', requirePermission('activity.view', 'marketing.view'), async (req, res) => {
+  try {
+    const from = new Date(req.query.from);
+    const to = new Date(req.query.to);
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from >= to) {
+      return res.status(400).json({ success: false, message: 'Invalid date range' });
+    }
+
+    const rows = await ActivityLog.aggregate([
+      { $match: { createdAt: { $gte: from, $lt: to } } },
+      { $group: { _id: '$user', events: { $sum: 1 } } },
+      { $sort: { events: -1 } },
+      { $limit: 500 },
+    ]);
+    const ids = rows.map((r) => r._id);
+
+    const users = await User.find({ _id: { $in: ids } })
+      .select('name email picture role course studentId phoneNumber createdAt lastLogin')
+      .lean();
+    const byId = new Map(users.map((u) => [String(u._id), u]));
+
+    const data = rows
+      .filter((r) => byId.has(String(r._id)))
+      .map((r) => ({ ...byId.get(String(r._id)), eventCount: r.events }));
+
+    res.json({ success: true, data: { count: rows.length, users: data } });
+  } catch (error) {
+    console.error('[AdminActivity] active-users error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load active users' });
   }
 });
 

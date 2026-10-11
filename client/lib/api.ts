@@ -46,6 +46,7 @@ import type {
   UnifiedMailLog,
   NotifySettings,
   ActivityEvent,
+  ActivityUserRow,
   ActivityOverview,
   ActivityUserSummary,
   PresenceInfo,
@@ -999,6 +1000,24 @@ export const adminActivityApi = {
     const { data } = await apiClient.get<APIResponse<
       { entityId: string; title: string; subjectName?: string; departmentName?: string; branchName?: string; views: number; downloads: number; lastAt: string }[]
     >>(`/admin/activity/users/${userId}/papers`);
+    return data;
+  },
+
+  // Chart drill-downs — [from, to) ISO bounds; the client computes IST day /
+  // ISO-week boundaries so the server stays timezone-agnostic.
+  signupsInRange: async (from: string, to: string): Promise<APIResponse<{ count: number; users: ActivityUserRow[] }>> => {
+    const { data } = await apiClient.get<APIResponse<{ count: number; users: ActivityUserRow[] }>>(
+      '/admin/activity/signups',
+      { params: { from, to } }
+    );
+    return data;
+  },
+
+  activeUsersInRange: async (from: string, to: string): Promise<APIResponse<{ count: number; users: ActivityUserRow[] }>> => {
+    const { data } = await apiClient.get<APIResponse<{ count: number; users: ActivityUserRow[] }>>(
+      '/admin/activity/active-users',
+      { params: { from, to } }
+    );
     return data;
   },
 };

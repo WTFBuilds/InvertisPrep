@@ -712,6 +712,8 @@ export interface MarketingLead {
 
 export interface MarketingOverview {
   totalStudents: number;
+  totalUsers?: number;
+  staffCount?: number;
   newToday: number;
   new24h: number;
   newWeek: number;
@@ -826,4 +828,20 @@ export interface ImportPreviewSummary {
   database: string | null;
   totalDocuments: number;
   collections: { name: string; count: number }[];
+}
+
+// One row in a chart drill-down (who joined / who was active in a range)
+export interface ActivityUserRow {
+  id?: string;
+  _id?: string;
+  name: string;
+  email: string;
+  picture?: string | null;
+  role?: UserRole;
+  course?: string;
+  studentId?: string;
+  phoneNumber?: string;
+  createdAt?: string;
+  lastLogin?: string;
+  eventCount?: number;
 }
