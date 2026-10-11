@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { pdfApi } from '@/lib/api';
+import { pdfApi, pyqApi } from '@/lib/api';
 import { InstagramFollowGate, isUnlocked } from '@/components/instagram-follow-gate';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, ArrowLeft, AlertCircle } from 'lucide-react';
@@ -88,6 +88,12 @@ function ViewPDFContent() {
         const blob = await pdfApi.view(id, type);
         setPdfBlob(blob);
         setError(null);
+        // Direct-link opens must count as a paper view too (the browse list
+        // fires trackView before navigating; the 30-min dedupe window on the
+        // server means this is a no-op when both fire).
+        if (type === 'pyq') {
+          pyqApi.trackView(id).catch(() => {});
+        }
       } catch (err: any) {
         console.error('Error fetching PDF:', err);
 

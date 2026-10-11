@@ -31,6 +31,13 @@ export const authenticateJWT = async (req, res, next) => {
       });
     }
 
+    // The auth cache stores the API shape (`id`, no `_id`) — normalize so any
+    // consumer reading req.user._id (activity tracking, PDF watermarking)
+    // gets a usable id either way.
+    if (user._id === undefined && user.id !== undefined) {
+      user._id = user.id;
+    }
+
     // Attach the resolved permission set ('all' for super-admin, otherwise an
     // array of keys) so route middlewares and controllers can gate on it.
     // Resolved fresh per request — never part of the Redis user cache — so
