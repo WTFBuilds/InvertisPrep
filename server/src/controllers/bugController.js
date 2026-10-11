@@ -1,4 +1,5 @@
 import { Bug } from '../models/Bug.js';
+import { logActivity } from '../services/activityService.js';
 
 // Create a new bug report
 export const createBug = async (req, res) => {
@@ -25,6 +26,19 @@ export const createBug = async (req, res) => {
     }
 
     const bug = await Bug.create(bugData);
+
+    if (req.user?.id) {
+      logActivity(
+        {
+          user: req.user.id,
+          type: 'bug_report',
+          entityId: String(bug._id),
+          title: `Bug: ${title.slice(0, 120)}`,
+          meta: { severity: bugData.severity },
+        },
+        req
+      );
+    }
 
     res.status(201).json({ success: true, data: bug });
   } catch (error) {

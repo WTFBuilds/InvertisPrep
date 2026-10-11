@@ -18,12 +18,15 @@ import {
   ShieldCheck,
   Users,
   HandCoins,
+  DatabaseBackup,
   KeyRound,
   Mail,
   MailOpen,
   PenSquare,
   ScrollText,
   BellRing,
+  Activity,
+  Megaphone,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -45,6 +48,9 @@ export const adminNavItems = [
   { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Roles", url: "/admin/roles", icon: KeyRound },
+  { title: "DB Backup", url: "/admin/backup", icon: DatabaseBackup },
+  { title: "Activity Monitor", url: "/admin/activity", icon: Activity },
+  { title: "Marketing", url: "/admin/marketing", icon: Megaphone },
   { title: "Departments", url: "/admin/departments", icon: Building2 },
   { title: "Branches", url: "/admin/branches", icon: GitBranch },
   { title: "Sessions", url: "/admin/sessions", icon: Calendar },

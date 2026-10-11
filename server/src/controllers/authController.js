@@ -4,6 +4,7 @@ import { User } from '../models/User.js';
 import { verifyGoogleToken } from '../services/googleAuthService.js';
 import { authService } from '../services/authService.js';
 import { sendWelcomeEmail } from '../services/mailService.js';
+import { logActivity, touchPresence } from '../services/activityService.js';
 
 // Centralised user shape so every response stays consistent
 const formatUser = (user) => ({
@@ -86,6 +87,10 @@ export const login = async (req, res) => {
     // Update last login
     user.lastLogin = new Date();
     await user.save();
+
+    // Activity trail + immediate presence (fire-and-forget — never blocks login)
+    logActivity({ user: user._id, type: 'login', title: 'Signed in with email', path: '/login' }, req);
+    touchPresence(user._id, { path: '/login', title: 'Sign in' }, req);
 
     // Generate tokens via authService (with Redis session)
     const { accessToken, refreshToken } = await authService.login(user, rememberMe);
@@ -195,6 +200,7 @@ export const googleLogin = async (req, res) => {
         sendWelcomeEmail(user).catch((err) =>
           console.error('[mail] welcome (google) failed:', err?.message)
         );
+        logActivity({ user: user._id, type: 'signup', title: 'Joined via Google', path: '/login' }, req);
       } else if (!user.isActive) {
         res.status(403).json({ success: false, message: 'Your account has been disabled' });
         return;
@@ -244,6 +250,9 @@ export const googleLogin = async (req, res) => {
       req.ip
     );
 
+    logActivity({ user: user._id, type: 'login', title: 'Signed in with Google' }, req);
+    touchPresence(user._id, { title: 'Sign in' }, req);
+
     res.json({
       success: true,
       token: accessToken,
@@ -266,6 +275,22 @@ export const googleLogin = async (req, res) => {
 export const logout = async (req, res) => {
   try {
     const userId = req.user?.id;
+
+    // The logout route intentionally has no auth middleware (expired sessions
+    // must still be clearable), so resolve the caller from the access token
+    // when present — purely to land the event in the activity trail.
+    let actorId = userId;
+    if (!actorId) {
+      const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+      if (token) {
+        const actor = await authService.validateAccessToken(token).catch(() => null);
+        actorId = actor?.id || actor?._id?.toString() || null;
+      }
+    }
+    if (actorId) {
+      logActivity({ user: actorId, type: 'logout', title: 'Signed out' }, req);
+    }
+
     if (userId) {
       await authService.revokeSession(userId);
       res.clearCookie('refreshToken', {
@@ -454,6 +479,9 @@ export const register = async (req, res) => {
       req.headers['user-agent'],
       req.ip
     );
+
+    logActivity({ user: user._id, type: 'signup', title: 'Created an account', path: '/login' }, req);
+    touchPresence(user._id, { path: '/login', title: 'Sign up' }, req);
 
     res.status(201).json({
       success: true,

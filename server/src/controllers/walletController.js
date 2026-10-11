@@ -1,11 +1,50 @@
+import crypto from 'crypto';
 import { User } from '../models/User.js';
 import { Transaction } from '../models/Transaction.js';
+import { Payment } from '../models/Payment.js';
+import { getRazorpay } from '../config/razorpay.js';
 
 // Top-up pack definitions — server-side source of truth
 export const PACKS = {
   starter: { coins: 200,  rupees: 19.99, label: 'Starter' },
   plus:    { coins: 600,  rupees: 49.99, label: 'Plus'    },
   pro:     { coins: 1400, rupees: 99.99, label: 'Pro'     },
+};
+
+const timingSafeEqualHex = (a, b) => {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
+};
+
+// Atomically flip a Payment out of 'created' — whichever caller (checkout
+// verify or webhook) wins the claim is the only one that credits coins.
+const claimPayment = (orderId, patch) =>
+  Payment.findOneAndUpdate(
+    { razorpayOrderId: orderId, status: { $ne: 'paid' } },
+    { $set: patch },
+    { new: true }
+  );
+
+const creditCoinsForPayment = async (payment) => {
+  const pack = PACKS[payment.packId];
+  const user = await User.findByIdAndUpdate(
+    payment.userId,
+    { $inc: { qcoins: payment.coins } },
+    { new: true }
+  ).select('qcoins freeDownloadsLeft');
+
+  await Transaction.create({
+    userId:       payment.userId,
+    type:         'credit',
+    category:     'topup',
+    coins:        payment.coins,
+    rupees:       payment.amount,
+    description:  `${pack.label} pack — ${pack.coins} QCoins purchased for ₹${payment.amount}`,
+    balanceAfter: user.qcoins,
+  });
+
+  return user;
 };
 
 // GET /api/wallet/balance
@@ -59,8 +98,10 @@ export const getTransactions = async (req, res) => {
   }
 };
 
-// POST /api/wallet/topup   body: { packId: 'starter' | 'plus' | 'pro' }
-export const topup = async (req, res) => {
+// POST /api/wallet/orders   body: { packId: 'starter' | 'plus' | 'pro' }
+// Creates a Razorpay order for the pack. Coins are NOT credited here —
+// only after the payment is verified (checkout signature or webhook).
+export const createTopupOrder = async (req, res) => {
   try {
     const { packId } = req.body;
     const pack = PACKS[packId];
@@ -75,31 +116,183 @@ export const topup = async (req, res) => {
       return;
     }
 
-    user.qcoins = (user.qcoins ?? 0) + pack.coins;
-    await user.save();
+    const amountPaise = Math.round(pack.rupees * 100);
+    const receipt = `qc_${user._id.toString().slice(-10)}_${Date.now().toString(36)}`.slice(0, 40);
 
-    const tx = await Transaction.create({
+    const order = await getRazorpay().orders.create({
+      amount: amountPaise,
+      currency: 'INR',
+      receipt,
+      notes: { userId: user._id.toString(), packId, coins: String(pack.coins) },
+    });
+
+    await Payment.create({
       userId:       user._id,
-      type:         'credit',
-      category:     'topup',
+      packId,
       coins:        pack.coins,
-      rupees:       pack.rupees,
-      description:  `${pack.label} pack — ${pack.coins} QCoins purchased for ₹${pack.rupees}`,
-      balanceAfter: user.qcoins,
+      amount:       pack.rupees,
+      currency:     'INR',
+      razorpayOrderId: order.id,
+      status:       'created',
     });
 
     res.json({
       success: true,
-      message: `${pack.coins} QCoins added to your wallet!`,
       data: {
-        qcoins:      user.qcoins,
-        freeDownloadsLeft: user.freeDownloadsLeft ?? 2,
-        transaction: tx,
+        orderId:  order.id,
+        amount:   order.amount,
+        currency: order.currency,
+        keyId:    process.env.RAZORPAY_KEY_ID,
+        pack:     { id: packId, coins: pack.coins, rupees: pack.rupees, label: pack.label },
       },
     });
   } catch (err) {
-    console.error('[wallet] topup error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    if (err.statusCode === 503) {
+      res.status(503).json({ success: false, message: err.message });
+      return;
+    }
+    console.error('[wallet] createTopupOrder error:', err);
+    res.status(500).json({ success: false, message: 'Could not create payment order' });
+  }
+};
+
+// POST /api/wallet/verify
+// body: { razorpay_order_id, razorpay_payment_id, razorpay_signature }
+// Verifies the checkout handler's HMAC signature, then credits coins once.
+export const verifyTopup = async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      res.status(400).json({ success: false, message: 'Missing Razorpay verification fields' });
+      return;
+    }
+
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) {
+      res.status(503).json({ success: false, message: 'Razorpay is not configured.' });
+      return;
+    }
+
+    const expected = crypto
+      .createHmac('sha256', secret)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
+    if (!timingSafeEqualHex(expected, razorpay_signature)) {
+      res.status(400).json({ success: false, message: 'Invalid payment signature' });
+      return;
+    }
+
+    const payment = await Payment.findOne({ razorpayOrderId: razorpay_order_id });
+    if (!payment) {
+      res.status(404).json({ success: false, message: 'Payment order not found' });
+      return;
+    }
+    if (String(payment.userId) !== String(req.user.id)) {
+      res.status(403).json({ success: false, message: 'This order belongs to another user' });
+      return;
+    }
+
+    if (payment.status === 'paid') {
+      // Webhook already credited — return current balance without double-crediting
+      const user = await User.findById(req.user.id).select('qcoins freeDownloadsLeft');
+      res.json({
+        success: true,
+        message: 'Payment already processed',
+        data: { qcoins: user.qcoins, freeDownloadsLeft: user.freeDownloadsLeft ?? 2, alreadyProcessed: true },
+      });
+      return;
+    }
+
+    const claimed = await claimPayment(razorpay_order_id, {
+      status:            'paid',
+      razorpayPaymentId: razorpay_payment_id,
+      razorpaySignature: razorpay_signature,
+    });
+    if (!claimed) {
+      // Lost the race against the webhook — coins are credited, just report balance
+      const user = await User.findById(req.user.id).select('qcoins freeDownloadsLeft');
+      res.json({
+        success: true,
+        message: 'Payment already processed',
+        data: { qcoins: user.qcoins, freeDownloadsLeft: user.freeDownloadsLeft ?? 2, alreadyProcessed: true },
+      });
+      return;
+    }
+
+    const user = await creditCoinsForPayment(claimed);
+
+    res.json({
+      success: true,
+      message: `${claimed.coins} QCoins added to your wallet!`,
+      data: {
+        qcoins:            user.qcoins,
+        freeDownloadsLeft: user.freeDownloadsLeft ?? 2,
+      },
+    });
+  } catch (err) {
+    console.error('[wallet] verifyTopup error:', err);
+    res.status(500).json({ success: false, message: 'Payment verification failed' });
+  }
+};
+
+// POST /api/wallet/webhook  — Razorpay server-to-server events.
+// Kept unauthenticated: the x-razorpay-signature HMAC over the raw body is
+// the authenticator, so this route must be able to read the raw request body.
+export const razorpayWebhook = async (req, res) => {
+  try {
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    const signature = req.headers['x-razorpay-signature'];
+
+    if (!secret) {
+      console.error('[wallet] webhook received but RAZORPAY_WEBHOOK_SECRET is not set');
+      res.status(503).json({ success: false, message: 'Webhook not configured' });
+      return;
+    }
+    if (!signature || !req.rawBody) {
+      res.status(400).json({ success: false, message: 'Missing signature' });
+      return;
+    }
+
+    const expected = crypto.createHmac('sha256', secret).update(req.rawBody).digest('hex');
+    if (!timingSafeEqualHex(expected, signature)) {
+      res.status(400).json({ success: false, message: 'Invalid webhook signature' });
+      return;
+    }
+
+    const event = req.body;
+    const entity = event?.payload?.payment?.entity;
+    const orderId = event.event === 'order.paid' ? entity?.id : entity?.order_id;
+
+    if ((event.event === 'payment.captured' || event.event === 'order.paid') && orderId) {
+      const payment = await Payment.findOne({ razorpayOrderId: orderId });
+      if (!payment) {
+        console.warn(`[wallet] webhook for unknown order ${orderId}`);
+        res.json({ received: true });
+        return;
+      }
+
+      if (payment.status === 'paid') {
+        res.json({ received: true });
+        return;
+      }
+
+      const claimed = await claimPayment(orderId, {
+        status:            'paid',
+        razorpayPaymentId: entity?.id ?? payment.razorpayPaymentId,
+        method:            entity?.method ?? null,
+      });
+      if (claimed) await creditCoinsForPayment(claimed);
+    } else if (event.event === 'payment.failed' && entity?.order_id) {
+      await Payment.updateOne(
+        { razorpayOrderId: entity.order_id, status: 'created' },
+        { $set: { status: 'failed', failureReason: entity?.error_description ?? 'Payment failed' } }
+      );
+    }
+
+    res.json({ received: true });
+  } catch (err) {
+    console.error('[wallet] webhook error:', err);
+    res.status(500).json({ success: false, message: 'Webhook processing failed' });
   }
 };
 

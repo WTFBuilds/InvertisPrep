@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { PDFDocument } from '../models/PDFDocument.js';
 import { uploadPDF, deletePDF } from '../services/cloudinaryService.js';
+import { logActivity, hasRecentEvent, VIEW_DEDUPE_MS, DOWNLOAD_DEDUPE_MS, SEARCH_DEDUPE_MS } from '../services/activityService.js';
 import fs from 'fs/promises';
 
 // Points logic is simplified for PDF service or call main server if needed
@@ -193,6 +194,26 @@ export const getAllPYQs = async (req, res) => {
         .lean(),
     ]);
 
+    // Search analytics — attribute the query to the caller when a token is
+    // present (the route is public, so guests are skipped). Deduped so
+    // keystroke-level refetches don't flood the trail.
+    if (search && req.user?._id) {
+      const queryKey = search.trim().toLowerCase().slice(0, 64);
+      const seen = await hasRecentEvent({ userId: req.user._id, type: 'search', entityId: queryKey, withinMs: SEARCH_DEDUPE_MS });
+      if (!seen) {
+        logActivity(
+          {
+            user: req.user._id,
+            type: 'search',
+            entityId: queryKey,
+            title: search.trim().slice(0, 120),
+            path: '/pyq',
+          },
+          req
+        );
+      }
+    }
+
     res.json({ success: true, count: papers.length, total, page: pageNum, pageSize, data: papers });
   } catch (error) {
     console.error('Get all PYQs error:', error);
@@ -204,10 +225,33 @@ export const getAllPYQs = async (req, res) => {
 export const trackDownload = async (req, res) => {
   try {
     const { id } = req.params;
-    const pyq = await PDFDocument.findByIdAndUpdate(id, { $inc: { downloads: 1 } }, { new: true });
+    const pyq = await PDFDocument.findByIdAndUpdate(id, { $inc: { downloads: 1 } }, { new: true })
+      .populate('departmentId', 'name displayName')
+      .populate('branchId', 'name');
 
     if (!pyq) {
       return res.status(404).json({ success: false, message: 'PYQ not found' });
+    }
+
+    // Land the download in the shared activity trail (deduped — a double-click
+    // shouldn't read as two downloads).
+    const seen = await hasRecentEvent({ userId: req.user?._id, type: 'paper_download', entityId: id, withinMs: DOWNLOAD_DEDUPE_MS });
+    if (!seen) {
+      logActivity(
+        {
+          user: req.user?._id,
+          type: 'paper_download',
+          entityType: 'paper',
+          entityId: id,
+          title: pyq.subjectName ? `${pyq.subjectName} · ${pyq.year}` : 'Paper download',
+          subjectName: pyq.subjectName,
+          departmentName: pyq.departmentId?.displayName || pyq.departmentId?.name || '',
+          branchName: pyq.branchId?.name || '',
+          path: `/view/${id}`,
+          meta: { year: pyq.year },
+        },
+        req
+      );
     }
 
     res.json({ success: true, downloads: pyq.downloads });
@@ -221,10 +265,33 @@ export const trackDownload = async (req, res) => {
 export const trackView = async (req, res) => {
   try {
     const { id } = req.params;
-    const pyq = await PDFDocument.findByIdAndUpdate(id, { $inc: { views: 1 } }, { new: true });
+    const pyq = await PDFDocument.findByIdAndUpdate(id, { $inc: { views: 1 } }, { new: true })
+      .populate('departmentId', 'name displayName')
+      .populate('branchId', 'name');
 
     if (!pyq) {
       return res.status(404).json({ success: false, message: 'PYQ not found' });
+    }
+
+    // The per-user "what is he viewing" answer. Deduped on the 30-min window:
+    // PDF viewers re-request documents frequently while scrolling.
+    const seen = await hasRecentEvent({ userId: req.user?._id, type: 'paper_view', entityId: id, withinMs: VIEW_DEDUPE_MS });
+    if (!seen) {
+      logActivity(
+        {
+          user: req.user?._id,
+          type: 'paper_view',
+          entityType: 'paper',
+          entityId: id,
+          title: pyq.subjectName ? `${pyq.subjectName} · ${pyq.year}` : 'Paper view',
+          subjectName: pyq.subjectName,
+          departmentName: pyq.departmentId?.displayName || pyq.departmentId?.name || '',
+          branchName: pyq.branchId?.name || '',
+          path: `/view/${id}`,
+          meta: { year: pyq.year },
+        },
+        req
+      );
     }
 
     res.json({ success: true, views: pyq.views });

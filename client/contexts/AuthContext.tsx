@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { usePathname, useRouter } from 'next/navigation';
 import { authApi, resumeApi } from '@/lib/api';
 import { isSafeReturnPath, isAuthPage } from '@/lib/canonical';
+import { firstAdminRoute } from '@/lib/permissions';
 import { optimizeAvatar } from '@/lib/avatar';
 import type { User, LoginCredentials } from '@/types';
 
@@ -113,14 +114,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(response.user);
 
         // Redirect based on role — staff accounts (admins, super admins, SRT
-        // and custom-role holders) go to the admin console
+        // and custom-role holders) go to their first accessible admin page.
+        // A marketing role, for instance, lands on /admin/marketing rather
+        // than the dashboard it can't open.
         if (
           response.user.role === 'admin' ||
           response.user.role === 'super-admin' ||
           response.user.role === 'srt' ||
           response.user.role === 'staff'
         ) {
-          router.push('/admin/dashboard');
+          router.push(firstAdminRoute(response.user));
         } else {
           router.push(redirectTo || '/');
         }
