@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { QuizSocketProvider } from "@/contexts/QuizSocketContext";
 import SiteShell from "@/components/layout/SiteShell";
+import { ActivityTracker } from "@/components/activity-tracker";
 import { Toaster } from "@/components/ui/sonner";
 import { siteConfig } from "@/lib/seo";
 
@@ -93,6 +94,8 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         <AuthProvider>
+          {/* Client-side activity tracking: page views + presence heartbeat */}
+          <ActivityTracker />
           <QuizSocketProvider>
             <SiteShell>{children}</SiteShell>
           </QuizSocketProvider>

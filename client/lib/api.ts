@@ -25,6 +25,8 @@ import type {
   TopUpPack,
   TopUpPackId,
   TopUpPacks,
+  WalletTopupOrder,
+  RazorpayCheckoutSuccess,
   TransactionMeta,
   TransactionType,
   InvertisEvent,
@@ -43,6 +45,16 @@ import type {
   MailTemplate,
   UnifiedMailLog,
   NotifySettings,
+  ActivityEvent,
+  ActivityOverview,
+  ActivityUserSummary,
+  PresenceInfo,
+  MarketingLead,
+  MarketingOverview,
+  MarketingLeadDetail,
+  BackupStats,
+  BackupJob,
+  ImportPreviewSummary,
 } from '@/types';
 
 // Same-origin proxy paths — next.config.ts rewrites forward these to the
@@ -831,10 +843,20 @@ export const walletApi = {
     return data;
   },
 
-  topup: async (packId: TopUpPackId): Promise<APIResponse<WalletBalance & { transaction: WalletTransaction }>> => {
-    const { data } = await apiClient.post<APIResponse<WalletBalance & { transaction: WalletTransaction }>>(
-      '/wallet/topup',
+  createTopupOrder: async (packId: TopUpPackId): Promise<APIResponse<WalletTopupOrder>> => {
+    const { data } = await apiClient.post<APIResponse<WalletTopupOrder>>(
+      '/wallet/orders',
       { packId }
+    );
+    return data;
+  },
+
+  verifyTopup: async (
+    payload: RazorpayCheckoutSuccess
+  ): Promise<APIResponse<WalletBalance & { alreadyProcessed?: boolean }>> => {
+    const { data } = await apiClient.post<APIResponse<WalletBalance & { alreadyProcessed?: boolean }>>(
+      '/wallet/verify',
+      payload
     );
     return data;
   },
@@ -886,6 +908,234 @@ export const eventApi = {
         'Content-Type': 'multipart/form-data',
       },
     });
+    return data;
+  },
+};
+
+// ── Activity tracking (client → server) ─────────────────────────────────────
+// Fire-and-forget event reporting. Failures are swallowed on purpose — the
+// product must never break because tracking did.
+export const activityApi = {
+  track: async (payload: {
+    type: 'page_view' | 'search' | 'profile_update';
+    title?: string;
+    path?: string;
+    entityType?: string;
+    entityId?: string;
+    sessionKey?: string;
+    referrer?: string;
+    meta?: Record<string, unknown>;
+  }): Promise<void> => {
+    try {
+      await apiClient.post('/activity', payload);
+    } catch {
+      // ignore — tracking is best-effort
+    }
+  },
+
+  presence: async (payload: {
+    path?: string;
+    title?: string;
+    sessionKey?: string;
+    visible?: boolean;
+  }): Promise<void> => {
+    try {
+      await apiClient.post('/activity/presence', payload);
+    } catch {
+      // ignore
+    }
+  },
+};
+
+// ── Admin activity monitor ──────────────────────────────────────────────────
+export interface PagedResponse<T> extends APIResponse<T[]> {
+  meta?: { page: number; limit: number; total: number };
+}
+
+export const adminActivityApi = {
+  overview: async (days = 30): Promise<APIResponse<ActivityOverview>> => {
+    const { data } = await apiClient.get<APIResponse<ActivityOverview>>('/admin/activity/overview', {
+      params: { days },
+    });
+    return data;
+  },
+
+  online: async (): Promise<APIResponse<PresenceInfo[]>> => {
+    const { data } = await apiClient.get<APIResponse<PresenceInfo[]>>('/admin/activity/online');
+    return data;
+  },
+
+  feed: async (params?: {
+    page?: number;
+    limit?: number;
+    type?: string;
+    userId?: string;
+    search?: string;
+    from?: string;
+    to?: string;
+  }): Promise<PagedResponse<ActivityEvent>> => {
+    const { data } = await apiClient.get<PagedResponse<ActivityEvent>>('/admin/activity/feed', { params });
+    return data;
+  },
+
+  userSummary: async (userId: string): Promise<APIResponse<ActivityUserSummary>> => {
+    const { data } = await apiClient.get<APIResponse<ActivityUserSummary>>(
+      `/admin/activity/users/${userId}/summary`
+    );
+    return data;
+  },
+
+  userLogs: async (userId: string, params?: { page?: number; limit?: number; type?: string }): Promise<PagedResponse<ActivityEvent>> => {
+    const { data } = await apiClient.get<PagedResponse<ActivityEvent>>(
+      `/admin/activity/users/${userId}/logs`,
+      { params }
+    );
+    return data;
+  },
+
+  userPapers: async (userId: string): Promise<APIResponse<
+    { entityId: string; title: string; subjectName?: string; departmentName?: string; branchName?: string; views: number; downloads: number; lastAt: string }[]
+  >> => {
+    const { data } = await apiClient.get<APIResponse<
+      { entityId: string; title: string; subjectName?: string; departmentName?: string; branchName?: string; views: number; downloads: number; lastAt: string }[]
+    >>(`/admin/activity/users/${userId}/papers`);
+    return data;
+  },
+};
+
+// ── Marketing console ───────────────────────────────────────────────────────
+export const marketingApi = {
+  overview: async (): Promise<APIResponse<MarketingOverview>> => {
+    const { data } = await apiClient.get<APIResponse<MarketingOverview>>('/admin/marketing/overview');
+    return data;
+  },
+
+  leads: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    sort?: string;
+  }): Promise<PagedResponse<MarketingLead> & { meta?: { page: number; limit: number; total: number; counts?: Record<string, number> } }> => {
+    const { data } = await apiClient.get<
+      PagedResponse<MarketingLead> & { meta?: { page: number; limit: number; total: number; counts?: Record<string, number> } }
+    >('/admin/marketing/leads', { params });
+    return data;
+  },
+
+  lead: async (id: string): Promise<APIResponse<MarketingLeadDetail>> => {
+    const { data } = await apiClient.get<APIResponse<MarketingLeadDetail>>(`/admin/marketing/leads/${id}`);
+    return data;
+  },
+
+  exportUrl: (params?: { search?: string; status?: string; sort?: string }): string => {
+    const query = new URLSearchParams();
+    if (params?.search) query.set('search', params.search);
+    if (params?.status && params.status !== 'all') query.set('status', params.status);
+    if (params?.sort && params.sort !== 'engaged') query.set('sort', params.sort);
+    const qs = query.toString();
+    return `/backend/admin/marketing/leads/export${qs ? `?${qs}` : ''}`;
+  },
+
+  // Raw <a> navigation can't carry the JWT, so the export is fetched with the
+  // authenticated client and saved as a blob download.
+  exportCsv: async (params?: { search?: string; status?: string; sort?: string }): Promise<void> => {
+    const { data } = await apiClient.get<Blob>(marketingApi.exportUrl(params), {
+      responseType: 'blob',
+    });
+    const url = URL.createObjectURL(data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `invertisprep-leads-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
+};
+
+// DB Backup & Restore API — super-admin only
+export const backupApi = {
+  stats: async (): Promise<APIResponse<BackupStats>> => {
+    const { data } = await apiClient.get<APIResponse<BackupStats>>('/admin/backup/stats');
+    return data;
+  },
+
+  // Copy the whole live DB into another MongoDB URI — returns a job id to poll
+  startToUri: async (payload: {
+    uri: string;
+    dbName?: string;
+    dropTarget?: boolean;
+  }): Promise<APIResponse<{ jobId: string; target: { database: string; uri: string } }>> => {
+    const { data } = await apiClient.post<
+      APIResponse<{ jobId: string; target: { database: string; uri: string } }>
+    >('/admin/backup/to-uri', payload);
+    return data;
+  },
+
+  // Download a gzipped EJSON snapshot of the whole DB
+  downloadExport: async (): Promise<{ blob: Blob; filename: string }> => {
+    const res = await apiClient.get('/admin/backup/export', { responseType: 'blob' });
+    let filename = 'invertisprep-backup.json.gz';
+    const header = res.headers['content-disposition'] as string | undefined;
+    if (header) {
+      const starMatch = /filename\*=UTF-8''([^;]+)/i.exec(header);
+      const plainMatch = /filename="?([^";]+)"?/i.exec(header);
+      const raw = starMatch?.[1] ?? plainMatch?.[1];
+      if (raw) {
+        try {
+          filename = decodeURIComponent(raw);
+        } catch {
+          filename = raw;
+        }
+      }
+    }
+    return { blob: res.data as Blob, filename };
+  },
+
+  getJob: async (jobId: string): Promise<APIResponse<BackupJob>> => {
+    const { data } = await apiClient.get<APIResponse<BackupJob>>(`/admin/backup/jobs/${jobId}`);
+    return data;
+  },
+
+  // Import: upload the backup file in small chunks (proxies cap request body
+  // size), then parse it for a preview, then confirm the restore.
+  uploadFile: async (
+    file: File,
+    onProgress?: (percent: number) => void
+  ): Promise<APIResponse<{ uploadId: string }>> => {
+    const chunkSize = 3 * 1024 * 1024;
+    const uploadId = crypto.randomUUID();
+    const totalChunks = Math.max(1, Math.ceil(file.size / chunkSize));
+    for (let i = 0; i < totalChunks; i++) {
+      const blob = file.slice(i * chunkSize, Math.min(file.size, (i + 1) * chunkSize));
+      const formData = new FormData();
+      formData.append('chunk', blob);
+      formData.append('uploadId', uploadId);
+      formData.append('index', String(i));
+      await apiClient.post('/admin/backup/import/chunk', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      onProgress?.(Math.round(((i + 1) / totalChunks) * 100));
+    }
+    return { success: true, data: { uploadId } };
+  },
+
+  parse: async (uploadId: string): Promise<APIResponse<{ uploadId: string; summary: ImportPreviewSummary }>> => {
+    const { data } = await apiClient.post<
+      APIResponse<{ uploadId: string; summary: ImportPreviewSummary }>
+    >('/admin/backup/import/parse', { uploadId });
+    return data;
+  },
+
+  confirm: async (
+    uploadId: string,
+    mode: 'replace' | 'merge'
+  ): Promise<APIResponse<{ jobId: string; mode: 'replace' | 'merge' }>> => {
+    const { data } = await apiClient.post<APIResponse<{ jobId: string; mode: 'replace' | 'merge' }>>(
+      '/admin/backup/import/confirm',
+      { uploadId, mode }
+    );
     return data;
   },
 };

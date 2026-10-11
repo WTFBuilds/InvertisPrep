@@ -4,6 +4,7 @@ import { PYQPaper } from '../models/PYQPaper.js';
 import { Syllabus } from '../models/Syllabus.js';
 import { pdfCache, getCache, setCache } from '../utils/cache.js';
 import { cloudinaryAxios } from '../services/cloudinaryService.js';
+import { logActivity, hasRecentEvent } from '../services/activityService.js';
 
 const hexToRgb = (hex) => {
   const v = hex.replace('#', '');
@@ -248,6 +249,27 @@ export const viewPDF = async (req, res) => {
     const { paper } = await loadPaper(id, type);
     if (!paper) return res.status(404).json({ success: false, message: 'File not found' });
 
+    // Syllabus views are tracked here; PYQ paper views are tracked by the
+    // pdf-service (its trackView endpoint is the single point PYQ opens hit).
+    // Deduped so PDF range re-requests don't inflate the trail.
+    if (type === 'syllabus') {
+      const seen = await hasRecentEvent({ userId: req.user._id, type: 'paper_view', entityId: id, withinMs: 30 * 60 * 1000 });
+      if (!seen) {
+        logActivity(
+          {
+            user: req.user._id,
+            type: 'paper_view',
+            entityType: 'syllabus',
+            entityId: id,
+            title: paper.name || 'Syllabus',
+            departmentName: paper.department || '',
+            path: `/view/${id}?type=syllabus`,
+          },
+          req
+        );
+      }
+    }
+
     const pdfBytes = await buildWatermarkedPdf(paper, req.user);
 
     res.setHeader('Content-Type', 'application/pdf');
@@ -267,6 +289,25 @@ export const downloadPDF = async (req, res) => {
     const { type } = req.query;
     const { paper } = await loadPaper(id, type);
     if (!paper) return res.status(404).json({ success: false, message: 'File not found' });
+
+    // Mirrors viewPDF: syllabus downloads tracked here, PYQ by the pdf-service.
+    if (type === 'syllabus') {
+      const seen = await hasRecentEvent({ userId: req.user._id, type: 'paper_download', entityId: id, withinMs: 10 * 60 * 1000 });
+      if (!seen) {
+        logActivity(
+          {
+            user: req.user._id,
+            type: 'paper_download',
+            entityType: 'syllabus',
+            entityId: id,
+            title: paper.name || 'Syllabus',
+            departmentName: paper.department || '',
+            path: `/view/${id}?type=syllabus`,
+          },
+          req
+        );
+      }
+    }
 
     const pdfBytes = await buildWatermarkedPdf(paper, req.user);
 

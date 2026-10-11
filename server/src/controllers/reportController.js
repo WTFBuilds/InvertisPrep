@@ -1,5 +1,6 @@
 import { Report } from '../models/Report.js';
 import { PYQPaper } from '../models/PYQPaper.js';
+import { logActivity } from '../services/activityService.js';
 
 // Create a new report on a paper
 export const createReport = async (req, res) => {
@@ -26,6 +27,18 @@ export const createReport = async (req, res) => {
         reason,
         description,
       });
+
+      logActivity(
+        {
+          user: userId,
+          type: 'report_create',
+          entityType: 'paper',
+          entityId: String(paperId),
+          title: paper.subjectName ? `Reported: ${paper.subjectName}` : 'Reported a paper',
+          meta: { reason },
+        },
+        req
+      );
 
       res.status(201).json({ success: true, data: report });
     } catch (err) {

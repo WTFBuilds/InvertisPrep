@@ -1,4 +1,5 @@
 import { Resume } from '../models/Resume.js';
+import { logActivity } from '../services/activityService.js';
 
 const permittedFields = [
   'title', 'personal', 'summary', 'education', 'experience', 'projects',
@@ -24,6 +25,10 @@ export const listResumes = async (req, res) => {
 export const createResume = async (req, res) => {
   try {
     const resume = await Resume.create({ userId: req.user.id, ...pickResumeFields(req.body) });
+    logActivity(
+      { user: req.user.id, type: 'resume_create', entityType: 'resume', entityId: String(resume._id), title: 'Created a resume', path: '/resume-builder' },
+      req
+    );
     res.status(201).json({ success: true, data: resume });
   } catch (error) {
     console.error('Create resume error:', error);

@@ -78,6 +78,15 @@ export const PERMISSION_GROUPS = [
       { key: 'emails.manage', label: 'Manage mail', description: 'Send broadcasts and edit mail templates (super-admin can grant)' },
     ],
   },
+  {
+    id: 'monitoring',
+    label: 'Monitoring & Marketing',
+    description: 'Live activity monitor and marketing leads',
+    permissions: [
+      { key: 'activity.view', label: 'View activity monitor', description: 'See who is online, the live event feed and per-user activity trails' },
+      { key: 'marketing.view', label: 'View marketing insights', description: 'See growth analytics and the leads list (contact info included, no IPs)' },
+    ],
+  },
 ] as const;
 
 export const ALL_PERMISSION_KEYS: string[] = PERMISSION_GROUPS.flatMap((g) =>
@@ -192,17 +201,60 @@ export const NAV_PERMISSIONS: Record<string, string[]> = {
   '/admin/mail/compose': ['emails.view'],
   '/admin/mail/logs': ['emails.view'],
   '/admin/mail/notifications': ['emails.view'],
+  '/admin/activity': ['activity.view'],
+  '/admin/marketing': ['marketing.view'],
 };
 
-export const SUPER_ADMIN_ONLY_ROUTES = ['/admin/roles'];
+// Prefix-gated dynamic routes (e.g. /admin/activity/u/:id) — a pathname falls
+// under the first matching prefix.
+export const NAV_PERMISSION_PREFIXES: [string, string[]][] = [
+  ['/admin/activity/u/', ['activity.view']],
+];
+
+export const SUPER_ADMIN_ONLY_ROUTES = ['/admin/roles', '/admin/backup'];
 
 export function canAccessAdminRoute(user: PermissionUser, pathname: string): boolean {
   if (SUPER_ADMIN_ONLY_ROUTES.includes(pathname)) {
     return user?.role === 'super-admin';
   }
+  for (const [prefix, required] of NAV_PERMISSION_PREFIXES) {
+    if (pathname === prefix.replace(/\/$/, '') || pathname.startsWith(prefix)) {
+      return hasAnyPermission(user, ...required);
+    }
+  }
   const required = NAV_PERMISSIONS[pathname];
   if (!required) return true; // not a gated route
   return hasAnyPermission(user, ...required);
+}
+
+/**
+ * First admin route the user can actually open — used as the post-login
+ * landing page for staff, so a marketing role lands on /admin/marketing
+ * instead of hitting "Access denied" on the dashboard.
+ */
+export function firstAdminRoute(user: PermissionUser): string {
+  const order = [
+    '/admin/dashboard',
+    '/admin/activity',
+    '/admin/marketing',
+    '/admin/users',
+    '/admin/roles',
+    '/admin/departments',
+    '/admin/branches',
+    '/admin/sessions',
+    '/admin/upload',
+    '/admin/papers',
+    '/admin/syllabus',
+    '/admin/reports',
+    '/admin/requests',
+    '/admin/bugs',
+    '/admin/events',
+    '/admin/mail',
+  ];
+  for (const route of order) {
+    if (canAccessAdminRoute(user, route)) return route;
+  }
+  return '/admin/dashboard';
 }
 
 /**

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { PaperRequest } from '../models/PaperRequest.js';
 import { PYQPaper } from '../models/PYQPaper.js';
 import { sendPaperRequestAck, sendPaperRequestFulfilled } from '../services/mailService.js';
+import { logActivity } from '../services/activityService.js';
 
 const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -186,6 +187,19 @@ export const createRequest = async (req, res) => {
     // Toggled from the admin Mail section; never blocks the response.
     sendPaperRequestAck(req.user, request).catch((err) =>
       console.error('[mail] paper-request ack failed:', err?.message)
+    );
+
+    logActivity(
+      {
+        user: req.user.id,
+        type: 'request_create',
+        entityType: 'paper-request',
+        entityId: request._id,
+        title: `${request.subjectName}${request.subjectCode ? ` (${request.subjectCode})` : ''} · ${request.year}`,
+        path: '/pyq',
+        meta: { examType: request.examType, year: request.year },
+      },
+      req
     );
 
     res.status(201).json({

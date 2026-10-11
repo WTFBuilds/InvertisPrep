@@ -41,6 +41,10 @@ export const PERMISSIONS = {
   // Mail center
   'emails.view': 'View the mail center (automail, mailbox, logs)',
   'emails.manage': 'Send broadcasts and edit mail templates',
+
+  // Monitoring & marketing
+  'activity.view': 'View the activity monitor: live users, event feed and per-user trails',
+  'marketing.view': 'View marketing insights: growth, engagement and the leads list',
 };
 
 // Reserved for the super-admin — never grantable to custom roles.

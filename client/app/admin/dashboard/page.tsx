@@ -9,19 +9,24 @@ import {
   Clock,
   FileText,
   Flag,
+  Radio,
   ShieldCheck,
+  TrendingUp,
   Trophy,
   Upload,
+  UserCheck,
   UserPlus,
   Users,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasPermission, BUILTIN_ROLE_META } from '@/lib/permissions';
 import {
+  adminActivityApi,
   adminUserApi,
   bugApi,
   eventApi,
   leaderboardApi,
+  marketingApi,
   pyqApi,
   reportApi,
 } from '@/lib/api';
@@ -29,7 +34,18 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ViewableAvatar } from '@/components/admin/viewable-avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { AdminUser, APIResponse, InvertisEvent, PYQPaper, Report, UserStats } from '@/types';
+import { MiniBarChart, timeAgo } from '@/components/admin/activity-shared';
+import type {
+  AdminUser,
+  APIResponse,
+  ActivityOverview,
+  InvertisEvent,
+  MarketingOverview,
+  PresenceInfo,
+  PYQPaper,
+  Report,
+  UserStats,
+} from '@/types';
 import { UserDetailDialog } from '@/components/admin/user-detail-dialog';
 
 interface LeaderEntry {
@@ -75,12 +91,31 @@ const deptName = (d: PYQPaper['departmentId']) =>
   typeof d === 'string' ? d : d.displayName || d.name;
 const branchName = (b: PYQPaper['branchId']) => (typeof b === 'string' ? b : b.name);
 
+const dayLabel = (iso: string) =>
+  new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+
+// One automatic retry after a short delay — covers the seconds when a backend
+// is restarting (e.g. during a deploy) so the dashboard never settles on zeros.
+const withRetry = async <T,>(fn: () => Promise<T>, delayMs = 1500): Promise<T> => {
+  try {
+    return await fn();
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    return fn();
+  }
+};
+
 export default function AdminDashboard() {
   const { user } = useAuth();
 
   // Whether this user may see user-management stats — true for admins,
   // super admins and any custom role granted users.view.
   const canViewUsers = hasPermission(user, 'users.view');
+  // Monitoring surface. activity.view → live users + full overview;
+  // marketing.view → growth overview (no live list, that's monitor-only).
+  const canActivity = hasPermission(user, 'activity.view');
+  const canMarketing = hasPermission(user, 'marketing.view');
+  const canMonitor = canActivity || canMarketing;
 
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [papers, setPapers] = useState<PYQPaper[]>([]);
@@ -92,6 +127,10 @@ export default function AdminDashboard() {
   const [events, setEvents] = useState<InvertisEvent[]>([]);
   const [newestUsers, setNewestUsers] = useState<AdminUser[]>([]);
   const [leaders, setLeaders] = useState<LeaderEntry[]>([]);
+
+  // Live monitoring + growth analytics (main-dashboard surface)
+  const [overview, setOverview] = useState<ActivityOverview | MarketingOverview | null>(null);
+  const [onlineUsers, setOnlineUsers] = useState<PresenceInfo[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [warning, setWarning] = useState<string | null>(null);
@@ -111,11 +150,11 @@ export default function AdminDashboard() {
               failed = true;
               return null;
             }),
-        pyqApi.getAll({ page: 1, limit: 100 }).catch(() => {
+        withRetry(() => pyqApi.getAll({ page: 1, limit: 100 })).catch(() => {
           failed = true;
           return null;
         }),
-        pyqApi.getAll({ page: 1, limit: 5, verified: 'false' }).catch(() => {
+        withRetry(() => pyqApi.getAll({ page: 1, limit: 5, verified: 'false' })).catch(() => {
           failed = true;
           return null;
         }),
@@ -168,9 +207,31 @@ export default function AdminDashboard() {
     fetchAll();
   }, []);
 
+  // Live + growth analytics. activity.view → both panels; marketing.view →
+  // growth only. Auto-refreshes so the dashboard genuinely feels live.
+  useEffect(() => {
+    if (!canMonitor) return;
+    const load = async () => {
+      const [ov, on] = await Promise.all([
+        canActivity
+          ? adminActivityApi.overview(30).catch(() => null)
+          : marketingApi.overview().catch(() => null),
+        canActivity ? adminActivityApi.online().catch(() => null) : Promise.resolve(null),
+      ]);
+      if (ov?.success && ov.data) setOverview(ov.data);
+      if (on?.success && Array.isArray(on.data)) setOnlineUsers(on.data);
+    };
+    load();
+    const interval = setInterval(load, 30_000);
+    return () => clearInterval(interval);
+  }, [canMonitor, canActivity]);
+
   const verifiedCount = papers.filter((p) => p.verified).length;
   const unverified = unverifiedPapers; // server-filtered list (accurate total via unverifiedTotal)
   const activeEvents = events.filter((ev) => ev.registrationOpen);
+
+  const monitorHref = canActivity ? '/admin/activity' : '/admin/marketing';
+  const onlineNow = overview?.onlineNow ?? onlineUsers.length;
 
   const roleLabel =
     user?.role === 'staff'
@@ -186,7 +247,7 @@ export default function AdminDashboard() {
   });
 
   const statCards = [
-    // Only users who can view user management get the Total Users card.
+    // Users + live users — the headline pair on the main dash
     ...(canViewUsers
       ? [
           {
@@ -196,6 +257,26 @@ export default function AdminDashboard() {
             icon: Users,
             href: '/admin/users',
             tint: 'bg-indigo-100 text-indigo-600',
+          },
+        ]
+      : []),
+    ...(canMonitor
+      ? [
+          {
+            label: 'Online Now',
+            value: onlineNow,
+            sub: 'on the platform right now',
+            icon: Radio,
+            href: monitorHref,
+            tint: 'bg-emerald-100 text-emerald-600',
+          },
+          {
+            label: 'Active Today',
+            value: overview?.activeToday,
+            sub: `${overview?.activeWeek ?? '—'} active this week`,
+            icon: UserCheck,
+            href: monitorHref,
+            tint: 'bg-sky-100 text-sky-600',
           },
         ]
       : []),
@@ -259,6 +340,16 @@ export default function AdminDashboard() {
           ? 'bg-orange-100 text-orange-700'
           : 'bg-slate-100 text-slate-500';
 
+  const signupChart = (overview?.signupSeries ?? []).map((p) => ({ label: p.date, value: p.count }));
+  const weeklyChart = (overview?.signupWeeklySeries ?? []).map((p) => ({ label: p.week, value: p.count }));
+  const dauChart = (overview?.dauSeries ?? []).map((p) => ({ label: p.date, value: p.count }));
+
+  const growthNumbers = [
+    { label: 'Last 24 hrs', value: overview?.new24h, tint: 'text-emerald-600', chip: 'bg-emerald-50 border-emerald-100' },
+    { label: 'Last 7 days', value: overview?.newWeek, tint: 'text-sky-600', chip: 'bg-sky-50 border-sky-100' },
+    { label: 'Last 30 days', value: (overview as MarketingOverview | null)?.newMonth ?? (overview as ActivityOverview | null)?.new30d, tint: 'text-indigo-600', chip: 'bg-indigo-50 border-indigo-100' },
+  ];
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -294,7 +385,7 @@ export default function AdminDashboard() {
       )}
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
         {statCards.map((s) => (
           <Link key={s.label} href={s.href}>
             <div className="group h-full rounded-2xl border border-slate-200 bg-white p-4 transition-shadow hover:shadow-md">
@@ -312,6 +403,148 @@ export default function AdminDashboard() {
           </Link>
         ))}
       </div>
+
+      {/* Live & growth — the main-dashboard monitoring surface */}
+      {canMonitor && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {/* Live users */}
+          {canActivity && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 lg:col-span-2">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Radio className="h-4 w-4 text-emerald-500" />
+                  <h2 className="text-sm font-black tracking-tight text-slate-800">Live on InvertisPrep</h2>
+                  <Badge className="gap-1.5 border border-emerald-200 bg-emerald-50 text-emerald-700">
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                    </span>
+                    {onlineNow} online
+                  </Badge>
+                </div>
+                <Link
+                  href="/admin/activity"
+                  className="flex items-center gap-1 text-xs font-bold text-slate-700 transition-colors hover:text-indigo-600"
+                >
+                  Activity Monitor <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+              {overview === null && onlineUsers.length === 0 ? (
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}
+                </div>
+              ) : onlineUsers.length === 0 ? (
+                <div className="flex h-32 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-200 text-center">
+                  <p className="text-2xl">🌙</p>
+                  <p className="text-xs font-semibold text-slate-400">No one is online right now</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {onlineUsers.slice(0, 9).map((p) => {
+                    const u = p.user as { _id?: string; id?: string; name: string; email: string; picture?: string | null } | null;
+                    if (!u) return null;
+                    const uid = u._id || u.id || '';
+                    return (
+                      <Link
+                        key={uid}
+                        href={`/admin/activity/u/${uid}`}
+                        className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2 transition-colors hover:border-indigo-200 hover:bg-indigo-50/40"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="relative shrink-0">
+                            <ViewableAvatar src={u.picture} name={u.name} className="h-7 w-7" />
+                            <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-white bg-emerald-500" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[11px] font-bold text-slate-800">{u.name}</p>
+                            <p className="truncate text-[10px] text-slate-400">{timeAgo(p.lastSeenAt)}</p>
+                          </div>
+                        </div>
+                        <p className="mt-1 truncate text-[10px] font-medium text-indigo-600">
+                          {p.currentTitle || p.currentPath || 'Just active'}
+                        </p>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Growth — joined in 24 hrs / 7 days / 30 days */}
+          <div className={`rounded-2xl border border-slate-200 bg-white p-4 ${canActivity ? '' : 'lg:col-span-3'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-indigo-500" />
+                <h2 className="text-sm font-black tracking-tight text-slate-800">User Growth</h2>
+              </div>
+              <Link
+                href="/admin/marketing"
+                className="flex items-center gap-1 text-xs font-bold text-slate-700 transition-colors hover:text-indigo-600"
+              >
+                Marketing <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+
+            <div className={`grid grid-cols-3 gap-2 ${canActivity ? '' : 'sm:max-w-md'}`}>
+              {growthNumbers.map((g) => (
+                <div key={g.label} className={`rounded-xl border px-3 py-2.5 text-center ${g.chip}`}>
+                  {overview === null ? (
+                    <Skeleton className="mx-auto h-6 w-10" />
+                  ) : (
+                    <p className={`text-xl font-black leading-none ${g.tint}`}>{g.value ?? 0}</p>
+                  )}
+                  <p className="mt-1 text-[10px] font-bold text-slate-500">joined {g.label}</p>
+                </div>
+              ))}
+            </div>
+
+            {overview !== null && (
+              <div className="mt-4">
+                <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Weekly joins · 8 weeks
+                </p>
+                <MiniBarChart data={weeklyChart} height={52} barClass="fill-emerald-500" />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Signup analytics — daily series on the main dash */}
+      {canMonitor && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-black tracking-tight text-slate-800">New signups · last 30 days</h3>
+              <Badge variant="outline" className="text-[11px] font-semibold text-slate-500">
+                {overview ? ((overview as MarketingOverview).newMonth ?? (overview as ActivityOverview).new30d) : '—'} total
+              </Badge>
+            </div>
+            {overview === null ? (
+              <Skeleton className="h-16 w-full" />
+            ) : (
+              <MiniBarChart data={signupChart} height={72} formatLabel={dayLabel} />
+            )}
+            <div className="mt-1.5 flex justify-between text-[10px] text-slate-400">
+              <span>{signupChart.length ? dayLabel(signupChart[0].label) : ''}</span>
+              <span>Today</span>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <h3 className="mb-3 text-sm font-black tracking-tight text-slate-800">Daily active users · last 30 days</h3>
+            {overview === null ? (
+              <Skeleton className="h-16 w-full" />
+            ) : (
+              <MiniBarChart data={dauChart} height={72} barClass="fill-sky-500" formatLabel={dayLabel} />
+            )}
+            <div className="mt-1.5 flex justify-between text-[10px] text-slate-400">
+              <span>{dauChart.length ? dayLabel(dauChart[0].label) : ''}</span>
+              <span>{overview?.activeMonth ?? '—'} active this month</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Needs attention */}
       <div className="space-y-4">

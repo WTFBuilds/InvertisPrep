@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { adminUserApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { BUILTIN_ROLE_META, ROLE_COLORS } from '@/lib/permissions';
+import { BUILTIN_ROLE_META, ROLE_COLORS, hasPermission } from '@/lib/permissions';
 import type { AdminUserDetail } from '@/types';
 import {
   Dialog,
@@ -19,6 +19,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DeleteUserDialog } from '@/components/admin/delete-user-dialog';
 import {
+  Activity as ActivityIcon,
   AlertCircle,
   ArrowDownLeft,
   ArrowUpRight,
@@ -77,6 +78,7 @@ const roleBadge = (role: string, roleLabel?: string | null, roleColor?: string |
 export function UserDetailDialog({ userId, open, onOpenChange, onDeleted }: UserDetailDialogProps) {
   const { user: currentUser } = useAuth();
   const isSuperAdmin = currentUser?.role === 'super-admin';
+  const canViewActivity = hasPermission(currentUser, 'activity.view');
   const [detail, setDetail] = useState<AdminUserDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -179,6 +181,16 @@ export function UserDetailDialog({ userId, open, onOpenChange, onDeleted }: User
                 >
                   {detail.user.isActive ? 'Active' : 'Banned'}
                 </Badge>
+                {canViewActivity && (
+                  <a
+                    href={`/admin/activity/u/${detail.user.id}`}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 transition-colors hover:border-indigo-300 hover:text-indigo-600"
+                    onClick={() => onOpenChange(false)}
+                  >
+                    <ActivityIcon className="h-3.5 w-3.5" />
+                    Activity trail
+                  </a>
+                )}
                 {isSuperAdmin &&
                   detail.user.id !== currentUser?.id &&
                   detail.user.role !== 'super-admin' && (

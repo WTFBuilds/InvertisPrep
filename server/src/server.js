@@ -33,6 +33,10 @@ import roleRoutes from './routes/roles.js';
 import sponsorRoutes from './routes/sponsors.js';
 import paperRequestRoutes from './routes/paperRequests.js';
 import adminMailRoutes from './routes/adminMail.js';
+import activityRoutes from './routes/activity.js';
+import adminActivityRoutes from './routes/adminActivity.js';
+import adminMarketingRoutes from './routes/adminMarketing.js';
+import adminBackupRoutes from './routes/adminBackup.js';
 
 // Initialize Express app
 const app = express();
@@ -108,7 +112,12 @@ const initApp = async () => {
   app.use('/api/leaderboard', readLimiter);
 
   // Resume drafts can include a deliberately small base64 profile photo.
-  app.use(express.json({ limit: bodyLimit }));
+  // verify: stash the raw body so the Razorpay webhook can check its
+  // HMAC signature against the exact bytes Razorpay signed.
+  app.use(express.json({
+    limit: bodyLimit,
+    verify: (req, _res, buf) => { req.rawBody = buf; },
+  }));
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
 
@@ -136,6 +145,10 @@ app.use('/api/events', eventRoutes);
 app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/admin/roles', roleRoutes);
 app.use('/api/admin/mail', adminMailRoutes);
+app.use('/api/admin/activity', adminActivityRoutes);
+app.use('/api/admin/marketing', adminMarketingRoutes);
+app.use('/api/admin/backup', adminBackupRoutes);
+app.use('/api/activity', activityRoutes);
 app.use('/api/sponsors', sponsorRoutes);
 
   // Apply write limiter to mutation-heavy routes
