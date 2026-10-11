@@ -10,6 +10,7 @@ import {
   Globe,
   Megaphone,
   Radio,
+  RefreshCw,
   Search,
   Snowflake,
   Sparkles,
@@ -244,6 +245,7 @@ export default function MarketingPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -319,8 +321,25 @@ export default function MarketingPage() {
             Growth, engagement and every lead — who signed up, how active they are, and what they care about.
           </p>
         </div>
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => marketingApi.exportCsv({ search, status, sort })}>
-          <Download className="h-3.5 w-3.5" /> Export leads CSV
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          disabled={exporting}
+          onClick={async () => {
+            setExporting(true);
+            try {
+              await marketingApi.exportCsv({ search, status, sort });
+              setError(null);
+            } catch {
+              setError('Could not export leads. Please try again.');
+            } finally {
+              setExporting(false);
+            }
+          }}
+        >
+          {exporting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+          {exporting ? 'Exporting…' : 'Export leads CSV'}
         </Button>
       </div>
 
@@ -500,7 +519,7 @@ export default function MarketingPage() {
                 className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-slate-50"
               >
                 <div className="relative shrink-0">
-                  <ViewableAvatar src={l.picture} name={l.name} className="h-9 w-9" />
+                  <ViewableAvatar src={l.picture} name={l.name} className="h-9 w-9" plain />
                   {l.online && (
                     <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
                   )}

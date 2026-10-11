@@ -1028,6 +1028,9 @@ export const marketingApi = {
     return data;
   },
 
+  // Raw href for direct navigation (the Next rewrite maps /backend/* to the
+  // API). Never pass this to apiClient — its baseURL is already '/backend',
+  // so that would request /backend/backend/… and 404.
   exportUrl: (params?: { search?: string; status?: string; sort?: string }): string => {
     const query = new URLSearchParams();
     if (params?.search) query.set('search', params.search);
@@ -1037,12 +1040,20 @@ export const marketingApi = {
     return `/backend/admin/marketing/leads/export${qs ? `?${qs}` : ''}`;
   },
 
-  // Raw <a> navigation can't carry the JWT, so the export is fetched with the
-  // authenticated client and saved as a blob download.
+  // Authenticated CSV download: raw <a> navigation can't carry the JWT, so the
+  // file is fetched with the axios client (axios-relative path, no /backend
+  // prefix — the baseURL adds it) and saved as a blob.
   exportCsv: async (params?: { search?: string; status?: string; sort?: string }): Promise<void> => {
-    const { data } = await apiClient.get<Blob>(marketingApi.exportUrl(params), {
+    const query: Record<string, string> = {};
+    if (params?.search) query.search = params.search;
+    if (params?.status && params.status !== 'all') query.status = params.status;
+    if (params?.sort && params.sort !== 'engaged') query.sort = params.sort;
+
+    const { data } = await apiClient.get<Blob>('/admin/marketing/leads/export', {
+      params: query,
       responseType: 'blob',
     });
+
     const url = URL.createObjectURL(data);
     const a = document.createElement('a');
     a.href = url;

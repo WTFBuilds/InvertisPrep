@@ -452,7 +452,7 @@ export default function AdminDashboard() {
                       >
                         <div className="flex items-center gap-2">
                           <div className="relative shrink-0">
-                            <ViewableAvatar src={u.picture} name={u.name} className="h-7 w-7" />
+                            <ViewableAvatar src={u.picture} name={u.name} className="h-7 w-7" plain />
                             <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-white bg-emerald-500" />
                           </div>
                           <div className="min-w-0 flex-1">

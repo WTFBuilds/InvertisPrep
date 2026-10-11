@@ -166,7 +166,7 @@ export default function ActivityMonitorPage() {
             >
               <div className="flex items-center gap-2.5">
                 <div className="relative shrink-0">
-                  <ViewableAvatar src={u.picture} name={u.name} className="h-8 w-8" />
+                  <ViewableAvatar src={u.picture} name={u.name} className="h-8 w-8" plain />
                   <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -277,7 +277,7 @@ export default function ActivityMonitorPage() {
                 return (
                   <div key={ev._id} className="flex items-start gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-slate-50">
                     <Link href={`/admin/activity/u/${u.id}`} className="shrink-0" title="Open full trail">
-                      <ViewableAvatar src={u.picture} name={u.name} className="h-8 w-8" />
+                      <ViewableAvatar src={u.picture} name={u.name} className="h-8 w-8" plain />
                     </Link>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
