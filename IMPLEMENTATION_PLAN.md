@@ -364,3 +364,10 @@ If issues arise:
 - [ ] Generic watermark renders correctly
 - [ ] No user email/date in PDF footer
 - [ ] All existing tests pass
+## Editable built-in roles + deep dashboard permissions (Oct 12)
+
+- **Built-in admin & SRT are now editable** — they exist as real Role docs (`isSystem: true`), seeded by `listRoles` from `BUILTIN_ROLE_PERMISSIONS`. Super-admin stays 'all' and student stays [] (both fixed). Only their **permissions** are editable; identity (name/label/color) is locked.
+- **`papers.delete` is now super-admin only** (added to `SYSTEM_ONLY_PERMISSIONS`); the grantable key is `papers.edit` (edit details). pdf-service: `PUT /pyq/:id` → `requirePermission('papers.edit')`, `DELETE /pyq/:id` → `isSuperAdmin`. Client papers page: delete buttons show only for super-admin.
+- **Resolution honors the docs on all three layers**: main server (`resolveUserPermissions` via `loadSystemRolePermissions`), pdf-service (same), and client (`userPermissionSet` prefers `user.permissions` which `formatUserWithRole` now sends for admin/srt). 60s caches; invalidated on role save.
+- **Deep dashboard section permissions**: `dashboard.stats/live/growth/activity/attention/newusers/leaderboard` keys. A role with NO section keys sees everything (backwards compatible); once any section key is granted, only those render (`canViewDashboardSection` in client).
+- Verified e2e: `server/verify-role-perms.mjs` — admin DELETE → 403, admin PUT → 200, seed + resolution correct.

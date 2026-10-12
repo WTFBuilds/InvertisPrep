@@ -25,9 +25,12 @@ export default function PapersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  // Verify is separate from edit/delete: a custom role may hold one and not the other.
-  const canModify = hasPermission(user, 'papers.delete');
+  // Edit, verify and delete are independent: a role may hold verify without
+  // edit, and deletion is reserved for super-admins (papers.delete is a
+  // system-only permission that can never be granted to anyone else).
+  const canEdit = hasPermission(user, 'papers.edit');
   const canVerify = hasPermission(user, 'papers.verify');
+  const canDelete = user?.role === 'super-admin';
   const [papers, setPapers] = useState<PYQPaper[]>([]);
   const [filteredPapers, setFilteredPapers] = useState<PYQPaper[]>([]);
   const [loading, setLoading] = useState(true);
@@ -300,7 +303,7 @@ export default function PapersPage() {
               {canVerify && (
                 <Button size="sm" onClick={handleBulkVerify} disabled={selected.length===0}>Verify Selected</Button>
               )}
-              {canModify && (
+              {canDelete && (
                 <Button size="sm" variant="destructive" onClick={handleBulkDelete} disabled={selected.length===0}>Delete Selected</Button>
               )}
             </div>
@@ -348,19 +351,19 @@ export default function PapersPage() {
                       <Button size="sm" variant="outline" onClick={() => handleDownload(paper)}>
                         Download
                       </Button>
-                      {canModify && (
-                        <>
-                          <Button
-                            size="sm"
-                            className="bg-slate-900 text-white hover:bg-slate-800"
-                            onClick={() => handleEdit(paper)}
-                          >
-                            Edit
-                          </Button>
-                          <Button size="sm" variant="destructive" onClick={() => handleDelete(paper._id)}>
-                            Delete
-                          </Button>
-                        </>
+                      {canEdit && (
+                        <Button
+                          size="sm"
+                          className="bg-slate-900 text-white hover:bg-slate-800"
+                          onClick={() => handleEdit(paper)}
+                        >
+                          Edit
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button size="sm" variant="destructive" onClick={() => handleDelete(paper._id)}>
+                          Delete
+                        </Button>
                       )}
                     </div>
                   </div>

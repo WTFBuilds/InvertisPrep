@@ -50,8 +50,8 @@ import {
   pointBounds,
   timeAgo,
 } from '@/components/admin/activity-shared';
-import { RangePicker, StatAreaChart } from '@/components/admin/stat-charts';
-import type { ActivityUserRow, MarketingLead, MarketingLeadDetail, MarketingOverview, SeriesPoint, StatRange } from '@/types';
+import { StatChartCard, useSeriesData } from '@/components/admin/stat-charts';
+import type { ActivityUserRow, MarketingLead, MarketingLeadDetail, MarketingOverview, StatRange } from '@/types';
 
 const StatCard = ({
   icon: Icon,
@@ -236,29 +236,6 @@ const SORT_OPTIONS = [
   { value: 'name', label: 'Name (A–Z)' },
 ];
 
-// Polls one /series endpoint for a range-picker graph (module-scope custom
-// hook so React sees a stable hook across renders).
-function useSeries(metric: 'signups' | 'active', range: StatRange): SeriesPoint[] {
-  const [series, setSeries] = useState<SeriesPoint[]>([]);
-  useEffect(() => {
-    let cancelled = false;
-    const load = () =>
-      adminActivityApi
-        .series(metric, range)
-        .then((r) => {
-          if (!cancelled && r.success && r.data) setSeries(r.data.series);
-        })
-        .catch(() => {});
-    load();
-    const interval = setInterval(load, 30_000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [metric, range]);
-  return series;
-}
-
 export default function MarketingPage() {
   const [overview, setOverview] = useState<MarketingOverview | null>(null);
   const [leads, setLeads] = useState<MarketingLead[]>([]);
@@ -328,14 +305,14 @@ export default function MarketingPage() {
 
   const pages = Math.max(1, Math.ceil(total / limit));
 
-  // Range-picker graphs — each chart gets its own Vercel-style dropdown.
+  // Range-picker graphs — Vercel-style stat headers (window total + % change).
   const [signupsRange, setSignupsRange] = useState<StatRange>('30d');
   const [dauRange, setDauRange] = useState<StatRange>('30d');
-  const signupsSeries = useSeries('signups', signupsRange);
-  const dauSeriesData = useSeries('active', dauRange);
+  const signupsSeries = useSeriesData('signups', signupsRange);
+  const dauSeriesData = useSeriesData('active', dauRange);
 
-  const signupChart = signupsSeries.map((p) => ({ label: p.date, value: p.count }));
-  const dauChart = dauSeriesData.map((p) => ({
+  const signupChart = signupsSeries.series.map((p) => ({ label: p.date, value: p.count }));
+  const dauChart = dauSeriesData.series.map((p) => ({
     label: p.date,
     value: p.count,
     sub: p.events != null ? `${p.events} events` : undefined,
@@ -417,52 +394,45 @@ export default function MarketingPage() {
         <StatCard icon={Snowflake} label="Dormant" value={overview?.dormant} tint="bg-slate-100 text-slate-500" sub="inactive 30+ days" />
       </div>
 
-      {/* Growth graphs — Vercel-style range pickers */}
+      {/* Growth graphs — Vercel-style stat headers + range pickers */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 lg:col-span-2">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-sm font-black tracking-tight text-slate-800">New signups</h2>
-            <RangePicker value={signupsRange} onChange={setSignupsRange} />
-          </div>
-          {overview === null ? (
-            <Skeleton className="h-16 w-full" />
-          ) : (
-            <StatAreaChart
-              data={signupChart}
-              height={220}
-              color="#6366f1"
-              formatLabel={chartTickLabel}
-              formatTooltipTitle={(d) => `${chartTickLabel(d.label)} — ${d.value} joined`}
-              onBarClick={(d) => {
-                const b = pointBounds(d.label);
-                openSignupsFor(b, `Joined ${chartTickLabel(d.label)}`, `${d.value} new user${d.value === 1 ? '' : 's'} in that period`);
-              }}
-            />
-          )}
-          <p className="mt-1 text-[10px] font-medium text-slate-400">Click the graph to see exactly who joined.</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-sm font-black tracking-tight text-slate-800">Active users</h2>
-            <RangePicker value={dauRange} onChange={setDauRange} />
-          </div>
-          {overview === null ? (
-            <Skeleton className="h-16 w-full" />
-          ) : (
-            <StatAreaChart
-              data={dauChart}
-              height={220}
-              color="#0ea5e9"
-              formatLabel={chartTickLabel}
-              formatTooltipTitle={(d) => `${chartTickLabel(d.label)} — ${d.value} active${d.sub ? ` · ${d.sub}` : ''}`}
-              onBarClick={(d) => {
-                const b = pointBounds(d.label);
-                openActiveFor(b, `Active ${chartTickLabel(d.label)}`, `${d.value} user${d.value === 1 ? '' : 's'} did something in that period`);
-              }}
-            />
-          )}
-          <p className="mt-1 text-[10px] font-medium text-slate-400">Click the graph to see who was active.</p>
-        </div>
+        <StatChartCard
+          label="New signups"
+          data={signupChart}
+          total={signupsSeries.total}
+          prevTotal={signupsSeries.prevTotal}
+          loading={signupsSeries.loading || overview === null}
+          range={signupsRange}
+          onRangeChange={setSignupsRange}
+          color="#6366f1"
+          height={220}
+          formatLabel={chartTickLabel}
+          formatTooltipTitle={(d) => `${chartTickLabel(d.label)} — ${d.value} joined`}
+          onBarClick={(d) => {
+            const b = pointBounds(d.label);
+            openSignupsFor(b, `Joined ${chartTickLabel(d.label)}`, `${d.value} new user${d.value === 1 ? '' : 's'} in that period`);
+          }}
+          footer={<p className="mt-1 text-[10px] font-medium text-slate-400">Click the graph to see exactly who joined.</p>}
+          className="lg:col-span-2"
+        />
+        <StatChartCard
+          label="Active users"
+          data={dauChart}
+          total={dauSeriesData.total}
+          prevTotal={dauSeriesData.prevTotal}
+          loading={dauSeriesData.loading || overview === null}
+          range={dauRange}
+          onRangeChange={setDauRange}
+          color="#0ea5e9"
+          height={220}
+          formatLabel={chartTickLabel}
+          formatTooltipTitle={(d) => `${chartTickLabel(d.label)} — ${d.value} active${d.sub ? ` · ${d.sub}` : ''}`}
+          onBarClick={(d) => {
+            const b = pointBounds(d.label);
+            openActiveFor(b, `Active ${chartTickLabel(d.label)}`, `${d.value} user${d.value === 1 ? '' : 's'} did something in that period`);
+          }}
+          footer={<p className="mt-1 text-[10px] font-medium text-slate-400">Click the graph to see who was active.</p>}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

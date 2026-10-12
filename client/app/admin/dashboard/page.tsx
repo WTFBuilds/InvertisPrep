@@ -19,7 +19,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { hasPermission, BUILTIN_ROLE_META } from '@/lib/permissions';
+import { hasPermission, canViewDashboardSection, BUILTIN_ROLE_META } from '@/lib/permissions';
 import {
   adminActivityApi,
   adminUserApi,
@@ -40,7 +40,7 @@ import {
   pointBounds,
   timeAgo,
 } from '@/components/admin/activity-shared';
-import { RangePicker, StatAreaChart } from '@/components/admin/stat-charts';
+import { RangePicker, StatAreaChart, StatChartCard, useSeriesData } from '@/components/admin/stat-charts';
 import type {
   AdminUser,
   APIResponse,
@@ -51,7 +51,6 @@ import type {
   PresenceInfo,
   PYQPaper,
   Report,
-  SeriesPoint,
   StatRange,
   UserStats,
 } from '@/types';
@@ -111,30 +110,6 @@ const withRetry = async <T,>(fn: () => Promise<T>, delayMs = 1500): Promise<T> =
   }
 };
 
-// Polls one /series endpoint for a range-picker graph. Lives at module scope
-// so it stays a stable custom hook across renders.
-function useSeries(metric: 'signups' | 'active', range: StatRange, enabled: boolean): SeriesPoint[] {
-  const [series, setSeries] = useState<SeriesPoint[]>([]);
-  useEffect(() => {
-    if (!enabled) return;
-    let cancelled = false;
-    const load = () =>
-      adminActivityApi
-        .series(metric, range)
-        .then((r) => {
-          if (!cancelled && r.success && r.data) setSeries(r.data.series);
-        })
-        .catch(() => {});
-    load();
-    const interval = setInterval(load, 30_000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [metric, range, enabled]);
-  return series;
-}
-
 export default function AdminDashboard() {
   const { user } = useAuth();
 
@@ -146,6 +121,11 @@ export default function AdminDashboard() {
   const canActivity = hasPermission(user, 'activity.view');
   const canMarketing = hasPermission(user, 'marketing.view');
   const canMonitor = canActivity || canMarketing;
+
+  // Fine-grained dashboard sections — a role restricted to specific widgets
+  // only sees those. Unrestricted roles (super-admin, or any role with no
+  // section keys) see everything.
+  const show = (section: string) => canViewDashboardSection(user, section);
 
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [papers, setPapers] = useState<PYQPaper[]>([]);
@@ -263,13 +243,14 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, [canMonitor, canActivity]);
 
-  // Range-picker graphs — each chart has its own Vercel-style range dropdown.
+  // Range-picker graphs — each chart has its own Vercel-style range dropdown
+  // and stat header (selected-range total + % change vs the previous window).
   const [signupsRange, setSignupsRange] = useState<StatRange>('30d');
   const [dauRange, setDauRange] = useState<StatRange>('30d');
   const [growthRange, setGrowthRange] = useState<StatRange>('7d');
-  const signupsSeries = useSeries('signups', signupsRange, canMonitor);
-  const dauSeriesData = useSeries('active', dauRange, canMonitor);
-  const growthSeries = useSeries('signups', growthRange, canMonitor);
+  const signupsSeries = useSeriesData('signups', signupsRange, canMonitor);
+  const dauSeriesData = useSeriesData('active', dauRange, canMonitor);
+  const growthSeries = useSeriesData('signups', growthRange, canMonitor);
 
   const verifiedCount = papers.filter((p) => p.verified).length;
   const unverified = unverifiedPapers; // server-filtered list (accurate total via unverifiedTotal)
@@ -385,13 +366,13 @@ export default function AdminDashboard() {
           ? 'bg-orange-100 text-orange-700'
           : 'bg-slate-100 text-slate-500';
 
-  const signupChart = signupsSeries.map((p) => ({ label: p.date, value: p.count }));
-  const dauChart = dauSeriesData.map((p) => ({
+  const signupChart = signupsSeries.series.map((p) => ({ label: p.date, value: p.count }));
+  const dauChart = dauSeriesData.series.map((p) => ({
     label: p.date,
     value: p.count,
     sub: p.events != null ? `${p.events} events` : undefined,
   }));
-  const growthChart = growthSeries.map((p) => ({ label: p.date, value: p.count }));
+  const growthChart = growthSeries.series.map((p) => ({ label: p.date, value: p.count }));
 
   const openSignupsFor = (b: { from: string; to: string }, title: string, subtitle: string) =>
     setRangeDialog({
@@ -456,6 +437,7 @@ export default function AdminDashboard() {
       )}
 
       {/* Stat cards */}
+      {show('dashboard.stats') && (
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
         {statCards.map((s) => (
           <Link key={s.label} href={s.href}>
@@ -474,12 +456,13 @@ export default function AdminDashboard() {
           </Link>
         ))}
       </div>
+      )}
 
       {/* Live & growth — the main-dashboard monitoring surface */}
       {canMonitor && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           {/* Live users */}
-          {canActivity && (
+          {canActivity && show('dashboard.live') && (
             <div className="rounded-2xl border border-slate-200 bg-white p-4 lg:col-span-2">
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -543,6 +526,7 @@ export default function AdminDashboard() {
           )}
 
           {/* Growth — joined in 24 hrs / 7 days / 30 days */}
+          {show('dashboard.growth') && (
           <div className={`rounded-2xl border border-slate-200 bg-white p-4 ${canActivity ? '' : 'lg:col-span-3'}`}>
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -577,6 +561,18 @@ export default function AdminDashboard() {
                 </p>
                 <RangePicker value={growthRange} onChange={setGrowthRange} />
               </div>
+              <div className="mb-1 flex items-baseline gap-2">
+                {growthSeries.loading ? (
+                  <Skeleton className="h-7 w-16" />
+                ) : (
+                  <span className="text-2xl font-black leading-none text-slate-900">
+                    {(growthSeries.total ?? growthChart.reduce((a, p) => a + p.value, 0)).toLocaleString()}
+                  </span>
+                )}
+                <span className="text-[10px] font-medium text-slate-400">
+                  joined in the last {growthRange === '24h' ? '24 hours' : growthRange === '7d' ? '7 days' : growthRange === '30d' ? '30 days' : '3 months'}
+                </span>
+              </div>
               <StatAreaChart
                 data={growthChart}
                 height={150}
@@ -591,63 +587,61 @@ export default function AdminDashboard() {
               <p className="mt-1 text-[10px] font-medium text-slate-400">Click the graph to see who joined.</p>
             </div>
           </div>
+          )}
         </div>
       )}
 
-      {/* Signup analytics — range-picker graphs on the main dash */}
-      {canMonitor && (
+      {/* Signup analytics — Vercel-style stat header + range-picker graphs */}
+      {canMonitor && show('dashboard.activity') && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h3 className="text-sm font-black tracking-tight text-slate-800">New signups</h3>
-              <RangePicker value={signupsRange} onChange={setSignupsRange} />
-            </div>
-            {overview === null ? (
-              <Skeleton className="h-16 w-full" />
-            ) : (
-              <StatAreaChart
-                data={signupChart}
-                height={210}
-                color="#6366f1"
-                formatLabel={chartTickLabel}
-                formatTooltipTitle={(d) => `${chartTickLabel(d.label)} — ${d.value} joined`}
-                onBarClick={(d) => {
-                  const b = pointBounds(d.label);
-                  openSignupsFor(b, `Joined ${chartTickLabel(d.label)}`, `${d.value} new user${d.value === 1 ? '' : 's'} in that period`);
-                }}
-              />
-            )}
-            <p className="mt-1 text-[10px] font-medium text-slate-400">Click the graph to see exactly who joined.</p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h3 className="text-sm font-black tracking-tight text-slate-800">Daily active users</h3>
-              <RangePicker value={dauRange} onChange={setDauRange} />
-            </div>
-            {overview === null ? (
-              <Skeleton className="h-16 w-full" />
-            ) : (
-              <StatAreaChart
-                data={dauChart}
-                height={210}
-                color="#0ea5e9"
-                formatLabel={chartTickLabel}
-                formatTooltipTitle={(d) => `${chartTickLabel(d.label)} — ${d.value} active${d.sub ? ` · ${d.sub}` : ''}`}
-                onBarClick={(d) => {
-                  const b = pointBounds(d.label);
-                  openActiveFor(b, `Active ${chartTickLabel(d.label)}`, `${d.value} user${d.value === 1 ? '' : 's'} did something in that period`);
-                }}
-              />
-            )}
-            <p className="mt-1 text-[10px] font-medium text-slate-400">Click the graph to see who was active.</p>
-            <div className="mt-1.5 text-right text-[10px] text-slate-400">
-              <span>{overview?.activeMonth ?? '—'} active this month</span>
-            </div>
-          </div>
+          <StatChartCard
+            label="New signups"
+            data={signupChart}
+            total={signupsSeries.total}
+            prevTotal={signupsSeries.prevTotal}
+            loading={signupsSeries.loading || overview === null}
+            range={signupsRange}
+            onRangeChange={setSignupsRange}
+            color="#6366f1"
+            height={210}
+            formatLabel={chartTickLabel}
+            formatTooltipTitle={(d) => `${chartTickLabel(d.label)} — ${d.value} joined`}
+            onBarClick={(d) => {
+              const b = pointBounds(d.label);
+              openSignupsFor(b, `Joined ${chartTickLabel(d.label)}`, `${d.value} new user${d.value === 1 ? '' : 's'} in that period`);
+            }}
+            footer={<p className="mt-1 text-[10px] font-medium text-slate-400">Click the graph to see exactly who joined.</p>}
+          />
+          <StatChartCard
+            label="Daily active users"
+            data={dauChart}
+            total={dauSeriesData.total}
+            prevTotal={dauSeriesData.prevTotal}
+            loading={dauSeriesData.loading || overview === null}
+            range={dauRange}
+            onRangeChange={setDauRange}
+            color="#0ea5e9"
+            height={210}
+            formatLabel={chartTickLabel}
+            formatTooltipTitle={(d) => `${chartTickLabel(d.label)} — ${d.value} active${d.sub ? ` · ${d.sub}` : ''}`}
+            onBarClick={(d) => {
+              const b = pointBounds(d.label);
+              openActiveFor(b, `Active ${chartTickLabel(d.label)}`, `${d.value} user${d.value === 1 ? '' : 's'} did something in that period`);
+            }}
+            footer={
+              <>
+                <p className="mt-1 text-[10px] font-medium text-slate-400">Click the graph to see who was active.</p>
+                <div className="mt-1.5 text-right text-[10px] text-slate-400">
+                  <span>{overview?.activeMonth ?? '—'} active this month</span>
+                </div>
+              </>
+            }
+          />
         </div>
       )}
 
       {/* Needs attention */}
+      {show('dashboard.attention') && (
       <div className="space-y-4">
         <div className="flex items-end justify-between">
           <div>
@@ -777,11 +771,12 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Recent activity */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Newest users — shown to anyone who can view user management */}
-        {canViewUsers && (
+        {canViewUsers && show('dashboard.newusers') && (
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -840,6 +835,7 @@ export default function AdminDashboard() {
         )}
 
         {/* Leaderboard */}
+        {show('dashboard.leaderboard') && (
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -878,6 +874,7 @@ export default function AdminDashboard() {
             )}
           </div>
         </div>
+        )}
       </div>
 
       {/* Quick actions */}

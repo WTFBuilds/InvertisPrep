@@ -981,9 +981,9 @@ export const adminActivityApi = {
   series: async (
     metric: 'signups' | 'active',
     range: StatRange
-  ): Promise<APIResponse<{ metric: string; range: StatRange; series: SeriesPoint[] }>> => {
+  ): Promise<APIResponse<{ metric: string; range: StatRange; total?: number; prevTotal?: number; series: SeriesPoint[] }>> => {
     const { data } = await apiClient.get<
-      APIResponse<{ metric: string; range: StatRange; series: SeriesPoint[] }>
+      APIResponse<{ metric: string; range: StatRange; total?: number; prevTotal?: number; series: SeriesPoint[] }>
     >('/admin/activity/series', { params: { metric, range } });
     return data;
   },

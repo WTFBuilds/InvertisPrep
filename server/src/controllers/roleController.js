@@ -3,11 +3,22 @@ import { Role } from '../models/Role.js';
 import { User } from '../models/User.js';
 import {
   GRANTABLE_PERMISSION_KEYS,
+  BUILTIN_ROLE_PERMISSIONS,
   ROLE_COLORS,
   invalidateRoleCache,
+  invalidateSystemRoleCache,
 } from '../shared/permissions.js';
 
 const SLUG_REGEX = /^[a-z0-9][a-z0-9-]{1,39}$/;
+
+// Built-in roles whose permissions are editable (super-admin stays 'all' and
+// student is permissionless — both are intentionally NOT tunable).
+const EDITABLE_SYSTEM_ROLES = ['admin', 'srt'];
+
+const SYSTEM_ROLE_META = {
+  admin: { label: 'Admin', color: 'indigo', description: 'Manages content and users. Permissions are editable.' },
+  srt: { label: 'SRT', color: 'teal', description: 'Support & Resource Team. Permissions are editable.' },
+};
 
 const slugify = (text) =>
   String(text)
@@ -25,25 +36,65 @@ const formatRole = (role, memberCount) => ({
   color: role.color,
   permissions: role.permissions || [],
   isSystem: !!role.isSystem,
+  // System roles are editable only in their permission list; custom roles are
+  // fully editable. The client uses this to lock the identity fields.
+  editable: role.isSystem ? EDITABLE_SYSTEM_ROLES.includes(role.name) : true,
   memberCount: memberCount ?? 0,
   createdAt: role.createdAt,
   updatedAt: role.updatedAt,
 });
 
-// GET /api/admin/roles — all roles with live member counts
+/**
+ * Ensure the editable built-in roles exist as Role documents, seeded from
+ * BUILTIN_ROLE_PERMISSIONS on first run. Existing docs are left untouched so
+ * a super-admin's edits survive. Safe to call on every list request (2 cheap
+ * upserts).
+ */
+async function ensureSystemRoles() {
+  await Promise.all(
+    EDITABLE_SYSTEM_ROLES.map(async (name) => {
+      const existing = await Role.findOne({ name, isSystem: true }).select('_id').lean();
+      if (existing) return;
+      const meta = SYSTEM_ROLE_META[name];
+      await Role.create({
+        name,
+        label: meta.label,
+        description: meta.description,
+        color: meta.color,
+        permissions: BUILTIN_ROLE_PERMISSIONS[name] || [],
+        isSystem: true,
+      });
+    })
+  );
+}
+
+// GET /api/admin/roles — all roles (custom + editable built-ins) with counts
 export const listRoles = async (_req, res) => {
   try {
-    const roles = await Role.find().sort({ createdAt: 1 }).lean();
+    await ensureSystemRoles();
 
-    const counts = await User.aggregate([
-      { $match: { roleId: { $ne: null } } },
-      { $group: { _id: '$roleId', count: { $sum: 1 } } },
+    const roles = await Role.find().sort({ isSystem: -1, createdAt: 1 }).lean();
+
+    // Custom-role members are counted by roleId; system-role members live on
+    // the User.role enum ('admin' / 'srt'), so count those by name.
+    const [byRoleId, byRoleEnum] = await Promise.all([
+      User.aggregate([
+        { $match: { roleId: { $ne: null } } },
+        { $group: { _id: '$roleId', count: { $sum: 1 } } },
+      ]),
+      User.aggregate([
+        { $match: { role: { $in: EDITABLE_SYSTEM_ROLES } } },
+        { $group: { _id: '$role', count: { $sum: 1 } } },
+      ]),
     ]);
-    const countMap = new Map(counts.map((c) => [c._id.toString(), c.count]));
+    const countMap = new Map(byRoleId.map((c) => [c._id.toString(), c.count]));
+    const enumMap = new Map(byRoleEnum.map((c) => [c._id, c.count]));
 
     res.json({
       success: true,
-      data: roles.map((role) => formatRole(role, countMap.get(role._id.toString()) || 0)),
+      data: roles.map((role) =>
+        formatRole(role, role.isSystem ? enumMap.get(role.name) || 0 : countMap.get(role._id.toString()) || 0)
+      ),
     });
   } catch (error) {
     console.error('List roles error:', error);
@@ -105,7 +156,9 @@ export const createRole = async (req, res) => {
   }
 };
 
-// PATCH /api/admin/roles/:id — edit a custom role's label, color or permissions
+// PATCH /api/admin/roles/:id — edit a role. Custom roles: everything. Built-in
+// admin/srt: permissions only (identity is fixed so nav labels/badges stay
+// stable and members keep their role). super-admin is never editable.
 export const updateRole = async (req, res) => {
   try {
     const { id } = req.params;
@@ -122,30 +175,48 @@ export const updateRole = async (req, res) => {
       return;
     }
 
-    if (role.isSystem) {
-      res.status(400).json({ success: false, message: 'Built-in roles cannot be edited' });
+    const isEditableSystem = role.isSystem && EDITABLE_SYSTEM_ROLES.includes(role.name);
+    if (role.isSystem && !isEditableSystem) {
+      res.status(400).json({
+        success: false,
+        message: role.name === 'super-admin'
+          ? 'Super Admin always has all permissions and cannot be edited'
+          : 'This built-in role cannot be edited',
+      });
       return;
     }
 
-    if (label !== undefined) {
-      const cleanLabel = String(label).trim();
-      if (cleanLabel.length < 2 || cleanLabel.length > 40) {
-        res.status(400).json({ success: false, message: 'Role name must be 2-40 characters' });
-        return;
-      }
-      role.label = cleanLabel;
+    // System roles: permissions are the only editable field — reject attempts
+    // to change their identity so labels/badges never drift.
+    if (isEditableSystem && (label !== undefined || color !== undefined)) {
+      res.status(400).json({
+        success: false,
+        message: 'Built-in role name and colour are fixed — only permissions can be changed',
+      });
+      return;
     }
 
-    if (description !== undefined) {
-      role.description = String(description).trim().slice(0, 200);
-    }
-
-    if (color !== undefined) {
-      if (!ROLE_COLORS.includes(color)) {
-        res.status(400).json({ success: false, message: 'Invalid role color' });
-        return;
+    if (!isEditableSystem) {
+      if (label !== undefined) {
+        const cleanLabel = String(label).trim();
+        if (cleanLabel.length < 2 || cleanLabel.length > 40) {
+          res.status(400).json({ success: false, message: 'Role name must be 2-40 characters' });
+          return;
+        }
+        role.label = cleanLabel;
       }
-      role.color = color;
+
+      if (description !== undefined) {
+        role.description = String(description).trim().slice(0, 200);
+      }
+
+      if (color !== undefined) {
+        if (!ROLE_COLORS.includes(color)) {
+          res.status(400).json({ success: false, message: 'Invalid role color' });
+          return;
+        }
+        role.color = color;
+      }
     }
 
     if (permissions !== undefined) {
@@ -159,7 +230,8 @@ export const updateRole = async (req, res) => {
     }
 
     await role.save();
-    invalidateRoleCache(role._id);
+    if (role.isSystem) invalidateSystemRoleCache(role.name);
+    else invalidateRoleCache(role._id);
 
     res.json({ success: true, data: formatRole(role) });
   } catch (error) {
