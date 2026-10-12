@@ -6,12 +6,14 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasPermission } from '@/lib/permissions';
 import { reportApi, pyqApi } from '@/lib/api';
-import type { Report } from '@/types';
+import type { PYQPaper, Report } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { TicketThread } from '@/components/admin/ticket-thread';
+import { EditPaperDialog } from '@/components/admin/edit-paper-dialog';
 import { 
   Flag, 
   Trash2, 
@@ -20,7 +22,8 @@ import {
   XCircle, 
   Clock, 
   ArrowLeft,
-  AlertTriangle
+  AlertTriangle,
+  Pencil
 } from 'lucide-react';
 
 export default function AdminReportsPage() {
@@ -33,6 +36,8 @@ export default function AdminReportsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [statusFilter, setStatusFilter] = useState<'pending' | 'resolved' | 'dismissed' | 'all'>('pending');
+  const [editPaper, setEditPaper] = useState<PYQPaper | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   const fetchReports = async () => {
     try {
@@ -88,6 +93,16 @@ export default function AdminReportsPage() {
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Error processing action');
+    }
+  };
+
+  const handleReply = async (reportId: string, body: string) => {
+    const res = await reportApi.reply(reportId, body);
+    if (res.success) {
+      setSuccess('Reply sent to the reporter');
+      fetchReports();
+    } else {
+      setError(res.message || 'Failed to send reply');
     }
   };
 
@@ -268,6 +283,15 @@ export default function AdminReportsPage() {
                             "{report.description || 'No additional details provided.'}"
                           </p>
                         </div>
+
+                        {/* Support thread + reply */}
+                        <TicketThread
+                          messages={report.messages ?? []}
+                          canReply={canModify}
+                          onReply={async (body) => handleReply(report._id, body)}
+                          requesterName={report.reportedBy?.name || 'Reporter'}
+                          placeholder="Reply to the reporter…"
+                        />
                       </div>
 
                       {/* Right: People profiles */}
@@ -326,6 +350,20 @@ export default function AdminReportsPage() {
                               View PDF
                             </Button>
                           )}
+                          {hasPaper && canModify && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditPaper(paper);
+                                setEditOpen(true);
+                              }}
+                              className="flex items-center gap-1 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              Edit Paper
+                            </Button>
+                          )}
                           {report.status === 'pending' && canModify && (
                             <>
                               <Button 
@@ -361,6 +399,17 @@ export default function AdminReportsPage() {
             })}
           </div>
         )}
+
+        {/* Edit paper dialog */}
+        <EditPaperDialog
+          paper={editPaper}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          onSaved={(msg) => {
+            setSuccess(msg);
+            fetchReports();
+          }}
+        />
       </div>
     </ProtectedRoute>
   );

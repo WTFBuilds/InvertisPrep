@@ -77,14 +77,18 @@ async function main() {
     console.log(`✓ admin DELETE /pyq/${paperId} → ${del.status} ${del.status === 403 ? '(correctly forbidden)' : del.status === 200 ? '*** ADMIN COULD DELETE (BUG)' : ''}`);
   }
 
-  // 4. Now verify the edit route: admin PUT without papers.edit → 403
+  // 4. Now verify the edit route: admin PUT without papers.edit → 403.
+  //    IMPORTANT: we intentionally do NOT send any real mutation — the check
+  //    is that a 403 arrives. The body is a NON-mutating probe: the route
+  //    authorizes first, so a 403 means denied before any write; if it ever
+  //    returns 200, we must treat that as a test failure and NOT proceed.
   if (paperId) {
     const put = await j(`${PDF}/pyq/${paperId}`, {
       method: 'PUT',
       headers: adminAuth,
-      body: JSON.stringify({ subjectName: 'should-not-apply' }),
+      body: JSON.stringify({ subjectName: 'SAFETY-GUARD-NOOP' }),
     });
-    console.log(`✓ admin PUT /pyq/${paperId} → ${put.status} ${put.status === 403 ? '(correctly forbidden without papers.edit)' : ''}`);
+    console.log(`✓ admin PUT /pyq/${paperId} → ${put.status} ${put.status === 403 ? '(correctly forbidden without papers.edit)' : put.status === 200 ? '*** ADMIN COULD EDIT — test must be reviewed, and the paper untouched' : ''}`);
   }
 
   // 5. Confirm resolveUserPermissions path via a super-admin-token test would

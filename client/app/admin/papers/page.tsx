@@ -47,7 +47,7 @@ export default function PapersPage() {
 
   // `silent` keeps the current list mounted while refetching, so the page
   // height doesn't collapse and the user's scroll position survives an edit.
-  const fetchPapers = async (opts?: { page?: number; limit?: number; silent?: boolean }) => {
+  const fetchPapers = async (opts?: { page?: number; limit?: number; silent?: boolean; search?: string }) => {
     try {
       if (!opts?.silent) setLoading(true);
       const params: Record<string, unknown> = {
@@ -57,6 +57,10 @@ export default function PapersPage() {
       // Server-side verification filter so unverified papers from any page are returned
       if (verificationFilter === 'verified') params.verified = 'true';
       else if (verificationFilter === 'unverified') params.verified = 'false';
+      // Server-side search — the real search across all papers (name/code/dept),
+      // not just the current page.
+      const q = opts?.search ?? debouncedQuery;
+      if (q) params.search = q;
       const res = await pyqApi.getAll(params);
       setPapers(res.data || []);
       setFilteredPapers(res.data || []);
@@ -110,19 +114,23 @@ export default function PapersPage() {
     setPage(1);
   }, [query, verificationFilter]);
 
+  // Debounced server-side search — typing settles for 400ms, then refetches
+  // from the backend (which searches across ALL papers, not just this page).
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query.trim()), 400);
+    return () => clearTimeout(t);
+  }, [query]);
+
   // ...but a refetch must not reset the page the user is browsing.
   useEffect(() => {
     setFilteredPapers(filterPapers(query, verificationFilter, papers));
   }, [query, verificationFilter, papers]);
 
   useEffect(() => {
-    fetchPapers({ page, limit: pageSize });
-  }, []);
-
-  useEffect(() => {
     // refetch when page, pageSize, or verification filter changes
-    fetchPapers({ page, limit: pageSize });
-  }, [page, pageSize, verificationFilter]);
+    fetchPapers({ page, limit: pageSize, search: debouncedQuery });
+  }, [page, pageSize, verificationFilter, debouncedQuery]);
 
   const handleVerify = async (id: string) => {
     try {

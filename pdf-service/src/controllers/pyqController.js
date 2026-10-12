@@ -205,6 +205,22 @@ export const getAllPYQs = async (req, res) => {
     if (verified === 'true') filter.verified = true;
     else if (verified === 'false') filter.verified = false;
 
+    // Case/separator-tolerant search across subject name + subject code (and
+    // department name) - "BAS 301" matches "BAS301", "math" matches
+    // "Mathematics", so the manage-papers search actually finds anything.
+    if (search && String(search).trim()) {
+      const q = String(search).trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+      if (q) {
+        const pattern = q.split('').map(escapeRegex).join('[^a-z0-9]*');
+        const regex = new RegExp(pattern, 'i');
+        filter.$or = [
+          { subjectName: regex },
+          { subjectCode: regex },
+          { departmentName: regex },
+        ];
+      }
+    }
+
     const [total, papers] = await Promise.all([
       PDFDocument.countDocuments(filter),
       PDFDocument.find(filter)

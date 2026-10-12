@@ -393,6 +393,7 @@ export interface Report {
   reason: 'wrong_file' | 'poor_quality' | 'wrong_metadata' | 'other';
   description?: string;
   status: 'pending' | 'resolved' | 'dismissed';
+  messages?: SupportMessage[];
   createdAt: string;
   updatedAt: string;
 }
