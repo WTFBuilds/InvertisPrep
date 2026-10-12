@@ -178,11 +178,13 @@ export default function DepartmentPYQPage() {
     }
   };
 
-  // Open the protected viewer, counting the view first (fire-and-forget so a
-  // tracking blip never blocks the paper).
+  // Open the protected viewer IN A NEW TAB, counting the view first
+  // (fire-and-forget so a tracking blip never blocks the paper). Opening in a
+  // new tab lets students queue multiple papers and keeps this page's search
+  // filters/search box exactly where they left them.
   const openPaper = (paper: PYQPaper) => {
     pyqApi.trackView(paper._id).catch(() => {});
-    router.push(`/view/${paper._id}?type=pyq`);
+    window.open(`/view/${paper._id}?type=pyq`, '_blank', 'noopener,noreferrer');
   };
 
   const handleView = (paper: PYQPaper) => {

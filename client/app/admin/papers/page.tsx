@@ -169,9 +169,11 @@ export default function PapersPage() {
   };
 
   const handleView = (paper: PYQPaper) => {
-    // Count the view, then open the protected PDF viewer so the admin can review before verifying
+    // Count the view, then open the protected PDF viewer in a new tab so the
+    // admin can review before verifying — the manage-papers list (search +
+    // filters) stays exactly as it was.
     pyqApi.trackView(paper._id).catch(() => {});
-    router.push(`/view/${paper._id}?type=pyq`);
+    window.open(`/view/${paper._id}?type=pyq`, '_blank', 'noopener,noreferrer');
   };
 
   const handleDownload = async (paper: PYQPaper) => {

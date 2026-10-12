@@ -343,7 +343,7 @@ export default function AdminReportsPage() {
                             <Button 
                               size="sm" 
                               variant="outline" 
-                              onClick={() => router.push(`/view/${paper._id}?type=pyq`)}
+                              onClick={() => window.open(`/view/${paper._id}?type=pyq`, '_blank', 'noopener,noreferrer')}
                               className="flex items-center gap-1"
                             >
                               <ExternalLink className="h-3.5 w-3.5" />
