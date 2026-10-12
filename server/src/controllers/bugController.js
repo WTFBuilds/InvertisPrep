@@ -111,3 +111,68 @@ export const deleteBug = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error deleting bug report' });
   }
 };
+
+// ── Student-facing: my bug reports + reply on the ticket thread ─────────────
+
+// GET /api/bugs/mine — the reporter's own bug reports (support tickets).
+export const myBugs = async (req, res) => {
+  try {
+    const bugs = await Bug.find({ reportedBy: req.user._id ?? req.user.id })
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+
+    res.json({ success: true, count: bugs.length, data: bugs });
+  } catch (error) {
+    console.error('My bugs error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// POST /api/bugs/:id/reply — staff or the reporter continues the thread.
+// Staff = anyone with bugs.manage; the reporter may reply to their own.
+export const replyToBug = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const body = typeof req.body?.body === 'string' ? req.body.body.trim().slice(0, 2000) : '';
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ success: false, message: 'Invalid bug id' });
+      return;
+    }
+    if (!body) {
+      res.status(400).json({ success: false, message: 'Reply cannot be empty' });
+      return;
+    }
+
+    const isStaffReply = req.user.permissions === 'all'
+      || (Array.isArray(req.user.permissions) && req.user.permissions.includes('bugs.manage'));
+    const bug = await Bug.findById(id);
+    if (!bug) {
+      res.status(404).json({ success: false, message: 'Bug report not found' });
+      return;
+    }
+    const reporterId = String(bug.reportedBy);
+    const callerId = String(req.user._id ?? req.user.id);
+    if (!isStaffReply && reporterId !== callerId) {
+      res.status(403).json({ success: false, message: 'You can only reply to your own reports' });
+      return;
+    }
+
+    bug.messages.push({
+      sender: callerId,
+      senderRole: req.user.role || 'student',
+      body,
+    });
+    await bug.save();
+
+    const populated = await Bug.findById(id)
+      .populate('messages.sender', 'name email picture role')
+      .lean();
+
+    res.json({ success: true, data: populated });
+  } catch (error) {
+    console.error('Reply to bug error:', error);
+    res.status(500).json({ success: false, message: 'Server error while replying' });
+  }
+};

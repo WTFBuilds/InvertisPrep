@@ -56,6 +56,33 @@ const paperRequestSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'User',
     },
+
+    // Support-ticket thread: staff replies and student follow-ups, with the
+    // sender's role stored so the UI can render them on the correct side.
+    messages: [
+      {
+        sender: {
+          type: Schema.Types.ObjectId,
+          ref: 'User',
+          required: true,
+        },
+        senderRole: {
+          type: String,
+          enum: ['student', 'srt', 'staff', 'admin', 'super-admin'],
+          required: true,
+        },
+        body: {
+          type: String,
+          required: true,
+          trim: true,
+          maxlength: 2000,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   {
     timestamps: true,
