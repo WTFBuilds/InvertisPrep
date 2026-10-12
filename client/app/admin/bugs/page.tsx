@@ -6,6 +6,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasPermission } from '@/lib/permissions';
 import { bugApi } from '@/lib/api';
+import { TicketThread } from '@/components/admin/ticket-thread';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -85,6 +86,16 @@ export default function AdminBugsPage() {
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Error deleting bug report');
+    }
+  };
+
+  const handleReply = async (bugId: string, body: string) => {
+    const res = await bugApi.reply(bugId, body);
+    if (res.success) {
+      setSuccess('Reply sent to the reporter');
+      fetchBugs();
+    } else {
+      setError(res.message || 'Failed to send reply');
     }
   };
 
@@ -319,6 +330,14 @@ export default function AdminBugsPage() {
                       {bug.description}
                     </p>
                   </div>
+
+                  {/* Support thread + reply */}
+                  <TicketThread
+                    messages={bug.messages ?? []}
+                    canReply={canModify}
+                    onReply={async (body) => handleReply(bug._id, body)}
+                    requesterName={bug.reportedBy?.name || 'Reporter'}
+                  />
 
                   <hr className="border-gray-100" />
 

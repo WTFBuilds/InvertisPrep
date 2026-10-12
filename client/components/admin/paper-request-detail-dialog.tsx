@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ViewableAvatar } from '@/components/admin/viewable-avatar';
+import { TicketThread } from '@/components/admin/ticket-thread';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CalendarDays, CheckCircle2, Loader2, Trash2, XCircle } from 'lucide-react';
@@ -80,10 +81,19 @@ export function PaperRequestDetailDialog({
   // role may or may not have been granted requests.manage.
   const canModify = hasPermission(user, 'requests.manage');
 
+
   if (!request) return null;
 
   const requester = getRequester(request);
   const busy = actingId === request._id;
+
+  const sendReply = async (body: string) => {
+    const res = await paperRequestApi.reply(request._id, body);
+    if (res.success) {
+      // The parent owns the list; trigger a re-fetch via status change no-op.
+      onStatusChange(request._id, request.status);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -164,6 +174,15 @@ export function PaperRequestDetailDialog({
               {request.note || 'No additional details provided.'}
             </p>
           </div>
+
+          {/* Ticket thread */}
+          <TicketThread
+            messages={request.messages ?? []}
+            canReply={canModify}
+            onReply={sendReply}
+            requesterName={requester.name}
+            placeholder="Reply to the student…"
+          />
 
           {/* Actions */}
           {canModify && (

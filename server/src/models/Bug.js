@@ -42,6 +42,32 @@ const bugSchema = new Schema(
       type: String,
       trim: true,
     },
+
+    // Support-ticket thread: staff replies and reporter follow-ups.
+    messages: [
+      {
+        sender: {
+          type: Schema.Types.ObjectId,
+          ref: 'User',
+          required: true,
+        },
+        senderRole: {
+          type: String,
+          enum: ['student', 'srt', 'staff', 'admin', 'super-admin'],
+          required: true,
+        },
+        body: {
+          type: String,
+          required: true,
+          trim: true,
+          maxlength: 2000,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   {
     timestamps: true,

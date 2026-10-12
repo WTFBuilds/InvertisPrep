@@ -315,3 +315,78 @@ export const deleteRequest = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error while deleting request' });
   }
 };
+
+// ── Student-facing: my requests + reply on the ticket thread ────────────────
+
+// GET /api/paper-requests/mine — the requesting student's own paper requests.
+export const myRequests = async (req, res) => {
+  try {
+    const requests = await PaperRequest.find({ requestedBy: req.user._id ?? req.user.id })
+      .populate('departmentId', 'name displayName icon')
+      .populate('branchId', 'name')
+      .populate('requestedBy', 'name email picture')
+      .populate('reviewedBy', 'name email')
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+
+    res.json({ success: true, count: requests.length, data: requests });
+  } catch (error) {
+    console.error('My paper requests error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// POST /api/paper-requests/:id/reply — student or staff continues the ticket
+// thread. Anyone with requests.manage (staff) may reply to any request; the
+// requesting student may reply to their own. Body is validated and capped.
+export const replyToRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const body = typeof req.body?.body === 'string' ? req.body.body.trim().slice(0, 2000) : '';
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ success: false, message: 'Invalid request id' });
+      return;
+    }
+    if (!body) {
+      res.status(400).json({ success: false, message: 'Reply cannot be empty' });
+      return;
+    }
+
+    // Staff can reply to any request; a student only to their own.
+    const isStaffReply = req.user.permissions === 'all'
+      || (Array.isArray(req.user.permissions) && req.user.permissions.includes('requests.manage'));
+    const request = await PaperRequest.findById(id);
+    if (!request) {
+      res.status(404).json({ success: false, message: 'Request not found' });
+      return;
+    }
+    const requestedById = String(request.requestedBy);
+    const callerId = String(req.user._id ?? req.user.id);
+    if (!isStaffReply && requestedById !== callerId) {
+      res.status(403).json({ success: false, message: 'You can only reply to your own requests' });
+      return;
+    }
+
+    request.messages.push({
+      sender: callerId,
+      senderRole: req.user.role || 'student',
+      body,
+    });
+    await request.save();
+
+    const populated = await PaperRequest.findById(id)
+      .populate('departmentId', 'name displayName icon')
+      .populate('branchId', 'name')
+      .populate('requestedBy', 'name email picture')
+      .populate('reviewedBy', 'name email')
+      .populate('messages.sender', 'name email picture role')
+      .lean();
+
+    res.json({ success: true, data: populated });
+  } catch (error) {
+    console.error('Reply to paper request error:', error);
+    res.status(500).json({ success: false, message: 'Server error while replying' });
+  }
+};

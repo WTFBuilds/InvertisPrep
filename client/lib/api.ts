@@ -732,6 +732,18 @@ export const reportApi = {
     return data;
   },
 
+  // The reporter's own reports (support tickets)
+  mine: async (): Promise<APIResponse<Report[]>> => {
+    const { data } = await apiClient.get<APIResponse<Report[]>>('/reports/mine');
+    return data;
+  },
+
+  // Continue a report ticket thread — own report (reporter) or any (staff)
+  reply: async (id: string, body: string): Promise<APIResponse<Report>> => {
+    const { data } = await apiClient.post<APIResponse<Report>>(`/reports/${id}/reply`, { body });
+    return data;
+  },
+
   updateStatus: async (id: string, status: 'resolved' | 'dismissed'): Promise<APIResponse<Report>> => {
     const { data } = await apiClient.patch<APIResponse<Report>>(`/reports/${id}`, { status });
     return data;
@@ -759,6 +771,18 @@ export const paperRequestApi = {
 
   list: async (params?: { status?: string; search?: string }): Promise<APIResponse<PaperRequest[]>> => {
     const { data } = await apiClient.get<APIResponse<PaperRequest[]>>('/paper-requests', { params });
+    return data;
+  },
+
+  // The requesting student's own paper requests (support tickets)
+  mine: async (): Promise<APIResponse<PaperRequest[]>> => {
+    const { data } = await apiClient.get<APIResponse<PaperRequest[]>>('/paper-requests/mine');
+    return data;
+  },
+
+  // Continue a ticket thread — own request (student) or any request (staff)
+  reply: async (id: string, body: string): Promise<APIResponse<PaperRequest>> => {
+    const { data } = await apiClient.post<APIResponse<PaperRequest>>(`/paper-requests/${id}/reply`, { body });
     return data;
   },
 
@@ -793,6 +817,27 @@ export const bugApi = {
   delete: async (id: string): Promise<APIResponse<any>> => {
     const { data } = await apiClient.delete<APIResponse<any>>(`/bugs/${id}`);
     return data;
+  },
+
+  // The reporter's own bug reports (support tickets)
+  mine: async (): Promise<APIResponse<any[]>> => {
+    const { data } = await apiClient.get<APIResponse<any[]>>('/bugs/mine');
+    return data;
+  },
+
+  // Continue a bug ticket thread — own report (reporter) or any (staff)
+  reply: async (id: string, body: string): Promise<APIResponse<any>> => {
+    const { data } = await apiClient.post<APIResponse<any>>(`/bugs/${id}/reply`, { body });
+    return data;
+  },
+};
+
+// Unread staff replies across the signed-in student's tickets (paper requests
+// + bug reports combined) — powers the dot on the profile dropdown.
+export const supportApi = {
+  unreadCount: async (): Promise<number> => {
+    const { data } = await apiClient.get<APIResponse<{ unread: number }>>('/paper-requests/unread-count');
+    return data?.data?.unread ?? 0;
   },
 };
 

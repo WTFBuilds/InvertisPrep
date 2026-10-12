@@ -269,6 +269,7 @@ export interface PaperRequest {
   requestedBy: string | Pick<User, 'id' | 'name' | 'email' | 'picture'>;
   status: 'pending' | 'fulfilled' | 'rejected';
   reviewedBy?: string | Pick<User, 'id' | 'name' | 'email'>;
+  messages?: SupportMessage[];
   createdAt: string;
   updatedAt: string;
 }
@@ -844,4 +845,12 @@ export interface ActivityUserRow {
   createdAt?: string;
   lastLogin?: string;
   eventCount?: number;
+}
+
+// ── Support ticket thread ────────────────────────────────────────────────────
+export interface SupportMessage {
+  sender: string | { _id?: string; id?: string; name: string; email?: string; picture?: string | null; role?: UserRole };
+  senderRole: UserRole | 'srt';
+  body: string;
+  createdAt: string;
 }

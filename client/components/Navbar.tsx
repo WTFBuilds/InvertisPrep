@@ -53,6 +53,7 @@ import {
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { supportApi } from '@/lib/api';
 import { buildLoginHref } from '@/lib/canonical';
 
 // ============================================================
@@ -266,8 +267,26 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [isHiddenByFooter, setIsHiddenByFooter] = useState(false);
+  const [unreadReplies, setUnreadReplies] = useState(0);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navRef = useRef<HTMLElement>(null);
+
+  // Unread staff replies across the user's tickets → the dot on the dropdown.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    const load = () =>
+      supportApi
+        .unreadCount()
+        .then((n) => !cancelled && setUnreadReplies(n))
+        .catch(() => {});
+    load();
+    const interval = setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [user]);
 
   // Carry the current location into the login page so the user can be
   // returned here (on the canonical domain) after authentication.
@@ -537,6 +556,17 @@ export default function Navbar() {
                   <DropdownMenuItem asChild>
                     <Link href="/profile" className="w-full cursor-pointer">
                       <User className="mr-2 h-4 w-4 text-slate-500" /> Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/my-requests" className="w-full cursor-pointer">
+                      <Bug className="mr-2 h-4 w-4 text-slate-500" />
+                      <span className="flex-1">My Requests</span>
+                      {unreadReplies > 0 && (
+                        <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[10px] font-bold text-white">
+                          {unreadReplies}
+                        </span>
+                      )}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
