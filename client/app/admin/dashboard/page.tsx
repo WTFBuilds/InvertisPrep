@@ -748,11 +748,11 @@ export default function AdminDashboard() {
                 openBugs.slice(0, 5).map((bug) => (
                   <div key={bug._id} className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2">
                     <p className="truncate text-xs font-semibold text-slate-700">{bug.title}</p>
-                    <p className="mt-1">
+                    <div className="mt-1">
                       <Badge className={SEVERITY_STYLES[bug.severity] || SEVERITY_STYLES.low}>
                         {bug.severity}
                       </Badge>
-                    </p>
+                    </div>
                   </div>
                 ))}
               {!loading && openBugs.length === 0 && (
