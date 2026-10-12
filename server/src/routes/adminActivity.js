@@ -193,7 +193,16 @@ router.get('/series', requirePermission('activity.view', 'marketing.view'), asyn
     const range = SERIES_RANGES.includes(req.query.range) ? req.query.range : '30d';
     const win = seriesWindow(range);
 
+    // The Vercel-style stat header shows the window total next to the graph;
+    // prevTotal is the equally-sized window immediately before it, so the
+    // client can render a real % change ("vs previous 30 days").
+    const windowMs = win.buckets * win.stepMs;
+    const windowEnd = new Date(win.from.getTime() + windowMs); // exclusive
+    const prevStart = new Date(win.from.getTime() - windowMs);
+
     let rows;
+    let total;
+    let prevTotal;
     if (metric === 'signups') {
       rows = await User.aggregate([
         { $match: { createdAt: { $gte: win.from } } },
@@ -205,6 +214,10 @@ router.get('/series', requirePermission('activity.view', 'marketing.view'), asyn
         },
         { $project: { _id: 0, date: '$_id', count: 1 } },
         { $sort: { date: 1 } },
+      ]);
+      [total, prevTotal] = await Promise.all([
+        User.countDocuments({ createdAt: { $gte: win.from, $lt: windowEnd } }),
+        User.countDocuments({ createdAt: { $gte: prevStart, $lt: win.from } }),
       ]);
     } else {
       rows = await ActivityLog.aggregate([
@@ -219,9 +232,26 @@ router.get('/series', requirePermission('activity.view', 'marketing.view'), asyn
         { $project: { _id: 0, date: '$_id', count: { $size: '$users' }, events: 1 } },
         { $sort: { date: 1 } },
       ]);
+      // Distinct users can't be counted with countDocuments — re-aggregate the
+      // window and the previous window separately.
+      const distinctIn = async (from, to) => {
+        const r = await ActivityLog.aggregate([
+          { $match: { createdAt: { $gte: from, $lt: to } } },
+          { $group: { _id: '$user' } },
+          { $count: 'n' },
+        ]);
+        return r[0]?.n || 0;
+      };
+      [total, prevTotal] = await Promise.all([
+        distinctIn(win.from, windowEnd),
+        distinctIn(prevStart, win.from),
+      ]);
     }
 
-    res.json({ success: true, data: { metric, range, series: fillBuckets(rows, win) } });
+    res.json({
+      success: true,
+      data: { metric, range, total, prevTotal, series: fillBuckets(rows, win) },
+    });
   } catch (error) {
     console.error('[AdminActivity] series error:', error);
     res.status(500).json({ success: false, message: 'Failed to load series' });

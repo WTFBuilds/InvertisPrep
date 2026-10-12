@@ -10,6 +10,13 @@ export const PERMISSION_GROUPS = [
     description: 'Dashboard access',
     permissions: [
       { key: 'dashboard.view', label: 'View dashboard', description: 'See the admin dashboard and its stats' },
+      { key: 'dashboard.stats', label: 'Dashboard · stats row', description: 'Headline stats (users, papers, reports, bugs)' },
+      { key: 'dashboard.live', label: 'Dashboard · live users', description: 'Who is online right now' },
+      { key: 'dashboard.growth', label: 'Dashboard · growth', description: 'New signups over time' },
+      { key: 'dashboard.activity', label: 'Dashboard · activity graphs', description: 'Signups & daily active users graphs' },
+      { key: 'dashboard.attention', label: 'Dashboard · needs attention', description: 'Unverified papers, pending reports and bugs' },
+      { key: 'dashboard.newusers', label: 'Dashboard · newest users', description: 'Recently joined users list' },
+      { key: 'dashboard.leaderboard', label: 'Dashboard · leaderboard', description: 'Top contributors list' },
     ],
   },
   {
@@ -29,7 +36,8 @@ export const PERMISSION_GROUPS = [
       { key: 'papers.view', label: 'View papers', description: 'Browse the full uploaded paper list' },
       { key: 'papers.upload', label: 'Upload papers', description: 'Upload new PYQ papers' },
       { key: 'papers.verify', label: 'Verify papers', description: 'Verify or reject uploaded papers' },
-      { key: 'papers.delete', label: 'Edit & delete papers', description: 'Edit paper details or remove them' },
+      { key: 'papers.edit', label: 'Edit papers', description: 'Edit paper details (metadata, branches, session)' },
+      { key: 'papers.delete', label: 'Delete papers', description: 'Super-admin only — remove papers entirely', systemOnly: true },
     ],
   },
   {
@@ -93,21 +101,24 @@ export const ALL_PERMISSION_KEYS: string[] = PERMISSION_GROUPS.flatMap((g) =>
   g.permissions.map((p) => p.key)
 );
 
-// Reserved for the super-admin — never grantable to custom roles
-export const SYSTEM_ONLY_PERMISSIONS: string[] = ['roles.manage'];
+// Reserved for the super-admin — never grantable to custom or built-in roles
+export const SYSTEM_ONLY_PERMISSIONS: string[] = ['roles.manage', 'papers.delete'];
 export const GRANTABLE_PERMISSION_KEYS: string[] = ALL_PERMISSION_KEYS.filter(
   (key) => !SYSTEM_ONLY_PERMISSIONS.includes(key)
 );
 
-// Built-in roles resolve to fixed sets (mirrors the server). super-admin
-// always passes every check.
+// Fallback permission sets for the editable built-in roles (mirrors the server
+// seeds in server/src/shared/permissions.js). The live list comes from the
+// server on the user object; these apply only to pre-existing cached sessions.
+// 'papers.delete' is super-admin only; 'papers.edit' is grantable.
 export const BUILTIN_PERMISSIONS: Record<string, string[]> = {
-  admin: ALL_PERMISSION_KEYS.filter((k) => k !== 'roles.manage'),
+  admin: ALL_PERMISSION_KEYS.filter((k) => k !== 'roles.manage' && k !== 'papers.delete'),
   srt: [
     'dashboard.view',
     'papers.view',
     'papers.upload',
     'papers.verify',
+    'papers.edit',
     'syllabus.upload',
     'departments.view',
     'branches.view',
@@ -124,12 +135,17 @@ export type PermissionUser = {
   permissions?: string[];
 } | null | undefined;
 
-/** 'all' for super-admin, otherwise the resolved permission key list. */
+/**
+ * 'all' for super-admin, otherwise the resolved permission key list.
+ * Built-in admin/srt prefer the server-provided `permissions` list (their
+ * permission sets are editable), falling back to the hardcoded defaults for
+ * sessions stored before the server sent them.
+ */
 export function userPermissionSet(user: PermissionUser): 'all' | string[] {
   if (!user) return [];
   if (user.role === 'super-admin') return 'all';
-  if (user.role === 'admin') return BUILTIN_PERMISSIONS.admin;
-  if (user.role === 'srt') return BUILTIN_PERMISSIONS.srt;
+  if (user.role === 'admin') return user.permissions ?? BUILTIN_PERMISSIONS.admin;
+  if (user.role === 'srt') return user.permissions ?? BUILTIN_PERMISSIONS.srt;
   if (user.role === 'staff') return user.permissions ?? [];
   return [];
 }
@@ -148,6 +164,31 @@ export function hasAnyPermission(user: PermissionUser, ...keys: string[]): boole
   const set = userPermissionSet(user);
   if (set === 'all') return true;
   return keys.some((key) => set.includes(key));
+}
+
+// ── Dashboard section visibility ────────────────────────────────────────────
+export const DASHBOARD_SECTION_KEYS = [
+  'dashboard.stats',
+  'dashboard.live',
+  'dashboard.growth',
+  'dashboard.activity',
+  'dashboard.attention',
+  'dashboard.newusers',
+  'dashboard.leaderboard',
+] as const;
+
+/**
+ * Whether a dashboard section should render for this user. Unrestricted by
+ * default: a role that holds NO section keys sees every section (so existing
+ * roles and super-admin are unaffected). Once a role is given at least one
+ * section key, only those sections render.
+ */
+export function canViewDashboardSection(user: PermissionUser, section: string): boolean {
+  const set = userPermissionSet(user);
+  if (set === 'all') return true;
+  const chosen = set.filter((k) => (DASHBOARD_SECTION_KEYS as readonly string[]).includes(k));
+  if (chosen.length === 0) return true;
+  return set.includes(section);
 }
 
 // ── Role colors ─────────────────────────────────────────────────────────────

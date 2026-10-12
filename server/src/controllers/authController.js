@@ -24,25 +24,38 @@ const formatUser = (user) => ({
 });
 
 /**
- * Same shape, but custom-role ('staff') users also get their permission list
- * and the role's display metadata so the client can gate the admin UI. Called
- * on every endpoint that returns a user the client stores in localStorage —
- * a response missing these fields would wipe the client's permission snapshot.
+ * Same shape, but resolves the caller's permission list so the client can gate
+ * the admin UI. Called on every endpoint that returns a user the client stores
+ * in localStorage — a response missing `permissions` would wipe the client's
+ * permission snapshot. Custom roles carry a roleId; the editable built-in
+ * roles (admin, srt) carry their editable permission set from the Role docs,
+ * so a super-admin's edits are reflected the next time the client loads.
  */
 const formatUserWithRole = async (user) => {
   const formatted = formatUser(user);
-  if (user.role !== 'staff' || !formatted.roleId) return formatted;
 
   try {
     const { Role } = await import('../models/Role.js');
-    const role = await Role.findById(formatted.roleId).select('name label color permissions').lean();
-    if (role) {
-      formatted.roleId = String(role._id);
-      formatted.roleMeta = { id: String(role._id), name: role.name, label: role.label, color: role.color };
-      formatted.permissions = role.permissions || [];
+
+    if (user.role === 'staff' && formatted.roleId) {
+      const role = await Role.findById(formatted.roleId).select('name label color permissions').lean();
+      if (role) {
+        formatted.roleId = String(role._id);
+        formatted.roleMeta = { id: String(role._id), name: role.name, label: role.label, color: role.color };
+        formatted.permissions = role.permissions || [];
+      }
+      return formatted;
+    }
+
+    // Editable built-in roles — the client mirrors the server's resolution,
+    // so admins/SRT must receive their (possibly edited) permission list.
+    if (user.role === 'admin' || user.role === 'srt') {
+      const role = await Role.findOne({ name: user.role, isSystem: true }).select('permissions').lean();
+      const { BUILTIN_ROLE_PERMISSIONS } = await import('../shared/permissions.js');
+      formatted.permissions = role ? role.permissions || [] : BUILTIN_ROLE_PERMISSIONS[user.role] || [];
     }
   } catch (err) {
-    console.error('[Auth] Failed to load custom role:', err.message);
+    console.error('[Auth] Failed to resolve role permissions:', err.message);
   }
   return formatted;
 };

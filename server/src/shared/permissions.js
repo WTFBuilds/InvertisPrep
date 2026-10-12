@@ -7,6 +7,18 @@ export const PERMISSIONS = {
   // General
   'dashboard.view': 'View the admin dashboard and stats',
 
+  // Dashboard sections — fine-grained control over which dashboard widgets a
+  // role sees. A role that holds dashboard.view but none of these sees every
+  // section (backwards compatible for pre-existing roles); once a role is
+  // given any section permission, only its selected sections render.
+  'dashboard.stats': 'Headline stats row (users, papers, reports, bugs)',
+  'dashboard.live': 'Live users panel — who is online right now',
+  'dashboard.growth': 'Growth panel — new signups over time',
+  'dashboard.activity': 'Activity graphs — signups & daily active users',
+  'dashboard.attention': 'Needs Attention — unverified papers, reports, bugs',
+  'dashboard.newusers': 'Newest users list',
+  'dashboard.leaderboard': 'Top contributors leaderboard',
+
   // User management (role changes / bans / deletes stay super-admin only)
   'users.view': 'View users, profiles and user stats',
 
@@ -14,7 +26,7 @@ export const PERMISSIONS = {
   'papers.view': 'Browse all uploaded papers',
   'papers.upload': 'Upload new PYQ papers',
   'papers.verify': 'Verify or reject uploaded papers',
-  'papers.delete': 'Edit or delete papers',
+  'papers.edit': 'Edit paper details (metadata, branches, session)',
 
   // Academic setup
   'departments.view': 'View the departments page',
@@ -47,24 +59,41 @@ export const PERMISSIONS = {
   'marketing.view': 'View marketing insights: growth, engagement and the leads list',
 };
 
-// Reserved for the super-admin — never grantable to custom roles.
-export const SYSTEM_ONLY_PERMISSIONS = ['roles.manage'];
+// Reserved for the super-admin — never grantable to custom or built-in roles.
+// roles.manage guards role/user administration; papers.delete (removing papers
+// entirely) is likewise reserved: everyone else may at most edit paper details.
+export const SYSTEM_ONLY_PERMISSIONS = ['roles.manage', 'papers.delete'];
 PERMISSIONS['roles.manage'] = 'Create roles, edit permissions and create staff users';
+PERMISSIONS['papers.delete'] = 'Delete papers (super-admin only)';
 
 export const ALL_PERMISSION_KEYS = Object.keys(PERMISSIONS);
 export const GRANTABLE_PERMISSION_KEYS = ALL_PERMISSION_KEYS.filter(
   (key) => !SYSTEM_ONLY_PERMISSIONS.includes(key)
 );
 
+// Dashboard section keys — the dashboard renders a section when the role has
+// no section keys at all (unrestricted) or holds that specific section key.
+export const DASHBOARD_SECTION_KEYS = [
+  'dashboard.stats',
+  'dashboard.live',
+  'dashboard.growth',
+  'dashboard.activity',
+  'dashboard.attention',
+  'dashboard.newusers',
+  'dashboard.leaderboard',
+];
+
 // Built-in roles resolve to fixed permission sets that reproduce the exact
 // access they had before custom roles existed.
+// 'papers.delete' is SUPER_ADMIN ONLY (system-only); 'papers.edit' is grantable.
 export const BUILTIN_ROLE_PERMISSIONS = {
-  admin: ALL_PERMISSION_KEYS.filter((k) => k !== 'roles.manage'),
+  admin: ALL_PERMISSION_KEYS.filter((k) => k !== 'roles.manage' && k !== 'papers.delete'),
   srt: [
     'dashboard.view',
     'papers.view',
     'papers.upload',
     'papers.verify',
+    'papers.edit',
     'syllabus.upload',
     'departments.view',
     'branches.view',
@@ -120,6 +149,38 @@ async function loadRole(roleId) {
   return role;
 }
 
+// ── Editable built-in role permissions ──────────────────────────────────────
+// 'admin' and 'srt' exist as real Role documents (isSystem: true) so a super
+// admin can tune exactly what they may do — e.g. an admin that can verify
+// papers but not delete them. BUILTIN_ROLE_PERMISSIONS remains the seed for
+// new documents and the fallback whenever the document is missing or the DB
+// read fails, so auth never breaks because of a roles-collection hiccup.
+// 'super-admin' always resolves to 'all' and 'student' to [] — deliberately
+// NOT editable, so permission revocation can never lock super-admins out.
+const SYSTEM_ROLE_CACHE_TTL_MS = 60 * 1000;
+const systemRoleCache = new Map(); // role name -> { permissions, expires }
+
+export function invalidateSystemRoleCache(name) {
+  if (name) systemRoleCache.delete(name);
+  else systemRoleCache.clear();
+}
+
+export async function loadSystemRolePermissions(name) {
+  const hit = systemRoleCache.get(name);
+  if (hit && hit.expires > Date.now()) return hit.permissions;
+
+  try {
+    const { Role } = await import('../models/Role.js');
+    const doc = await Role.findOne({ name, isSystem: true }).select('permissions').lean();
+    if (!doc) return null; // no document yet → caller falls back to defaults
+    const permissions = doc.permissions || [];
+    systemRoleCache.set(name, { permissions, expires: Date.now() + SYSTEM_ROLE_CACHE_TTL_MS });
+    return permissions;
+  } catch {
+    return null; // DB hiccup → fall back to defaults, never fail auth
+  }
+}
+
 /**
  * Resolve the permission set for a request user.
  * Returns the string 'all' for super-admin, otherwise an array of keys.
@@ -128,8 +189,11 @@ async function loadRole(roleId) {
 export async function resolveUserPermissions(user) {
   if (!user) return [];
   if (user.role === 'super-admin') return 'all';
-  if (user.role === 'admin') return BUILTIN_ROLE_PERMISSIONS.admin;
-  if (user.role === 'srt') return BUILTIN_ROLE_PERMISSIONS.srt;
+  if (user.role === 'admin' || user.role === 'srt') {
+    const override = await loadSystemRolePermissions(user.role);
+    if (override) return override;
+    return BUILTIN_ROLE_PERMISSIONS[user.role] || [];
+  }
   if (user.role === 'staff' && user.roleId) {
     const role = await loadRole(user.roleId);
     return role ? role.permissions || [] : [];

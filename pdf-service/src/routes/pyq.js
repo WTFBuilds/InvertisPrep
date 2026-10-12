@@ -12,7 +12,7 @@ import {
   updatePYQ,
   deletePYQ,
 } from '../controllers/pyqController.js';
-import { authenticateJWT, requirePermission } from '../middleware/auth.js';
+import { authenticateJWT, requirePermission, isSuperAdmin } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 import { uploadLimiter } from '../middleware/rateLimit.js';
 
@@ -47,7 +47,10 @@ router.get('/all', authenticateJWT, requirePermission('papers.view'), getAllPYQs
 router.post('/:id/download', authenticateJWT, trackDownload);
 router.post('/:id/view', authenticateJWT, trackView);
 router.patch('/:id/verify', authenticateJWT, requirePermission('papers.verify'), verifyPYQ);
-router.put('/:id', authenticateJWT, requirePermission('papers.delete'), updatePYQ);
-router.delete('/:id', authenticateJWT, requirePermission('papers.delete'), deletePYQ);
+// Editing paper details is a grantable permission; deleting a paper entirely
+// is super-admin only (papers.delete is a system-only key, so this also
+// inherently rejects any custom role holding it).
+router.put('/:id', authenticateJWT, requirePermission('papers.edit'), updatePYQ);
+router.delete('/:id', authenticateJWT, isSuperAdmin, deletePYQ);
 
 export default router;

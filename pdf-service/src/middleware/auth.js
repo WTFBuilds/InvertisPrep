@@ -26,10 +26,17 @@ const USER_CACHE_TTL = 300; // 5 minutes in seconds
 const ROLE_CACHE_TTL_MS = 60 * 1000;
 const roleCache = new Map(); // roleId -> { permissions, expires }
 
+// Editable built-in roles ('admin', 'srt') live in the Role collection
+// (isSystem: true), so paper access honours permission edits within a minute.
+// These defaults mirror server/src/shared/permissions.js and are only used
+// when the document is missing or the DB read fails.
+const SYSTEM_ROLE_CACHE_TTL_MS = 60 * 1000;
+const systemRoleCache = new Map(); // role name -> { permissions, expires }
+
 const BUILTIN_PERMISSIONS = {
   admin: [
     'dashboard.view', 'users.view',
-    'papers.view', 'papers.upload', 'papers.verify', 'papers.delete',
+    'papers.view', 'papers.upload', 'papers.verify', 'papers.edit',
     'departments.view', 'departments.manage',
     'branches.view', 'branches.manage',
     'sessions.view', 'sessions.manage',
@@ -38,12 +45,31 @@ const BUILTIN_PERMISSIONS = {
     'requests.view', 'requests.manage',
     'reports.view', 'reports.manage',
     'bugs.view', 'bugs.manage',
+    'emails.view', 'emails.manage',
+    'activity.view', 'marketing.view',
   ],
   srt: [
     'dashboard.view', 'papers.view', 'papers.upload', 'papers.verify',
+    'papers.edit',
     'syllabus.upload', 'departments.view', 'branches.view', 'sessions.view',
     'events.view', 'requests.view', 'reports.view', 'bugs.view',
   ],
+};
+
+// Read a system role's current permissions from the shared DB. Returns null on
+// miss/error so resolvePermissions falls back to the defaults above.
+const loadSystemRolePermissions = async (name) => {
+  const hit = systemRoleCache.get(name);
+  if (hit && hit.expires > Date.now()) return hit.permissions;
+  try {
+    const doc = await Role.findOne({ name, isSystem: true }).select('permissions').lean();
+    if (!doc) return null;
+    const permissions = doc.permissions || [];
+    systemRoleCache.set(name, { permissions, expires: Date.now() + SYSTEM_ROLE_CACHE_TTL_MS });
+    return permissions;
+  } catch {
+    return null;
+  }
 };
 
 // Primary path: read the Role straight from the shared DB. Returns null on a
@@ -85,6 +111,8 @@ const resolvePermissions = async (user) => {
   if (!user) return [];
   if (user.role === 'super-admin') return 'all';
   if (user.role === 'admin' || user.role === 'srt') {
+    const override = await loadSystemRolePermissions(user.role);
+    if (override) return override;
     return BUILTIN_PERMISSIONS[user.role] || [];
   }
   if (user.role === 'staff' && user.roleId) {

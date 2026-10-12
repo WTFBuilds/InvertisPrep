@@ -29,12 +29,14 @@ interface RoleDialogProps {
 }
 
 /**
- * Create or edit a custom role: display name, optional slug, description,
- * color and the full permission set. Built-in roles never reach this dialog
- * (the caller blocks editing them).
+ * Create or edit a role: display name, optional slug, description, color and
+ * the full permission set. For built-in roles (isSystem) the identity fields
+ * are locked — only permissions are editable, because their names/colors drive
+ * nav badges and their members keep the same enum role.
  */
 export function RoleDialog({ open, onOpenChange, role, onSaved }: RoleDialogProps) {
   const isEdit = Boolean(role);
+  const isSystem = Boolean(role?.isSystem);
 
   const [label, setLabel] = useState('');
   const [slug, setSlug] = useState('');
@@ -88,12 +90,14 @@ export function RoleDialog({ open, onOpenChange, role, onSaved }: RoleDialogProp
     setSaving(true);
     try {
       if (isEdit && role) {
-        const res = await rolesApi.update(role.id, {
-          label: label.trim(),
-          description: description.trim(),
-          color,
-          permissions: cleanPerms,
-        });
+        const res = await rolesApi.update(role.id, isSystem
+          ? { permissions: cleanPerms }
+          : {
+              label: label.trim(),
+              description: description.trim(),
+              color,
+              permissions: cleanPerms,
+            });
         if (res.success && res.data) {
           onSaved(res.data, false);
           onOpenChange(false);
@@ -133,12 +137,14 @@ export function RoleDialog({ open, onOpenChange, role, onSaved }: RoleDialogProp
             </div>
             <div>
               <DialogTitle className="text-lg font-black text-slate-900">
-                {isEdit ? 'Edit role' : 'Create a new role'}
+                {isEdit ? (isSystem ? `Edit ${role?.label} permissions` : 'Edit role') : 'Create a new role'}
               </DialogTitle>
               <DialogDescription className="text-sm text-slate-500">
-                {isEdit
-                  ? 'Update the name, color and permissions for this role.'
-                  : 'Name the role, pick a color and choose exactly what it can access.'}
+                {isSystem
+                  ? 'Built-in role — its name and colour are fixed. Choose exactly what it can access.'
+                  : isEdit
+                    ? 'Update the name, color and permissions for this role.'
+                    : 'Name the role, pick a color and choose exactly what it can access.'}
               </DialogDescription>
             </div>
           </div>
@@ -155,7 +161,11 @@ export function RoleDialog({ open, onOpenChange, role, onSaved }: RoleDialogProp
                 onChange={(e) => setLabel(e.target.value)}
                 placeholder="e.g. Content Team"
                 maxLength={40}
+                disabled={isSystem}
               />
+              {isSystem && (
+                <p className="text-xs text-slate-400">Built-in role names are fixed.</p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -182,6 +192,7 @@ export function RoleDialog({ open, onOpenChange, role, onSaved }: RoleDialogProp
                 placeholder="What is this role for?"
                 rows={2}
                 maxLength={200}
+                disabled={isSystem}
               />
             </div>
 
@@ -196,10 +207,12 @@ export function RoleDialog({ open, onOpenChange, role, onSaved }: RoleDialogProp
                       key={key}
                       type="button"
                       title={style.label}
-                      onClick={() => setColor(key)}
+                      disabled={isSystem}
+                      onClick={() => !isSystem && setColor(key)}
                       className={cn(
                         'flex h-8 w-8 items-center justify-center rounded-full transition-transform',
-                        active ? 'ring-2 ring-slate-900 ring-offset-2' : 'hover:scale-110'
+                        active ? 'ring-2 ring-slate-900 ring-offset-2' : 'hover:scale-110',
+                        isSystem && 'cursor-not-allowed opacity-60'
                       )}
                     >
                       <span className={cn('h-6 w-6 rounded-full', style.dot)} />
