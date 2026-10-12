@@ -36,10 +36,44 @@ export function parseUserAgent(ua) {
   return { browser, os, type };
 }
 
+// ── Client IP extraction ────────────────────────────────────────────────────
+// Behind Vercel (our /backend rewrite proxies server-side), Express's own
+// req.ip is the *proxy's* address — so every student appeared to share
+// Vercel's handful of rotating egress IPs. The edge sets x-forwarded-for to
+// the real client; its leftmost entry is that client (Vercel overwrites this
+// header at the edge, so a value injected by the browser can't survive).
+// Falls back to x-real-ip, then Express's resolved req.ip — which is already
+// correct in local dev, where the request arrives directly.
+const normalizeIp = (value) => {
+  let v = String(value || '').trim();
+  if (!v) return '';
+  if (v.startsWith('::ffff:')) v = v.slice(7); // IPv4-mapped IPv6 → IPv4
+  const withPort = /^(\d{1,3}(?:\.\d{1,3}){3}):\d+$/.exec(v);
+  if (withPort) v = withPort[1]; // strip an appended :port (IPv4 only)
+  return v.slice(0, 64);
+};
+
+export function clientIp(req) {
+  // 1) x-client-ip is stamped by our Next.js edge middleware (client/middleware.ts)
+  //    on the /backend proxy — the most trustworthy source for a proxied call.
+  const stamped = req?.headers?.['x-client-ip'];
+  if (typeof stamped === 'string' && stamped.trim()) return normalizeIp(stamped);
+  // 2) The edge/main proxy's x-forwarded-for — leftmost entry is the client.
+  const xff = req?.headers?.['x-forwarded-for'];
+  if (typeof xff === 'string' && xff.length) {
+    const first = xff.split(',')[0].trim();
+    if (first) return normalizeIp(first);
+  }
+  const real = req?.headers?.['x-real-ip'];
+  if (typeof real === 'string' && real.trim()) return normalizeIp(real);
+  // 3) Direct connection (local dev) — Express's own resolution is correct.
+  return normalizeIp(req?.ip);
+}
+
 function clientMeta(req) {
   const userAgent = typeof req?.headers?.['user-agent'] === 'string' ? req.headers['user-agent'] : '';
   return {
-    ip: req?.ip || '',
+    ip: clientIp(req),
     userAgent: userAgent.slice(0, 400),
     device: parseUserAgent(userAgent),
   };
