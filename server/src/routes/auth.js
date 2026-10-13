@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import crypto from 'crypto';
-import { login, googleLogin, register, checkEmail, getCurrentUser, logout, updateProfile, refresh } from '../controllers/authController.js';
+import { login, googleLogin, register, checkEmail, getCurrentUser, logout, updateProfile, refresh, sendVerificationCode, verifyCode } from '../controllers/authController.js';
 import { authenticateJWT } from '../middleware/auth.js';
 import { authLimiter } from '../middleware/rateLimit.js';
 
@@ -16,6 +16,11 @@ router.post('/login', authLimiter, login);
 router.post('/register', authLimiter, register);
 router.post('/check-email', authLimiter, checkEmail);
 router.post('/google-login', authLimiter, googleLogin);
+
+// Email verification code endpoints (verification before registration)
+router.post('/send-verification-code', authLimiter, sendVerificationCode);
+router.post('/verify-code', authLimiter, verifyCode);
+
 router.get('/me', authenticateJWT, getCurrentUser);
 router.put('/profile', authenticateJWT, updateProfile);
 router.post('/logout', logout);
