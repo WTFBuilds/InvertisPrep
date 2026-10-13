@@ -11,7 +11,7 @@ import fs from 'fs';
 import { connectDB } from './config/database.js';
 import { configureCloudinary } from './config/cloudinary.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
-import { apiLimiter, authLimiter, uploadLimiter, pdfLimiter, readLimiter, writeLimiter } from './middleware/rateLimit.js';
+import { apiLimiter, uploadLimiter, pdfLimiter, readLimiter, writeLimiter } from './middleware/rateLimit.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -106,7 +106,6 @@ const initApp = async () => {
   app.use('/api/branches', readLimiter);
   app.use('/api/sessions', readLimiter);
   app.use('/api/syllabus', readLimiter);
-  app.use('/api/syllabus', readLimiter);
   app.use('/api/sponsors', readLimiter);
   app.use('/api/users', readLimiter);
   app.use('/api/leaderboard', readLimiter);
@@ -127,7 +126,11 @@ const initApp = async () => {
   });
 
 // API Routes
-app.use('/api/auth', authLimiter, authRoutes);
+// NOTE: no authLimiter mount here — /auth/me and /auth/refresh fire on every
+// app load and must never be throttled by the strict login budget. The
+// credential routes (login/register/check-email/google-login) apply
+// authLimiter individually in routes/auth.js.
+app.use('/api/auth', authRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/branches', branchRoutes);
 app.use('/api/sessions', sessionRoutes);

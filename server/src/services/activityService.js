@@ -126,25 +126,61 @@ export async function logActivity(payload, req) {
 }
 
 /**
- * Upsert the user's live presence. Called by the heartbeat route and on login.
+ * Upsert the user's live presence. Called by the heartbeat route, on login and
+ * on navigation (page views double as a presence beat).
+ *
+ * De-duplicated per user+tick: the same user's path updates arriving within
+ * HEARTBEAT_MIN_MS of each other collapse into the cheapest possible upsert —
+ * a `$set` that only bumps lastSeenAt when nothing meaningful changed. This
+ * keeps 16+ open tabs from hammering the Presence collection with writes.
  */
+const HEARTBEAT_MIN_MS = 15 * 1000; // client beats every 45s; absorb 3x spam
+const presenceDedup = new Map();    // user id -> { at, path, title, sessionKey, visible, ip }
+
 export async function touchPresence(userId, payload, req) {
   try {
     if (!userId) return;
+    const id = String(userId);
+    const path = cleanStr(payload?.path, 500);
+    const title = cleanStr(payload?.title);
+    const sessionKey = cleanStr(payload?.sessionKey, 64);
+    const visible = payload?.visible !== false;
+    const ip = req?.headers?.['x-client-ip'] || req?.headers?.['x-forwarded-for']?.split(',')[0] || '';
+
+    const now = Date.now();
+    const prev = presenceDedup.get(id);
+    const changed =
+      !prev ||
+      prev.path !== path ||
+      prev.title !== title ||
+      prev.sessionKey !== sessionKey ||
+      prev.visible !== visible ||
+      prev.ip !== ip;
+    if (prev && now - prev.at < HEARTBEAT_MIN_MS && !changed) {
+      // Same spot, same tab — nothing to persist yet. The next beat (45s) will.
+      return;
+    }
+    presenceDedup.set(id, { at: now, path, title, sessionKey, visible, ip });
+    if (presenceDedup.size > 5000) presenceDedup.clear(); // arbitrary cap; users churn
+
     const meta = req ? clientMeta(req) : {};
-    await Presence.findOneAndUpdate(
+    // A same-user upsert is idempotent: where the user already has a presence
+    // doc (every repeat beat), update just the heartbeat fields. The doc is
+    // created on the first beat with all defaults from the schema.
+    await Presence.updateOne(
       { user: userId },
       {
         $set: {
           lastSeenAt: new Date(),
-          currentPath: cleanStr(payload?.path, 500),
-          currentTitle: cleanStr(payload?.title),
-          sessionKey: cleanStr(payload?.sessionKey, 64),
-          isTabVisible: payload?.visible !== false,
+          currentPath: path,
+          currentTitle: title,
+          sessionKey,
+          isTabVisible: visible,
           ...meta,
         },
+        $setOnInsert: { user: userId },
       },
-      { upsert: true, setDefaultsOnInsert: true }
+      { upsert: true }
     );
   } catch (err) {
     console.error('[Activity] presence update failed:', err?.message);

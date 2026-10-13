@@ -25,26 +25,31 @@ router.post('/', authenticateJWT, async (req, res) => {
     return res.status(400).json({ success: false, message: 'Event type not accepted from client' });
   }
 
-  await logActivity(
-    {
-      user: req.user._id ?? req.user.id,
-      type,
-      title,
-      path,
-      entityType,
-      entityId,
-      sessionKey,
-      referrer,
-      meta: meta && typeof meta === 'object' ? meta : {},
-    },
-    req
-  );
+  // Fire-and-forget: tracking must never hold the connection open. The write
+  // runs in the background (the service swallows its own errors); the client
+  // gets an immediate ack so a slow DB can't pile up sockets under load.
+  void (async () => {
+    await logActivity(
+      {
+        user: req.user._id ?? req.user.id,
+        type,
+        title,
+        path,
+        entityType,
+        entityId,
+        sessionKey,
+        referrer,
+        meta: meta && typeof meta === 'object' ? meta : {},
+      },
+      req
+    );
 
-  // A page view doubles as a presence beat, so a fresh navigation shows the
-  // user online immediately without waiting for the next heartbeat.
-  if (type === 'page_view') {
-    await touchPresence(req.user._id ?? req.user.id, { path, title, sessionKey, visible: true }, req);
-  }
+    // A page view doubles as a presence beat, so a fresh navigation shows the
+    // user online immediately without waiting for the next heartbeat.
+    if (type === 'page_view') {
+      await touchPresence(req.user._id ?? req.user.id, { path, title, sessionKey, visible: true }, req);
+    }
+  })();
 
   res.json({ success: true });
 });
@@ -55,7 +60,10 @@ router.post('/', authenticateJWT, async (req, res) => {
  */
 router.post('/presence', authenticateJWT, async (req, res) => {
   const { path, title, sessionKey, visible } = req.body || {};
-  await touchPresence(req.user._id ?? req.user.id, { path, title, sessionKey, visible }, req);
+  // Fire-and-forget like the tracker route — respond before the upsert lands.
+  void (async () => {
+    await touchPresence(req.user._id ?? req.user.id, { path, title, sessionKey, visible }, req);
+  })();
   res.json({ success: true, onlineWindowSec: ONLINE_WINDOW_MS / 1000 });
 });
 
