@@ -43,6 +43,25 @@ const buildLoginCallbackUrl = (): string => {
   return `/login${qs ? `?${qs}` : ''}`;
 };
 
+// A Google ID token is valid for ~1 hour, but NextAuth stores it inside its
+// session JWT (a 7-day cookie) and never refreshes it. The login page replays
+// that cached token to the backend on mount, so once it ages past an hour the
+// backend rejects it with 401 "Invalid or expired Google token". Decode the
+// token's own `exp` here so a stale copy is discarded instead of replayed.
+function isIdTokenExpired(idToken: string): boolean {
+  try {
+    const payload = idToken.split('.')[1];
+    if (!payload) return true;
+    const b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const json = JSON.parse(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4)));
+    if (typeof json?.exp !== 'number') return true;
+    // 60s of slack absorbs clock skew between this device and Google.
+    return json.exp * 1000 <= Date.now() + 60_000;
+  } catch {
+    return true;
+  }
+}
+
 // Warm the browser cache for the avatar URL so the navbar shows the user's
 // picture instantly after redirect instead of fetching it on the next page.
 const preloadAvatar = (url?: string) => {
@@ -145,13 +164,23 @@ export default function LoginPage() {
         const res = await fetch('/api/auth/session');
         const session = await res.json();
 
-        if (session?.idToken) {
+        // Only a FRESH token is worth sending. If the cached one has expired
+        // (an old NextAuth session), drop the session rather than replaying a
+        // dead token — the user can start a clean sign-in instead of seeing a
+        // 401 that repeats on every visit.
+        const idToken =
+          session?.idToken && !isIdTokenExpired(session.idToken) ? session.idToken : '';
+        if (session?.idToken && !idToken) {
+          await signOut({ redirect: false });
+        }
+
+        if (idToken) {
           setLoading(true);
           setError('');
 
           // Send the ID token to our backend
           const response = await api.post('/auth/google-login', {
-            token: session.idToken
+            token: idToken
           });
 
           if (response.data?.success && response.data?.token) {
@@ -217,6 +246,9 @@ export default function LoginPage() {
               router.push(resolveReturnUrl());
             }
           } else {
+            // Server rejected the token — clear the NextAuth session so the
+            // same dead token isn't re-sent on the next /login visit.
+            await signOut({ redirect: false });
             setError(response.data?.message || 'Failed to authenticate with server');
             setLoading(false);
           }
@@ -231,6 +263,9 @@ export default function LoginPage() {
           }
         }
       } catch (error: any) {
+        // Never leave a bad cached token behind — clearing the NextAuth session
+        // prevents an endless 401 loop on subsequent visits.
+        await signOut({ redirect: false }).catch(() => {});
         console.error('Google callback error:', error);
         const serverMessage = error?.response?.data?.message || error?.response?.data?.details || error?.message;
         setError(serverMessage ? `Google sign-in error: ${serverMessage}` : 'An error occurred while finishing Google sign-in.');

@@ -6,8 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/server.js",
-    "start": "node src/server.js",
-    "seed": "node src/utils/seedSuperAdmin.js"
+    "start": "node src/server.js"
   },
   "keywords": [
     "invertisprep",

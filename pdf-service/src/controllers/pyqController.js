@@ -98,6 +98,12 @@ export const uploadPYQ = async (req, res) => {
   }
 };
 
+// Module-level regex escaper shared by getPYQs and getAllPYQs search.
+const escapeRegex = (string) => {
+  if (typeof string !== 'string') return '';
+  return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+};
+
 // Get filtered PYQs (public)
 export const getPYQs = async (req, res) => {
   try {
@@ -111,11 +117,6 @@ export const getPYQs = async (req, res) => {
     const examType = asString(req.query.examType);
     const subjectCode = asString(req.query.subjectCode);
     const search = asString(req.query.search);
-
-    const escapeRegex = (string) => {
-      if (typeof string !== 'string') return '';
-      return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    };
 
     // Separator-tolerant pattern: matches the query's alphanumerics in order
     // allowing any punctuation/spaces between them, so "BAS301", "BAS 301"
@@ -205,9 +206,10 @@ export const getAllPYQs = async (req, res) => {
     if (verified === 'true') filter.verified = true;
     else if (verified === 'false') filter.verified = false;
 
-    // Case/separator-tolerant search across subject name + subject code (and
-    // department name) - "BAS 301" matches "BAS301", "math" matches
-    // "Mathematics", so the manage-papers search actually finds anything.
+    // Case/separator-tolerant search across subject name + subject code —
+    // "BAS 301" matches "BAS301", "math" matches "Mathematics", so the
+    // manage-papers search actually finds anything. Department/branch filters
+    // are handled separately via their own query params.
     if (search && String(search).trim()) {
       const q = String(search).trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
       if (q) {
@@ -216,7 +218,6 @@ export const getAllPYQs = async (req, res) => {
         filter.$or = [
           { subjectName: regex },
           { subjectCode: regex },
-          { departmentName: regex },
         ];
       }
     }
