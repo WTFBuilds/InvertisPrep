@@ -92,14 +92,17 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Student email flow: email → password (existing account) | register (new account)
-  const [step, setStep] = useState<'email' | 'password' | 'register'>('email');
+  // Student email flow: email → verify (send/enter code) → password (existing account) | register (new account)
+  const [step, setStep] = useState<'email' | 'verify' | 'password' | 'register'>('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationToken, setVerificationToken] = useState('');
   const [isWebViewAuthFlow, setIsWebViewAuthFlow] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -338,8 +341,27 @@ export default function LoginPage() {
         return;
       }
 
-      // Existing password account → sign-in step; new email → registration.
-      setStep(res.data.exists ? 'password' : 'register');
+      if (res.data.exists) {
+        // Existing account → password step
+        setStep('password');
+      } else {
+        // New email → send verification code first
+        setLoading(true);
+        try {
+          const { data: codeRes } = await api.post('/auth/send-verification-code', { email: normalized });
+          if (codeRes.success) {
+            setCodeSent(true);
+            setStep('verify');
+          } else {
+            setError(codeRes.message || 'Failed to send verification code');
+            setLoading(false);
+          }
+        } catch (codeErr: any) {
+          const serverMessage = codeErr?.response?.data?.message || codeErr?.message;
+          setError(serverMessage || 'Something went wrong. Please try again.');
+          setLoading(false);
+        }
+      }
     } catch (err: any) {
       const serverMessage = err?.response?.data?.message || err?.message;
       setError(serverMessage || 'Something went wrong. Please try again.');
@@ -368,7 +390,39 @@ export default function LoginPage() {
     }
   };
 
-  // Step 2b: brand-new email — create the account, then enter the app directly.
+  // Step 2b (new): verify the 6-digit code sent to the email
+  const handleVerifyCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const digits = verificationCode.replace(/\D/g, '');
+    if (!/^\d{6}$/.test(digits)) {
+      setError('Enter the 6-digit code');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+    try {
+      const { data: res } = await api.post('/auth/verify-code', {
+        email: email.trim().toLowerCase(),
+        code: digits,
+      });
+
+      if (res?.success && res?.verificationToken) {
+        setVerificationToken(res.verificationToken);
+        // Proceed to registration form
+        setStep('register');
+      } else {
+        setError(res?.message || 'Invalid or expired code');
+      }
+    } catch (err: any) {
+      const serverMessage = err?.response?.data?.message || err?.message;
+      setError(serverMessage || 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 2c: brand-new email — create the account, then enter the app directly.
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const normalized = email.trim().toLowerCase();
@@ -395,6 +449,7 @@ export default function LoginPage() {
         name: fullName.trim(),
         password,
         phoneNumber: digits,
+        verificationToken,
       });
 
       if (res?.success && res?.token && res?.user) {
@@ -767,6 +822,55 @@ export default function LoginPage() {
                     Login as Team
                   </button>
                 </div>
+
+                {Footer}
+              </motion.div>
+            )}
+
+            {/* Step: verify (new email - enter 6-digit code) */}
+            {step === 'verify' && (
+              <motion.div key="step-verify" {...stepMotion} style={{ width: "100%", maxWidth: 360, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+                <button
+                  onClick={backToEmail}
+                  style={{ background: "none", border: "none", color: "#64748b", fontSize: "0.8rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, alignSelf: "flex-start", marginBottom: "0.5rem", fontFamily: "inherit" }}
+                >
+                  <ArrowLeft size={13} /> Back
+                </button>
+                <h1 style={{ fontSize: "1.35rem", fontWeight: 700, marginBottom: "0.25rem", color: "#0f172a", letterSpacing: "-0.025em" }}>Check your email</h1>
+                <p style={{ fontSize: "0.85rem", color: "#475569", marginBottom: "1.25rem", lineHeight: 1.5 }}>
+                  We sent a 6-digit code to <span style={{ fontWeight: 600, color: "#0f172a" }}>{email}</span>.
+                </p>
+
+                <form onSubmit={handleVerifyCodeSubmit} style={{ width: "100%", display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+                  <input
+                    className="login-input"
+                    type="text"
+                    placeholder="123456"
+                    value={verificationCode}
+                    onChange={e => setVerificationCode(e.target.value.replace(/[^\d]/g, '').slice(0, 6))}
+                    required
+                    autoFocus
+                    disabled={loading}
+                    inputMode="numeric"
+                    pattern="\d{6}"
+                    minLength={6}
+                    maxLength={6}
+                    style={{ textAlign: "center", letterSpacing: "0.5em", fontSize: "1.2rem", fontWeight: 600 }}
+                  />
+                  <button type="submit" className="login-button-primary" disabled={loading}>
+                    {loading ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                        <Loader2 size={14} className="animate-spin" /> Verifying...
+                      </span>
+                    ) : (
+                      'Verify & Continue'
+                    )}
+                  </button>
+                </form>
+
+                <p style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.5rem" }}>
+                  Didn&apos;t get it? <button type="button" onClick={handleEmailContinue} disabled={loading} style={{ background: "none", border: "none", color: "#6366f1", fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}>Resend code</button>
+                </p>
 
                 {Footer}
               </motion.div>
