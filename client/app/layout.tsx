@@ -3,7 +3,6 @@ import "./globals.css";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { QuizSocketProvider } from "@/contexts/QuizSocketContext";
 import SiteShell from "@/components/layout/SiteShell";
 import { ActivityTracker } from "@/components/activity-tracker";
 import { Toaster } from "@/components/ui/sonner";
@@ -96,9 +95,7 @@ export default function RootLayout({
         <AuthProvider>
           {/* Client-side activity tracking: page views + presence heartbeat */}
           <ActivityTracker />
-          <QuizSocketProvider>
-            <SiteShell>{children}</SiteShell>
-          </QuizSocketProvider>
+          <SiteShell>{children}</SiteShell>
         </AuthProvider>
         {/* Vercel Analytics: no-ops in local dev; collects page views on the
             Vercel deployments (both domains share the same project). */}

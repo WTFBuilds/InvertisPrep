@@ -121,8 +121,13 @@ export function QuizSocketProvider({ children }: { children: ReactNode }) {
       setIsConnected(true);
     });
 
-    socket.on('disconnect', () => {
-      console.log('Quiz socket disconnected');
+    socket.on('connect_error', (err) => {
+      console.warn('Quiz socket connection failed:', err.message);
+      setIsConnected(false);
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log('Quiz socket disconnected:', reason);
       setIsConnected(false);
     });
 
