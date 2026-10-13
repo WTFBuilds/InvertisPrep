@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { pyqApi, departmentApi, sessionApi } from '@/lib/api';
@@ -15,10 +15,17 @@ import {
   FileText, 
   ArrowLeft, 
   Info, 
-  CheckCircle,
-  HelpCircle,
-  AlertTriangle
+  CheckCircle2, 
+  AlertTriangle,
+  ChevronDown,
+  Loader2
 } from 'lucide-react';
+
+const selectClasses =
+  'h-11 w-full appearance-none rounded-lg border border-slate-200 bg-white px-3.5 pr-10 text-sm text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed';
+
+const inputClasses =
+  'h-11 w-full rounded-lg border border-slate-200 bg-white px-3.5 text-sm text-slate-800 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60';
 
 export default function StudentUploadPage() {
   const { user, loading } = useAuth();
@@ -37,6 +44,7 @@ export default function StudentUploadPage() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const submittingRef = useRef(false);
   
   const [formData, setFormData] = useState({
     departmentId: '',
@@ -134,10 +142,10 @@ export default function StudentUploadPage() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center bg-gradient-to-br from-indigo-50/50 via-purple-50/50 to-pink-50/50">
+      <div className="min-h-[80vh] flex items-center justify-center bg-slate-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-medium">Checking authorization...</p>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-slate-900 mx-auto"></div>
+          <p className="mt-4 text-slate-600 font-medium text-sm">Checking authorization...</p>
         </div>
       </div>
     );
@@ -163,11 +171,15 @@ export default function StudentUploadPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current || uploading) return;
+    submittingRef.current = true;
+
     setError('');
     setSuccess('');
 
     if (!file) {
       setError('Please select a PDF file');
+      submittingRef.current = false;
       return;
     }
 
@@ -220,31 +232,26 @@ export default function StudentUploadPage() {
       setError(errorMessage);
     } finally {
       setUploading(false);
+      submittingRef.current = false;
     }
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-50 via-indigo-50/20 to-purple-50/20 py-12 px-4 sm:px-6 lg:px-8">
-      {/* Decorative background blobs */}
-      <div className="absolute inset-0 overflow-hidden -z-10 pointer-events-none">
-        <div className="absolute top-10 right-10 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20" />
-        <div className="absolute bottom-10 left-10 w-96 h-96 bg-indigo-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20" />
-      </div>
-
+    <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Top bar with back button */}
         <div className="flex justify-between items-center">
           <Button 
             variant="ghost" 
             onClick={() => router.push('/pyq')} 
-            className="flex items-center gap-2 text-gray-600 hover:text-indigo-600"
+            className="flex items-center gap-2 text-slate-600 hover:text-slate-900"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to PYQs
           </Button>
 
-          <div className="text-sm bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-full font-semibold border border-indigo-100 flex items-center gap-1.5">
-            <Info className="h-4 w-4" />
+          <div className="text-xs bg-white text-slate-700 px-3 py-1.5 rounded-full font-semibold border border-slate-200 shadow-sm flex items-center gap-1.5">
+            <Info className="h-3.5 w-3.5 text-slate-500" />
             {isExempt 
               ? 'Daily Upload Limit: Unlimited' 
               : `Daily Uploads: ${uploadCount !== null ? uploadCount : 0}/${uploadLimit} papers`
@@ -253,92 +260,103 @@ export default function StudentUploadPage() {
         </div>
 
         {/* Header Text */}
-        <div className="text-center md:text-left">
-          <h1 className="text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
             Upload PYQ Paper
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-slate-500 mt-1 text-sm">
             Contribute to the student community by sharing previous year question papers.
           </p>
         </div>
 
         {error && (
-          <Alert variant="destructive" className="shadow-lg border-red-200">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Upload Failed</AlertTitle>
-            <AlertDescription className="font-medium mt-1">{error}</AlertDescription>
+          <Alert variant="destructive" className="border-rose-200 bg-rose-50 text-rose-900">
+            <AlertTriangle className="h-4 w-4 text-rose-600" />
+            <AlertTitle className="font-semibold">Upload Failed</AlertTitle>
+            <AlertDescription className="text-xs mt-0.5">{error}</AlertDescription>
           </Alert>
         )}
 
         {success && (
-          <Alert className="shadow-lg bg-green-50 border-green-200">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertTitle className="text-green-800 font-bold">Upload Received</AlertTitle>
-            <AlertDescription className="text-green-700 font-semibold mt-1">{success}</AlertDescription>
+          <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            <AlertTitle className="font-semibold">Upload Received</AlertTitle>
+            <AlertDescription className="text-xs mt-0.5">{success}</AlertDescription>
           </Alert>
         )}
 
         {/* Upload Card */}
-        <Card className="border-0 shadow-xl bg-white/70 backdrop-blur-md">
-          <CardHeader>
-            <CardTitle className="text-xl font-bold text-gray-800">Paper details</CardTitle>
-            <CardDescription>All fields marked with an asterisk (*) are mandatory</CardDescription>
+        <Card className="border border-slate-200/80 shadow-sm bg-white rounded-2xl overflow-hidden">
+          <CardHeader className="border-b border-slate-100 bg-slate-50/50 px-6 py-5">
+            <CardTitle className="text-lg font-bold text-slate-900">Paper details</CardTitle>
+            <CardDescription className="text-xs text-slate-500">All fields marked with an asterisk (*) are mandatory</CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+          <CardContent className="p-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
               
               {/* Department & Branch grid */}
               <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="departmentId" className="text-sm font-semibold text-gray-700">Department *</Label>
-                  <select
-                    id="departmentId"
-                    value={formData.departmentId}
-                    onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
-                    className="w-full h-11 border border-gray-200 rounded-lg px-3 py-2 bg-white/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-gray-800 text-sm font-medium transition-all"
-                    required
-                    disabled={dataLoading}
-                  >
-                    <option value="">Select Department</option>
-                    {departments.map((dept) => (
-                      <option key={dept._id} value={dept._id}>
-                        {dept.displayName}
-                      </option>
-                    ))}
-                  </select>
+                <div>
+                  <Label htmlFor="departmentId" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Department *
+                  </Label>
+                  <div className="relative">
+                    <select
+                      id="departmentId"
+                      value={formData.departmentId}
+                      onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
+                      className={selectClasses}
+                      required
+                      disabled={dataLoading}
+                    >
+                      <option value="">Select Department</option>
+                      {departments.map((dept) => (
+                        <option key={dept._id} value={dept._id}>
+                          {dept.displayName}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="branchId" className="text-sm font-semibold text-gray-700">Branch *</Label>
-                  <select
-                    id="branchId"
-                    value={formData.branchId}
-                    onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
-                    className="w-full h-11 border border-gray-200 rounded-lg px-3 py-2 bg-white/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-gray-800 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    required
-                    disabled={!formData.departmentId || filteredBranches.length === 0}
-                  >
-                    <option value="">Select Branch</option>
-                    {filteredBranches.map((branch) => (
-                      <option key={branch._id} value={branch._id}>
-                        {branch.name}
+                <div>
+                  <Label htmlFor="branchId" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Branch *
+                  </Label>
+                  <div className="relative">
+                    <select
+                      id="branchId"
+                      value={formData.branchId}
+                      onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
+                      className={selectClasses}
+                      required
+                      disabled={!formData.departmentId || filteredBranches.length === 0}
+                    >
+                      <option value="">
+                        {!formData.departmentId ? 'Select department first' : 'Select Branch'}
                       </option>
-                    ))}
-                  </select>
+                      {filteredBranches.map((branch) => (
+                        <option key={branch._id} value={branch._id}>
+                          {branch.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  </div>
                 </div>
               </div>
 
               {/* Additional branches — the paper will also be visible under these filters */}
               {formData.branchId && filteredBranches.length > 1 && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Also applicable to (optional)
+                <div className="space-y-1.5 rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
+                  <Label className="text-xs font-semibold text-slate-700">
+                    Also applicable to other branches (optional)
                   </Label>
-                  <p className="text-xs text-gray-500">
-                    Tick every other branch this paper applies to — it will show up when students
-                    filter by any selected branch.
+                  <p className="text-xs text-slate-500">
+                    Select every other branch this paper applies to — it will show up when students filter by any selected branch.
                   </p>
-                  <div className="flex flex-wrap gap-2 p-3 border border-gray-200 rounded-lg bg-white/80">
+                  <div className="flex flex-wrap gap-2 pt-1.5">
                     {filteredBranches
                       .filter((branch) => branch._id !== formData.branchId)
                       .map((branch) => {
@@ -346,15 +364,15 @@ export default function StudentUploadPage() {
                         return (
                           <label
                             key={branch._id}
-                            className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-all ${
+                            className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
                               checked
-                                ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
-                                : 'border-gray-200 bg-white text-gray-600 hover:border-indigo-200 hover:bg-indigo-50/50'
+                                ? 'border-slate-900 bg-slate-900 text-white'
+                                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                             }`}
                           >
                             <input
                               type="checkbox"
-                              className="h-3.5 w-3.5 accent-indigo-600"
+                              className="sr-only"
                               checked={checked}
                               onChange={(e) =>
                                 setSelectedAdditionalBranches((prev) =>
@@ -374,114 +392,139 @@ export default function StudentUploadPage() {
 
               {/* Session & Semester grid */}
               <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="sessionId" className="text-sm font-semibold text-gray-700">Session *</Label>
-                  <select
-                    id="sessionId"
-                    value={formData.sessionId}
-                    onChange={(e) => setFormData({ ...formData, sessionId: e.target.value })}
-                    className="w-full h-11 border border-gray-200 rounded-lg px-3 py-2 bg-white/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-gray-800 text-sm font-medium transition-all"
-                    required
-                  >
-                    <option value="">Select Session</option>
-                    {sessions.map((session) => (
-                      <option key={session._id} value={session._id}>
-                        {session.name}
-                      </option>
-                    ))}
-                  </select>
+                <div>
+                  <Label htmlFor="sessionId" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Session *
+                  </Label>
+                  <div className="relative">
+                    <select
+                      id="sessionId"
+                      value={formData.sessionId}
+                      onChange={(e) => setFormData({ ...formData, sessionId: e.target.value })}
+                      className={selectClasses}
+                      required
+                    >
+                      <option value="">Select Session</option>
+                      {sessions.map((session) => (
+                        <option key={session._id} value={session._id}>
+                          {session.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="semester" className="text-sm font-semibold text-gray-700">Semester *</Label>
-                  <select
-                    id="semester"
-                    value={formData.semester}
-                    onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
-                    className="w-full h-11 border border-gray-200 rounded-lg px-3 py-2 bg-white/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-gray-800 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    required
-                    disabled={selectedSemesters.length === 0}
-                  >
-                    <option value="">Select Semester</option>
-                    {selectedSemesters.map((sem) => (
-                      <option key={sem} value={sem}>
-                        Semester {sem}
+                <div>
+                  <Label htmlFor="semester" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Semester *
+                  </Label>
+                  <div className="relative">
+                    <select
+                      id="semester"
+                      value={formData.semester}
+                      onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
+                      className={selectClasses}
+                      required
+                      disabled={selectedSemesters.length === 0}
+                    >
+                      <option value="">
+                        {selectedSemesters.length === 0 ? 'Select branch first' : 'Select Semester'}
                       </option>
-                    ))}
-                  </select>
+                      {selectedSemesters.map((sem) => (
+                        <option key={sem} value={sem}>
+                          Semester {sem}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  </div>
                 </div>
               </div>
 
               {/* Subject Name & Subject Code grid */}
               <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="subjectName" className="text-sm font-semibold text-gray-700">Subject Name *</Label>
+                <div>
+                  <Label htmlFor="subjectName" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Subject Name *
+                  </Label>
                   <Input
                     id="subjectName"
                     value={formData.subjectName}
                     onChange={(e) => setFormData({ ...formData, subjectName: e.target.value })}
                     placeholder="e.g., Operating Systems"
-                    className="h-11 border-gray-200"
+                    className={inputClasses}
                     required
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="subjectCode" className="text-sm font-semibold text-gray-700">Subject Code (Optional)</Label>
+                <div>
+                  <Label htmlFor="subjectCode" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Subject Code (Optional)
+                  </Label>
                   <Input
                     id="subjectCode"
                     value={formData.subjectCode}
                     onChange={(e) => setFormData({ ...formData, subjectCode: e.target.value })}
                     placeholder="e.g., CS-402"
-                    className="h-11 border-gray-200"
+                    className={inputClasses}
                   />
                 </div>
               </div>
 
               {/* Exam Type & Year grid */}
               <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="examType" className="text-sm font-semibold text-gray-700">Exam Type *</Label>
-                  <select
-                    id="examType"
-                    value={formData.examType}
-                    onChange={(e) => setFormData({ ...formData, examType: e.target.value })}
-                    className="w-full h-11 border border-gray-200 rounded-lg px-3 py-2 bg-white/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-gray-800 text-sm font-medium transition-all"
-                    required
-                  >
-                    <option value="">Select Exam Type</option>
-                    <option value="mid-term">Mid-Term</option>
-                    <option value="end-term">End-Term</option>
-                  </select>
+                <div>
+                  <Label htmlFor="examType" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Exam Type *
+                  </Label>
+                  <div className="relative">
+                    <select
+                      id="examType"
+                      value={formData.examType}
+                      onChange={(e) => setFormData({ ...formData, examType: e.target.value })}
+                      className={selectClasses}
+                      required
+                    >
+                      <option value="">Select Exam Type</option>
+                      <option value="mid-term">Mid-Term</option>
+                      <option value="end-term">End-Term</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="year" className="text-sm font-semibold text-gray-700">Exam Year *</Label>
+                <div>
+                  <Label htmlFor="year" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Exam Year *
+                  </Label>
                   <Input
                     id="year"
                     type="number"
                     value={formData.year}
-                    onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) || new Date().getFullYear() })}
+                    onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value, 10) || new Date().getFullYear() })}
                     min="2000"
                     max="2100"
-                    className="h-11 border-gray-200"
+                    className={inputClasses}
                     required
                   />
                 </div>
               </div>
 
               {/* PDF File upload zone */}
-              <div className="space-y-2">
-                <Label htmlFor="file" className="text-sm font-semibold text-gray-700">PDF File * (Max 10MB)</Label>
-                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-indigo-500 transition-colors bg-white/50">
-                  <div className="space-y-1 text-center">
-                    <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
-                    <div className="flex text-sm text-gray-600 justify-center">
+              <div>
+                <Label htmlFor="file" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                  PDF File * (Max 10MB)
+                </Label>
+                <div className="mt-1 flex justify-center px-6 pt-6 pb-6 border-2 border-dashed border-slate-200 rounded-xl hover:border-slate-400 transition-colors bg-slate-50/50">
+                  <div className="space-y-1.5 text-center">
+                    <UploadCloud className="mx-auto h-10 w-10 text-slate-400" />
+                    <div className="flex text-sm text-slate-600 justify-center">
                       <label
                         htmlFor="file"
-                        className="relative cursor-pointer bg-transparent rounded-md font-semibold text-indigo-600 hover:text-indigo-500 focus-within:outline-none"
+                        className="relative cursor-pointer bg-transparent rounded-md font-semibold text-slate-900 hover:text-indigo-600 focus-within:outline-none transition-colors"
                       >
-                        <span>Choose a file</span>
+                        <span>Choose a PDF file</span>
                         <input
                           id="file"
                           type="file"
@@ -493,16 +536,16 @@ export default function StudentUploadPage() {
                       </label>
                       <p className="pl-1">or drag and drop</p>
                     </div>
-                    <p className="text-xs text-gray-500">PDF only up to 10MB</p>
+                    <p className="text-xs text-slate-400">PDF documents only, up to 10MB</p>
                   </div>
                 </div>
 
                 {file && (
-                  <div className="flex items-center gap-2 p-3 bg-indigo-50 border border-indigo-100 rounded-lg mt-2 text-indigo-800">
-                    <FileText className="h-5 w-5 text-indigo-600 flex-shrink-0" />
+                  <div className="flex items-center gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-lg mt-2 text-slate-800">
+                    <FileText className="h-5 w-5 text-slate-600 flex-shrink-0" />
                     <div className="flex-grow min-w-0">
-                      <p className="text-sm font-semibold truncate">{file.name}</p>
-                      <p className="text-xs text-indigo-600/80">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                      <p className="text-sm font-semibold truncate text-slate-900">{file.name}</p>
+                      <p className="text-xs text-slate-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                     </div>
                   </div>
                 )}
@@ -512,11 +555,11 @@ export default function StudentUploadPage() {
               <Button 
                 type="submit" 
                 disabled={uploading} 
-                className="w-full h-12 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold rounded-lg shadow-md hover:opacity-95 transition-opacity mt-4 flex items-center justify-center"
+                className="w-full h-11 bg-slate-900 text-white font-medium rounded-lg shadow-sm hover:bg-slate-800 transition-colors mt-2 flex items-center justify-center disabled:opacity-60"
               >
                 {uploading ? (
                   <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin text-white" />
                     <span>Uploading your paper...</span>
                   </div>
                 ) : (
@@ -528,12 +571,12 @@ export default function StudentUploadPage() {
         </Card>
 
         {/* Verification Note */}
-        <div className="bg-yellow-50/50 border border-yellow-100 rounded-xl p-4 flex gap-3 text-sm text-yellow-800/90 shadow-sm">
-          <Info className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+        <div className="bg-amber-50/70 border border-amber-200/70 rounded-xl p-4 flex gap-3 text-xs leading-relaxed text-amber-900 shadow-sm">
+          <Info className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-semibold text-yellow-900">Why is my paper not visible immediately?</p>
-            <p className="mt-1">
-              To maintain high quality and prevent spam, all user-uploaded question papers are verified by university faculty/administrators before they are made public.
+            <p className="font-semibold text-amber-950">Why is my paper not visible immediately?</p>
+            <p className="mt-0.5">
+              To maintain high quality and prevent spam, all user-uploaded question papers are verified by university administrators before they are made public.
             </p>
           </div>
         </div>

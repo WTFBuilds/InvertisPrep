@@ -289,6 +289,8 @@ export interface PaperExistsResponse extends APIResponse<PYQPaper | null> {
   exists?: boolean;
   code?: string;
   paperId?: string;
+  alreadyRequested?: boolean;
+  existingRequest?: PaperRequest | null;
   /** Exam terms already uploaded for this code + year (e.g. ['mid-term']). */
   existingExamTypes?: ExamType[];
 }
