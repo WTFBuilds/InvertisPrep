@@ -69,18 +69,66 @@ export const checkExistingPaper = async (req, res) => {
     if (examType && examType !== 'any') {
       // Specific term: blocked iff that exact term already exists.
       const match = matches.find((p) => p.examType === examType) || null;
-      res.json({ success: true, exists: Boolean(match), data: match, existingExamTypes });
+      if (match) {
+        res.json({
+          success: true,
+          exists: true,
+          alreadyRequested: false,
+          data: match,
+          existingExamTypes,
+        });
+        return;
+      }
+    } else {
+      const hasBothTerms = EXAM_TERMS.every((t) => existingExamTypes.includes(t));
+      if (hasBothTerms) {
+        res.json({
+          success: true,
+          exists: true,
+          alreadyRequested: false,
+          data: matches[0] || null,
+          existingExamTypes,
+        });
+        return;
+      }
+    }
+
+    // Check if another student has already requested this exact paper and it is pending
+    let pendingRequest = null;
+    if (parsedYear) {
+      const requestFilter = {
+        status: 'pending',
+        subjectCode: codeRegex,
+        year: parsedYear,
+      };
+      if (departmentId) requestFilter.departmentId = departmentId;
+      if (examType && examType !== 'any') {
+        requestFilter.$or = [{ examType }, { examType: 'any' }];
+      }
+
+      pendingRequest = await PaperRequest.findOne(requestFilter)
+        .populate('requestedBy', 'name email picture')
+        .sort({ createdAt: -1 })
+        .lean();
+    }
+
+    if (pendingRequest) {
+      res.json({
+        success: true,
+        exists: false,
+        alreadyRequested: true,
+        data: null,
+        existingRequest: pendingRequest,
+        existingExamTypes,
+      });
       return;
     }
 
-    // "Any": blocked only when BOTH the mid-term and end-term already exist —
-    // otherwise the student may still be missing one of the two and should be
-    // allowed to request it.
-    const hasBothTerms = EXAM_TERMS.every((t) => existingExamTypes.includes(t));
     res.json({
       success: true,
-      exists: hasBothTerms,
-      data: hasBothTerms ? matches[0] || null : null,
+      exists: false,
+      alreadyRequested: false,
+      data: null,
       existingExamTypes,
     });
   } catch (error) {
@@ -168,6 +216,36 @@ export const createRequest = async (req, res) => {
         code: 'PAPER_EXISTS',
         message: 'This paper already exists on InvertisPrep.',
         paperId: existingPaperId,
+      });
+      return;
+    }
+
+    // Check if another student has already requested this paper (matching department, code, year, examType)
+    const duplicateRequestFilter = {
+      status: 'pending',
+      subjectCode: codeRegex,
+      year: parsedYear,
+    };
+    if (departmentId) duplicateRequestFilter.departmentId = departmentId;
+    if (validExamType !== 'any') {
+      duplicateRequestFilter.$or = [{ examType: validExamType }, { examType: 'any' }];
+    }
+
+    const existingPendingRequest = await PaperRequest.findOne(duplicateRequestFilter)
+      .populate('requestedBy', 'name email picture')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (existingPendingRequest) {
+      const isSameUser = String(existingPendingRequest.requestedBy?._id || existingPendingRequest.requestedBy?.id || existingPendingRequest.requestedBy) === String(req.user.id || req.user._id);
+      const requesterName = isSameUser ? 'You' : (existingPendingRequest.requestedBy?.name || 'Another student');
+      res.status(409).json({
+        success: false,
+        code: 'REQUEST_EXISTS',
+        message: isSameUser
+          ? 'You have already submitted a request for this paper! Our team is working on it.'
+          : `This paper has already been requested by ${requesterName}. Our team is working on it!`,
+        existingRequest: existingPendingRequest,
       });
       return;
     }
