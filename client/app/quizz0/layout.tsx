@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
+import { QuizSocketProvider } from "@/contexts/QuizSocketContext";
 
 export const metadata: Metadata = buildMetadata({
   title: "Quizzo – Invertis University Quiz & 1v1 Trivia",
@@ -17,5 +18,5 @@ export const metadata: Metadata = buildMetadata({
 });
 
 export default function Quizz0Layout({ children }: { children: React.ReactNode }) {
-  return children;
+  return <QuizSocketProvider>{children}</QuizSocketProvider>;
 }

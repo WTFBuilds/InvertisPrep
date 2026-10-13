@@ -251,6 +251,7 @@ export default function PapersPage() {
 
   const getUploadedBy = (paper: PYQPaper) => {
     if (typeof paper.uploadedBy === 'string') return 'Unknown';
+    if (!paper.uploadedBy) return 'Unknown'; // handle null/missing
     return (paper.uploadedBy as User).email;
   };
 
