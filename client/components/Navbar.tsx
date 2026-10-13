@@ -580,11 +580,6 @@ export default function Navbar() {
                       )}
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/pyq/upload" className="w-full cursor-pointer">
-                      <UploadCloud className="mr-2 h-4 w-4 text-slate-500" /> Upload PYQ
-                    </Link>
-                  </DropdownMenuItem>
 
                   {canEnterAdmin(user) && (
                     <>
@@ -811,15 +806,8 @@ function MobileMenu({
                 </span>
               )}
             </Link>
-            <Link
-              href="/pyq/upload"
-              onClick={onNavigate}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-zinc-100 hover:text-zinc-900 group"
-            >
-              <UploadCloud className="size-4 text-zinc-400 group-hover:text-zinc-800 transition-colors" /> Upload PYQ
-            </Link>
 
-{canEnterAdmin(user) ? (
+            {canEnterAdmin(user) ? (
               <Link
                 href="/admin/dashboard"
                 onClick={onNavigate}

@@ -37,9 +37,9 @@ const attachOptionalUser = (req, _res, next) => {
 // Specific routes (must come before parameter routes)
 router.get('/', attachOptionalUser, getPYQs);
 router.get('/upload-count', authenticateJWT, getDailyUploadCount);
-// Paper permissions gate every staff action on this service
+// Paper permissions gate every upload action on this service — public uploads for regular/new users are disabled
 router.post('/upload', authenticateJWT, requirePermission('papers.upload'), uploadLimiter, upload.single('pdf'), uploadPYQ);
-router.post('/upload-public', authenticateJWT, uploadLimiter, upload.single('pdf'), uploadPYQPublic);
+router.post('/upload-public', authenticateJWT, requirePermission('papers.upload'), uploadLimiter, upload.single('pdf'), uploadPYQPublic);
 // Staff with papers.view can list the full paper set (admin panel + SRT review)
 router.get('/all', authenticateJWT, requirePermission('papers.view'), getAllPYQs);
 

@@ -414,9 +414,25 @@ export const updatePYQ = async (req, res) => {
   }
 };
 
-// Public upload PYQ
+// Public upload PYQ (Restricted — public uploads disabled, requires papers.upload permission)
 export const uploadPYQPublic = async (req, res) => {
   try {
+    const isAuthorized =
+      req.user &&
+      (req.user.permissions === 'all' ||
+        (Array.isArray(req.user.permissions) && req.user.permissions.includes('papers.upload')) ||
+        ['admin', 'super-admin', 'srt'].includes(req.user.role));
+
+    if (!isAuthorized) {
+      if (req.file) {
+        try { await fs.unlink(req.file.path); } catch {}
+      }
+      return res.status(403).json({
+        success: false,
+        message: 'Public paper uploads are disabled. Only authorized staff may upload papers.',
+      });
+    }
+
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'PDF file is required' });
     }
@@ -480,25 +496,18 @@ export const uploadPYQPublic = async (req, res) => {
 // Get daily upload count
 export const getDailyUploadCount = async (req, res) => {
   try {
-    const dailyLimit = 10;
-    // Staff accounts (including custom roles) upload for the platform, not for
-    // themselves, so the per-user daily limit doesn't apply to them.
-    if (['admin', 'super-admin', 'srt', 'staff'].includes(req.user.role)) {
-      return res.json({ success: true, data: { count: 0, limit: dailyLimit, isExempt: true } });
+    const isStaff =
+      ['admin', 'super-admin', 'srt', 'staff'].includes(req.user?.role) ||
+      req.user?.permissions === 'all' ||
+      (Array.isArray(req.user?.permissions) && req.user?.permissions.includes('papers.upload'));
+
+    // Staff accounts upload for the platform and are exempt from limits
+    if (isStaff) {
+      return res.json({ success: true, data: { count: 0, limit: 10, isExempt: true } });
     }
 
-    const now = new Date();
-    const istOffset = 5.5 * 60 * 60 * 1000;
-    const startOfDayIST = new Date(now.getTime() + istOffset);
-    startOfDayIST.setUTCHours(0, 0, 0, 0);
-    const startOfDayUTC = new Date(startOfDayIST.getTime() - istOffset);
-
-    const count = await PDFDocument.countDocuments({
-      uploadedBy: new mongoose.Types.ObjectId(req.user.id),
-      createdAt: { $gte: startOfDayUTC },
-    });
-
-    res.json({ success: true, data: { count, limit: dailyLimit, isExempt: false } });
+    // Public uploads are disabled for regular/new users
+    return res.json({ success: true, data: { count: 0, limit: 0, isExempt: false } });
   } catch (error) {
     console.error('Get daily upload count error:', error);
     res.status(500).json({ success: false, message: 'Server error retrieving upload count' });
