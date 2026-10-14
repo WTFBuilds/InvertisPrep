@@ -100,7 +100,11 @@ export default function AdminReportsPage() {
     const res = await reportApi.reply(reportId, body);
     if (res.success) {
       setSuccess('Reply sent to the reporter');
-      fetchReports();
+      if (res.data) {
+        setReports((prev) => prev.map((r) => (r._id === reportId ? (res.data as any) : r)));
+      } else {
+        fetchReports();
+      }
     } else {
       setError(res.message || 'Failed to send reply');
     }

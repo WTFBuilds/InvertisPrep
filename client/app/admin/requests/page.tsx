@@ -125,6 +125,10 @@ export default function PaperRequestsPage() {
     [requests, viewId]
   );
 
+  const handleRequestUpdate = (updated: PaperRequest) => {
+    setRequests((prev) => prev.map((r) => (r._id === updated._id ? updated : r)));
+  };
+
   const handleStatusChange = async (id: string, status: 'fulfilled' | 'rejected' | 'pending') => {
     setError('');
     setSuccess('');
@@ -369,6 +373,7 @@ export default function PaperRequestsPage() {
           open={viewOpen}
           onOpenChange={setViewOpen}
           onStatusChange={handleStatusChange}
+          onRequestUpdate={handleRequestUpdate}
           onDelete={handleDelete}
           actingId={actingId}
         />
