@@ -93,7 +93,11 @@ export default function AdminBugsPage() {
     const res = await bugApi.reply(bugId, body);
     if (res.success) {
       setSuccess('Reply sent to the reporter');
-      fetchBugs();
+      if (res.data) {
+        setBugs((prev) => prev.map((b) => (b._id === bugId ? (res.data as any) : b)));
+      } else {
+        fetchBugs();
+      }
     } else {
       setError(res.message || 'Failed to send reply');
     }

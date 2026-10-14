@@ -852,6 +852,7 @@ export interface ActivityUserRow {
 
 // ── Support ticket thread ────────────────────────────────────────────────────
 export interface SupportMessage {
+  _id?: string;
   sender: string | { _id?: string; id?: string; name: string; email?: string; picture?: string | null; role?: UserRole };
   senderRole: UserRole | 'srt';
   body: string;

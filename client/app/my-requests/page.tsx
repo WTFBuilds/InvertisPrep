@@ -151,15 +151,27 @@ export default function MyRequestsPage() {
 
   const replyToRequest = async (id: string, body: string) => {
     const res = await paperRequestApi.reply(id, body);
-    if (res.success) await refresh();
+    if (res.success && res.data) {
+      const updated = res.data;
+      setRequests((prev) => prev.map((r) => (r._id === id ? updated : r)));
+      supportApi.unreadCount().then(setUnread).catch(() => {});
+    }
   };
   const replyToBug = async (id: string, body: string) => {
     const res = await bugApi.reply(id, body);
-    if (res.success) await refresh();
+    if (res.success && res.data) {
+      const updated = res.data as BugTicket;
+      setBugs((prev) => prev.map((b) => (b._id === id ? updated : b)));
+      supportApi.unreadCount().then(setUnread).catch(() => {});
+    }
   };
   const replyToReport = async (id: string, body: string) => {
     const res = await reportApi.reply(id, body);
-    if (res.success) await refresh();
+    if (res.success && res.data) {
+      const updated = res.data as unknown as ReportTicket;
+      setReports((prev) => prev.map((rep) => ((rep._id as string) === id ? updated : rep)));
+      supportApi.unreadCount().then(setUnread).catch(() => {});
+    }
   };
 
   return (

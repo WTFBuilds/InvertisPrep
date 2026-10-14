@@ -23,6 +23,7 @@ interface PaperRequestDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Page-level handlers — the dialog only renders state, the page owns it. */
   onStatusChange: (id: string, status: 'fulfilled' | 'rejected' | 'pending') => void;
+  onRequestUpdate?: (updated: PaperRequest) => void;
   onDelete: (id: string) => void;
   actingId: string | null;
 }
@@ -72,6 +73,7 @@ export function PaperRequestDetailDialog({
   open,
   onOpenChange,
   onStatusChange,
+  onRequestUpdate,
   onDelete,
   actingId,
 }: PaperRequestDetailDialogProps) {
@@ -81,7 +83,6 @@ export function PaperRequestDetailDialog({
   // role may or may not have been granted requests.manage.
   const canModify = hasPermission(user, 'requests.manage');
 
-
   if (!request) return null;
 
   const requester = getRequester(request);
@@ -89,9 +90,10 @@ export function PaperRequestDetailDialog({
 
   const sendReply = async (body: string) => {
     const res = await paperRequestApi.reply(request._id, body);
-    if (res.success) {
-      // The parent owns the list; trigger a re-fetch via status change no-op.
-      onStatusChange(request._id, request.status);
+    if (res.success && res.data) {
+      onRequestUpdate?.(res.data);
+    } else {
+      throw new Error(res.message || 'Failed to send reply');
     }
   };
 
