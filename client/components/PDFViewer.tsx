@@ -33,9 +33,10 @@ export default function PDFViewer({ file, id, type }: PDFViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Best-effort screenshot deterrent: blurs the document while the window is
-  // unfocused/hidden or on a screenshot key. Cannot block the OS camera; see
+  // unfocused/hidden or during a capture attempt (held through the
+  // post-release selection window). Cannot block the OS camera; see
   // the hook for the full explanation. Never hard-locks the UI.
-  const shielded = useScreenshotGuard(true);
+  const { shielded, reason } = useScreenshotGuard(true);
 
   // Handle responsiveness
   const onResize = useCallback((entries: ResizeObserverEntry[]) => {
@@ -152,8 +153,10 @@ export default function PDFViewer({ file, id, type }: PDFViewerProps) {
   return (
     <div className="flex flex-col items-center bg-slate-900 min-h-screen select-text relative" ref={containerRef}>
       {/* Focus / screenshot shield. Covers the whole viewer (z above the
-          toolbar) while the window is unfocused, hidden, or a screenshot key
-          is pressed — so switching to a capture tool shows nothing. */}
+          toolbar) while the window is unfocused, hidden, or a capture
+          combo was recently used — so an area-selection screenshot sees
+          nothing, even though the crosshair stays active after the keys
+          are released. */}
       {shielded && (
         <div
           className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-slate-950/95 backdrop-blur-xl"
@@ -162,7 +165,9 @@ export default function PDFViewer({ file, id, type }: PDFViewerProps) {
           <ShieldCheck className="h-10 w-10 text-indigo-400" />
           <p className="text-sm font-semibold text-slate-200">Document protected</p>
           <p className="max-w-xs text-center text-xs text-slate-400">
-            This paper is hidden while the window is inactive.
+            {reason === 'capture'
+              ? 'Screenshot detected — this paper stays hidden while a capture may be in progress.'
+              : 'This paper is hidden while the window is inactive.'}
           </p>
         </div>
       )}
