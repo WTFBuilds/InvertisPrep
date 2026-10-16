@@ -17,20 +17,17 @@ import {
   CalendarDays,
   ShieldCheck,
   Users,
-  HandCoins,
   DatabaseBackup,
   KeyRound,
   Mail,
-  MailOpen,
-  PenSquare,
-  ScrollText,
-  BellRing,
   Activity,
   Megaphone,
+  Settings,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
+import { SidebarInstagramToggle } from "@/components/admin/sidebar-instagram-toggle"
 import {
   Sidebar,
   SidebarContent,
@@ -46,6 +43,7 @@ import { canAccessAdminRoute } from "@/lib/permissions"
 
 export const adminNavItems = [
   { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
+  { title: "Settings", url: "/admin/settings", icon: Settings },
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Roles", url: "/admin/roles", icon: KeyRound },
   { title: "DB Backup", url: "/admin/backup", icon: DatabaseBackup },
@@ -113,6 +111,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain label="Management" items={items} />
       </SidebarContent>
       <SidebarFooter>
+        {user?.role === 'super-admin' && (
+          <div className="px-2 py-1.5">
+            <SidebarInstagramToggle />
+          </div>
+        )}
         <NavUser
           user={{
             name: user?.name || user?.email || "Admin",

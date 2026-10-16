@@ -38,6 +38,8 @@ import activityRoutes from './routes/activity.js';
 import adminActivityRoutes from './routes/adminActivity.js';
 import adminMarketingRoutes from './routes/adminMarketing.js';
 import adminBackupRoutes from './routes/adminBackup.js';
+import settingsRoutes from './routes/settings.js';
+import adminSettingsRoutes from './routes/adminSettings.js';
 
 // Initialize Express app
 const app = express();
@@ -110,6 +112,7 @@ const initApp = async () => {
   app.use('/api/sponsors', readLimiter);
   app.use('/api/users', readLimiter);
   app.use('/api/leaderboard', readLimiter);
+  app.use('/api/settings', readLimiter);
 
   // Resume drafts can include a deliberately small base64 profile photo.
   // verify: stash the raw body so the Razorpay webhook can check its
@@ -155,6 +158,8 @@ app.use('/api/admin/marketing', adminMarketingRoutes);
 app.use('/api/admin/backup', adminBackupRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/sponsors', sponsorRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/admin/settings', adminSettingsRoutes);
 
   // Apply write limiter to mutation-heavy routes
   app.use('/api/departments', writeLimiter);
@@ -167,6 +172,7 @@ app.use('/api/sponsors', sponsorRoutes);
   app.use('/api/bugs', writeLimiter);
   app.use('/api/admin/users', writeLimiter);
   app.use('/api/admin/roles', writeLimiter);
+  app.use('/api/admin/settings', writeLimiter);
   app.use('/api/sponsors', writeLimiter);
 
   // Error handling

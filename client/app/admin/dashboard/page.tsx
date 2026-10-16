@@ -55,6 +55,7 @@ import type {
   UserStats,
 } from '@/types';
 import { UserDetailDialog } from '@/components/admin/user-detail-dialog';
+import { InstagramGateControl } from '@/components/admin/instagram-gate-control';
 
 interface LeaderEntry {
   rank: number;
@@ -434,6 +435,11 @@ export default function AdminDashboard() {
         <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-700">
           {warning}
         </div>
+      )}
+
+      {/* Super Admin Controls */}
+      {user?.role === 'super-admin' && (
+        <InstagramGateControl />
       )}
 
       {/* Stat cards */}

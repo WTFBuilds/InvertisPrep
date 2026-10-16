@@ -260,7 +260,7 @@ export const NAV_PERMISSION_PREFIXES: [string, string[]][] = [
   ['/admin/activity/u/', ['activity.view']],
 ];
 
-export const SUPER_ADMIN_ONLY_ROUTES = ['/admin/roles', '/admin/backup'];
+export const SUPER_ADMIN_ONLY_ROUTES = ['/admin/roles', '/admin/backup', '/admin/settings'];
 
 export function canAccessAdminRoute(user: PermissionUser, pathname: string): boolean {
   if (SUPER_ADMIN_ONLY_ROUTES.includes(pathname)) {

@@ -62,6 +62,8 @@ import type {
   BackupStats,
   BackupJob,
   ImportPreviewSummary,
+  PublicSettings,
+  PlatformSettings,
 } from '@/types';
 
 // Same-origin proxy paths — next.config.ts rewrites forward these to the
@@ -1291,6 +1293,29 @@ export const backupApi = {
     const { data } = await apiClient.post<APIResponse<{ jobId: string; mode: 'replace' | 'merge' }>>(
       '/admin/backup/import/confirm',
       { uploadId, mode }
+    );
+    return data;
+  },
+};
+
+// Platform settings & feature flags API
+export const settingsApi = {
+  getPublic: async (): Promise<APIResponse<PublicSettings>> => {
+    const { data } = await apiClient.get<APIResponse<PublicSettings>>('/settings/public');
+    return data;
+  },
+
+  getAdmin: async (): Promise<APIResponse<PlatformSettings>> => {
+    const { data } = await apiClient.get<APIResponse<PlatformSettings>>('/admin/settings');
+    return data;
+  },
+
+  updateInstagramPopup: async (
+    enabled: boolean
+  ): Promise<APIResponse<PlatformSettings>> => {
+    const { data } = await apiClient.put<APIResponse<PlatformSettings>>(
+      '/admin/settings/instagram-popup',
+      { enabled }
     );
     return data;
   },

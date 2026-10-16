@@ -889,3 +889,13 @@ export interface SupportMessage {
   body: string;
   createdAt: string;
 }
+
+// ── Platform Settings & Feature Toggles ──────────────────────────────────────
+export interface PublicSettings {
+  instagramPopupEnabled: boolean;
+}
+
+export interface PlatformSettings {
+  instagramPopupEnabled: boolean;
+}
+
