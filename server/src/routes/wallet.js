@@ -4,6 +4,7 @@ import {
   getBalance,
   getTransactions,
   createTopupOrder,
+  createResumePassOrder,
   verifyTopup,
   spendDownload,
   getPacks,
@@ -24,6 +25,7 @@ router.get('/balance',      getBalance);
 router.get('/transactions', getTransactions);
 router.get('/packs',        getPacks);
 router.post('/orders',         createTopupOrder);
+router.post('/resume-pass-order', createResumePassOrder);
 router.post('/verify',         verifyTopup);
 router.post('/spend-download', spendDownload);
 

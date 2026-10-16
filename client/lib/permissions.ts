@@ -95,6 +95,14 @@ export const PERMISSION_GROUPS = [
       { key: 'marketing.view', label: 'View marketing insights', description: 'See growth analytics and the leads list (contact info included, no IPs)' },
     ],
   },
+  {
+    id: 'ai',
+    label: 'AI Features',
+    description: 'AI-assisted tools across the platform',
+    permissions: [
+      { key: 'ai.resume', label: 'Resume Builder AI', description: 'Use AI JD-fill, inline rephrase and section enhancement in resume builder' },
+    ],
+  },
 ] as const;
 
 export const ALL_PERMISSION_KEYS: string[] = PERMISSION_GROUPS.flatMap((g) =>
@@ -252,7 +260,7 @@ export const NAV_PERMISSION_PREFIXES: [string, string[]][] = [
   ['/admin/activity/u/', ['activity.view']],
 ];
 
-export const SUPER_ADMIN_ONLY_ROUTES = ['/admin/roles', '/admin/backup'];
+export const SUPER_ADMIN_ONLY_ROUTES = ['/admin/roles', '/admin/backup', '/admin/settings'];
 
 export function canAccessAdminRoute(user: PermissionUser, pathname: string): boolean {
   if (SUPER_ADMIN_ONLY_ROUTES.includes(pathname)) {

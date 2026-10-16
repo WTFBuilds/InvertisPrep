@@ -57,6 +57,9 @@ export const PERMISSIONS = {
   // Monitoring & marketing
   'activity.view': 'View the activity monitor: live users, event feed and per-user trails',
   'marketing.view': 'View marketing insights: growth, engagement and the leads list',
+
+  // Resume builder AI
+  'ai.resume': 'Use AI resume tools (job-description fill, rephrase, enhance)',
 };
 
 // Reserved for the super-admin — never grantable to custom or built-in roles.

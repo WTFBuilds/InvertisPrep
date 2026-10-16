@@ -20,6 +20,9 @@ import type {
   Report,
   Resume,
   ResumeDraft,
+  ResumeExperience,
+  ResumeProject,
+  ResumeSkillGroup,
   WalletTransaction,
   WalletBalance,
   TopUpPack,
@@ -59,6 +62,8 @@ import type {
   BackupStats,
   BackupJob,
   ImportPreviewSummary,
+  PublicSettings,
+  PlatformSettings,
 } from '@/types';
 
 // Same-origin proxy paths — next.config.ts rewrites forward these to the
@@ -915,6 +920,13 @@ export const walletApi = {
     return data;
   },
 
+  createResumePassOrder: async (): Promise<APIResponse<WalletTopupOrder>> => {
+    const { data } = await apiClient.post<APIResponse<WalletTopupOrder>>(
+      '/wallet/resume-pass-order'
+    );
+    return data;
+  },
+
   verifyTopup: async (
     payload: RazorpayCheckoutSuccess
   ): Promise<APIResponse<WalletBalance & { alreadyProcessed?: boolean }>> => {
@@ -927,11 +939,55 @@ export const walletApi = {
 
   spendDownload: async (
     resumeId: string,
-    method: 'coins' | 'free'
+    method: 'coins' | 'free' | 'pass'
   ): Promise<APIResponse<WalletBalance>> => {
     const { data } = await apiClient.post<APIResponse<WalletBalance>>(
       '/wallet/spend-download',
       { resumeId, method }
+    );
+    return data;
+  },
+};
+
+// AI Resume Builder API
+export interface AIFillResult {
+  summary: string;
+  experience: ResumeExperience[];
+  projects: ResumeProject[];
+  skillGroups: ResumeSkillGroup[];
+}
+
+export const aiApi = {
+  fillFromJD: async (
+    jobDescription: string,
+    currentResume?: Partial<ResumeDraft>
+  ): Promise<APIResponse<AIFillResult>> => {
+    const { data } = await apiClient.post<APIResponse<AIFillResult>>(
+      '/ai/resume/fill-from-jd',
+      { jobDescription, currentResume }
+    );
+    return data;
+  },
+
+  rephrase: async (
+    text: string,
+    field: string
+  ): Promise<APIResponse<{ text: string }>> => {
+    const { data } = await apiClient.post<APIResponse<{ text: string }>>(
+      '/ai/resume/rephrase',
+      { text, field }
+    );
+    return data;
+  },
+
+  enhanceSection: async (
+    section: 'experience' | 'projects',
+    content: string,
+    context?: string
+  ): Promise<APIResponse<{ entries: (ResumeExperience | ResumeProject)[] }>> => {
+    const { data } = await apiClient.post<APIResponse<{ entries: (ResumeExperience | ResumeProject)[] }>>(
+      '/ai/resume/enhance-section',
+      { section, content, context }
     );
     return data;
   },
@@ -1237,6 +1293,29 @@ export const backupApi = {
     const { data } = await apiClient.post<APIResponse<{ jobId: string; mode: 'replace' | 'merge' }>>(
       '/admin/backup/import/confirm',
       { uploadId, mode }
+    );
+    return data;
+  },
+};
+
+// Platform settings & feature flags API
+export const settingsApi = {
+  getPublic: async (): Promise<APIResponse<PublicSettings>> => {
+    const { data } = await apiClient.get<APIResponse<PublicSettings>>('/settings/public');
+    return data;
+  },
+
+  getAdmin: async (): Promise<APIResponse<PlatformSettings>> => {
+    const { data } = await apiClient.get<APIResponse<PlatformSettings>>('/admin/settings');
+    return data;
+  },
+
+  updateInstagramPopup: async (
+    enabled: boolean
+  ): Promise<APIResponse<PlatformSettings>> => {
+    const { data } = await apiClient.put<APIResponse<PlatformSettings>>(
+      '/admin/settings/instagram-popup',
+      { enabled }
     );
     return data;
   },

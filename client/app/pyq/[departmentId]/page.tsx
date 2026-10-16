@@ -6,6 +6,7 @@ import useSWR from 'swr';
 import { fetcher } from '@/lib/fetcher';
 import { matchesQuery } from '@/lib/search';
 import { InstagramFollowGate, isUnlocked } from '@/components/instagram-follow-gate';
+import { useInstagramGateSetting } from '@/hooks/useInstagramGateSetting';
 import { pyqApi, sessionApi, reportApi, departmentApi, paperRequestApi } from '@/lib/api';
 import type { PYQPaper, Department, Branch, Session, APIResponse, PaperRequest } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,8 @@ export default function DepartmentPYQPage() {
   );
   const department = deptRes?.data || null;
   const deptObjectId = department?._id;
+
+  const { enabled: instagramPopupEnabled } = useInstagramGateSetting();
 
   const { data: branchesRes, error: branchesError } = useSWR<APIResponse<Branch[]>>(
     deptObjectId ? `/departments/${deptObjectId}/branches` : null,
@@ -193,8 +196,9 @@ export default function DepartmentPYQPage() {
       return;
     }
     // Staff/students keep the same student gate; only staff skip it.
+    // Also bypass if the follow popup is disabled in platform settings.
     const staff = user.role === 'admin' || user.role === 'super-admin' || user.role === 'staff';
-    if (staff || isUnlocked(user.id)) {
+    if (!instagramPopupEnabled || staff || isUnlocked(user.id)) {
       openPaper(paper);
       return;
     }

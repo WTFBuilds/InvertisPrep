@@ -155,3 +155,19 @@ export const pdfLimiter = rateLimit({
   keyGenerator: clientKey,
   message: tooMany('Too many requests, please slow down.'),
 });
+
+// AI limiter — DAILY budget per authenticated user so OpenRouter
+// credits can't be drained by one account (or by guests sharing
+// an IP). Each user gets their own bucket keyed on their JWT id;
+// guests fall back to the per-client IP bucket. The window is a
+// rolling 24h — not a calendar day — so the budget refills
+// gradually instead of resetting at midnight.
+export const aiLimiter = rateLimit({
+  windowMs: envInt('AI_RATE_LIMIT_WINDOW_MS', 24 * 60 * 60 * 1000), // default: 24h
+  limit: envInt('AI_RATE_LIMIT_MAX', 30),                              // default: 30 AI calls/day
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: clientKey,
+  skip: (req) => req.method !== 'POST' || req.user?.role === 'super-admin',
+  message: tooMany('AI daily limit reached. Come back tomorrow or upgrade.'),
+});

@@ -83,6 +83,16 @@ const userSchema = new Schema(
       default: 2,
       min: 0,
     },
+    // Watermark-free PDF downloads bought directly for ₹19.99 via
+    // Razorpay. Only ever incremented by walletController after a
+    // verified Razorpay signature, and only ever decremented by
+    // spend-download inside an atomic $inc — so a client can never
+    // mint or skip the gate.
+    downloadPasses: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     points: {
       type: Number,
       default: 0,
