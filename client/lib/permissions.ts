@@ -95,6 +95,14 @@ export const PERMISSION_GROUPS = [
       { key: 'marketing.view', label: 'View marketing insights', description: 'See growth analytics and the leads list (contact info included, no IPs)' },
     ],
   },
+  {
+    id: 'ai',
+    label: 'AI Features',
+    description: 'AI-assisted tools across the platform',
+    permissions: [
+      { key: 'ai.resume', label: 'Resume Builder AI', description: 'Use AI JD-fill, inline rephrase and section enhancement in resume builder' },
+    ],
+  },
 ] as const;
 
 export const ALL_PERMISSION_KEYS: string[] = PERMISSION_GROUPS.flatMap((g) =>

@@ -8,14 +8,15 @@ const paymentSchema = new Schema(
       required: true,
     },
     packId: {
+      // QCoin top-up packs, or 'resume_pass' for a single
+      // watermark-free PDF download.
       type: String,
-      enum: ['starter', 'plus', 'pro'],
       required: true,
     },
     coins: {
       type: Number,
-      required: true,
-      min: 1,
+      default: 0,
+      min: 0,
     },
     // Amount in rupees (order amount stored in paise by Razorpay)
     amount: {

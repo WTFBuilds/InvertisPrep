@@ -20,6 +20,9 @@ import type {
   Report,
   Resume,
   ResumeDraft,
+  ResumeExperience,
+  ResumeProject,
+  ResumeSkillGroup,
   WalletTransaction,
   WalletBalance,
   TopUpPack,
@@ -915,6 +918,13 @@ export const walletApi = {
     return data;
   },
 
+  createResumePassOrder: async (): Promise<APIResponse<WalletTopupOrder>> => {
+    const { data } = await apiClient.post<APIResponse<WalletTopupOrder>>(
+      '/wallet/resume-pass-order'
+    );
+    return data;
+  },
+
   verifyTopup: async (
     payload: RazorpayCheckoutSuccess
   ): Promise<APIResponse<WalletBalance & { alreadyProcessed?: boolean }>> => {
@@ -927,11 +937,55 @@ export const walletApi = {
 
   spendDownload: async (
     resumeId: string,
-    method: 'coins' | 'free'
+    method: 'coins' | 'free' | 'pass'
   ): Promise<APIResponse<WalletBalance>> => {
     const { data } = await apiClient.post<APIResponse<WalletBalance>>(
       '/wallet/spend-download',
       { resumeId, method }
+    );
+    return data;
+  },
+};
+
+// AI Resume Builder API
+export interface AIFillResult {
+  summary: string;
+  experience: ResumeExperience[];
+  projects: ResumeProject[];
+  skillGroups: ResumeSkillGroup[];
+}
+
+export const aiApi = {
+  fillFromJD: async (
+    jobDescription: string,
+    currentResume?: Partial<ResumeDraft>
+  ): Promise<APIResponse<AIFillResult>> => {
+    const { data } = await apiClient.post<APIResponse<AIFillResult>>(
+      '/ai/resume/fill-from-jd',
+      { jobDescription, currentResume }
+    );
+    return data;
+  },
+
+  rephrase: async (
+    text: string,
+    field: string
+  ): Promise<APIResponse<{ text: string }>> => {
+    const { data } = await apiClient.post<APIResponse<{ text: string }>>(
+      '/ai/resume/rephrase',
+      { text, field }
+    );
+    return data;
+  },
+
+  enhanceSection: async (
+    section: 'experience' | 'projects',
+    content: string,
+    context?: string
+  ): Promise<APIResponse<{ entries: (ResumeExperience | ResumeProject)[] }>> => {
+    const { data } = await apiClient.post<APIResponse<{ entries: (ResumeExperience | ResumeProject)[] }>>(
+      '/ai/resume/enhance-section',
+      { section, content, context }
     );
     return data;
   },

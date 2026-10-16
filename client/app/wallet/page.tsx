@@ -23,35 +23,6 @@ import type { RazorpayCheckoutSuccess, RazorpayCheckoutError } from '@/types';
 
 // ─── Razorpay Checkout ───────────────────────────────────────────────────────
 // checkout.js is loaded on demand from Razorpay's CDN and cached on window.
-interface RazorpayFailureResponse {
-  error: RazorpayCheckoutError;
-}
-
-interface RazorpayOptions {
-  key: string;
-  amount: number;
-  currency: string;
-  name: string;
-  description: string;
-  image?: string;
-  order_id: string;
-  prefill?: { name?: string; email?: string; contact?: string };
-  theme?: { color?: string };
-  handler: (response: RazorpayCheckoutSuccess) => void;
-  modal?: { ondismiss?: () => void; confirm_close?: boolean };
-}
-
-interface RazorpayInstance {
-  open: () => void;
-  on: (event: string, handler: (resp: RazorpayFailureResponse) => void) => void;
-}
-
-declare global {
-  interface Window {
-    Razorpay?: new (options: RazorpayOptions) => RazorpayInstance;
-  }
-}
-
 let razorpayScriptPromise: Promise<boolean> | null = null;
 
 const loadRazorpayScript = (): Promise<boolean> => {

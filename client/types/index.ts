@@ -27,6 +27,7 @@ export interface User {
   following?: string[];
   qcoins: number;
   freeDownloadsLeft: number;
+  downloadPasses?: number;
 }
 
 // Admin role management types
@@ -64,6 +65,7 @@ export interface WalletTransaction {
 export interface WalletBalance {
   qcoins: number;
   freeDownloadsLeft: number;
+  downloadPasses?: number;
 }
 
 export type TopUpPackId = 'starter' | 'plus' | 'pro';
@@ -100,6 +102,35 @@ export interface RazorpayCheckoutError {
   step: string;
   reason?: string;
   metadata?: { order_id: string; payment_id?: string };
+}
+
+export interface RazorpayFailureResponse {
+  error: RazorpayCheckoutError;
+}
+
+export interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  image?: string;
+  order_id: string;
+  prefill?: { name?: string; email?: string; contact?: string };
+  theme?: { color?: string };
+  handler: (response: RazorpayCheckoutSuccess) => void;
+  modal?: { ondismiss?: () => void; confirm_close?: boolean };
+}
+
+export interface RazorpayInstance {
+  open: () => void;
+  on: (event: string, handler: (resp: RazorpayFailureResponse) => void) => void;
+}
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayOptions) => RazorpayInstance;
+  }
 }
 
 export interface TransactionMeta {

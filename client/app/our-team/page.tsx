@@ -22,6 +22,14 @@ const teamMembers = [
     description: "Ahqaf Ali is the Founder and Lead at InvertisPrep. He directs the platform's vision, system architecture, and coordinates technical execution to provide high-quality learning resources for students.",
   },
   {
+    name: "Shivam Gupta",
+    role: "CTO",
+    image: "/team/shivam-cto.png",
+    github: "https://github.com/ShivamCodesBS",
+    instagram: "https://instagram.com/cruxial.aep",
+    description: "Shivam Gupta is the Chief Technology Officer (CTO) at InvertisPrep. He directs system architecture, core platform infrastructure, and engineering execution to ensure a secure and scalable learning platform.",
+  },
+  {
     name: "Sumanjeet Raj",
     role: "Content Lead",
     image: "/team/member2.jpg",

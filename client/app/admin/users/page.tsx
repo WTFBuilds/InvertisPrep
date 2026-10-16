@@ -177,13 +177,18 @@ export default function AdminUsersPage() {
       .catch(() => {});
   }, []);
 
-  // Load custom roles once so the role pickers/selects can list them
+  // Load roles once so the role pickers/selects can list them.
+  // The API returns the editable system roles (admin, srt) alongside
+  // custom ones — the dropdown renders built-ins separately, so only
+  // keep the custom (non-system) roles here.
   const loadRoles = useCallback(() => {
     if (!isSuperAdmin) return;
     rolesApi
       .list()
       .then((res) => {
-        if (res.success && res.data) setCustomRoles(res.data);
+        if (res.success && res.data) {
+          setCustomRoles(res.data.filter((r) => !r.isSystem));
+        }
       })
       .catch(() => {});
   }, [isSuperAdmin]);

@@ -5,27 +5,67 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { resumeApi, walletApi } from '@/lib/api';
-import type { Resume, ResumeDraft, ResumeEducation, ResumeExperience, ResumeLink, ResumeProject } from '@/types';
-import { CheckCircle2, Clock, Coins, CreditCard, Download, FileUp, Gift, LayoutDashboard, Loader2, Plus, Printer, Save, Shield, Sparkles, Trash2, Wallet } from 'lucide-react';
+import { resumeApi, walletApi, aiApi } from '@/lib/api';
+import { hasPermission } from '@/lib/permissions';
+import type {
+  Resume,
+  ResumeDraft,
+  ResumeEducation,
+  ResumeExperience,
+  ResumeLink,
+  ResumeProject,
+  RazorpayCheckoutSuccess,
+  RazorpayCheckoutError,
+} from '@/types';
+import { toCanvas } from 'html-to-image';
+import jsPDF from 'jspdf';
+import { CheckCircle2, Clock, Coins, CreditCard, Download, FileUp, Gift, LayoutDashboard, Loader2, Lock, Plus, Printer, RotateCcw, Save, Shield, Sparkles, Trash2, Wallet } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Spotlight } from '@/components/ui/spotlight';
 import { SavePromptModal } from './SavePromptModal';
+import { ResizablePanels } from './ResizablePanels';
+import { AIPanel } from './AIPanel';
+
+let razorpayScriptPromise: Promise<boolean> | null = null;
+const loadRazorpayScript = (): Promise<boolean> => {
+  if (typeof window === 'undefined') return Promise.resolve(false);
+  if (window.Razorpay) return Promise.resolve(true);
+  if (!razorpayScriptPromise) {
+    razorpayScriptPromise = new Promise<boolean>((resolve) => {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => {
+        razorpayScriptPromise = null;
+        resolve(false);
+      };
+      document.body.appendChild(script);
+    });
+  }
+  return razorpayScriptPromise;
+};
 
 const emptyEducation = (): ResumeEducation => ({ institution: '', degree: '', startDate: '', endDate: '' });
 const emptyExperience = (): ResumeExperience => ({ company: '', role: '', description: '', achievements: [''], startDate: '', endDate: '' });
 const emptyProject = (): ResumeProject => ({ name: '', url: '', description: '', achievements: [''], startDate: '', endDate: '' });
 const emptyLink = (): ResumeLink => ({ label: '', url: '' });
 
-export function createStarterResume(): ResumeDraft {
+export function createStarterResume(forUser?: { name?: string; email?: string; phoneNumber?: string } | null): ResumeDraft {
+  const userName = forUser?.name?.trim() || 'Ahqaf Ali';
+  const userEmail = forUser?.email?.trim() || 'beddylea@gmail.com';
+  const userPhone = forUser?.phoneNumber?.trim() || '+1-555-0100';
   return {
     title: 'ATS Friendly Resume',
     personal: {
-      name: 'Ahqaf Ali', headline: 'Developer', email: 'beddylea@gmail.com',
-      phone: '+1-555-0100', location: 'San Francisco, CA',
+      name: userName,
+      headline: 'Developer',
+      email: userEmail,
+      phone: userPhone,
+      location: 'San Francisco, CA',
       links: [
         { label: 'GitHub', url: 'github.com/ahqafcoder' },
         { label: 'LinkedIn', url: 'linkedin.com/in/bedivere-lea' },
@@ -58,7 +98,7 @@ export function createStarterResume(): ResumeDraft {
 
 // safeResume — lightweight structural safety pass for EXISTING saved resumes.
 // Only ensures arrays are arrays and objects are objects. Never injects template content.
-function safeResume(resume: Resume): Resume {
+function safeResume(resume: Resume, forUser?: { name?: string; email?: string; phoneNumber?: string } | null): Resume {
   // Migrate old generic template data that was seeded before the builder was live
   const isPreviousGenericTemplate =
     resume.title === 'Ahqaf Ali - Full Stack Developer' ||
@@ -66,7 +106,7 @@ function safeResume(resume: Resume): Resume {
     resume.projects?.some((project) => project.name === 'Student Portfolio Website');
   if (isPreviousGenericTemplate) {
     // Replace old generic template with the current starter so users get the new template
-    return { ...resume, ...createStarterResume() };
+    return { ...resume, ...createStarterResume(forUser) };
   }
 
   const personal = resume.personal ?? { name: '', headline: '', email: '', phone: '', location: '', links: [] };
@@ -74,10 +114,10 @@ function safeResume(resume: Resume): Resume {
     ...resume,
     title: resume.title ?? '',
     personal: {
-      name: personal.name ?? '',
+      name: personal.name || forUser?.name || '',
       headline: personal.headline ?? '',
-      email: personal.email ?? '',
-      phone: personal.phone ?? '',
+      email: personal.email || forUser?.email || '',
+      phone: personal.phone || forUser?.phoneNumber || '',
       location: personal.location ?? '',
       links: Array.isArray(personal.links)
         ? personal.links.map((link) => ({ ...emptyLink(), ...link }))
@@ -177,76 +217,105 @@ export function ResumeBuilder() {
   // Task 1: id-keyed load effect — re-runs whenever ?id changes
   const idParam = searchParams.get('id');
 
-  // Guest mode load effect - creates fresh starter in memory (no localStorage)
+  // Unified resume loader — handles both guests and authenticated users cleanly
+  // without race conditions, cancel loops, or refresh dependencies.
   useEffect(() => {
-    if (user) return; // Only for guests
-    if (loadedIdRef.current) return; // Already loaded
-
-    setBooting(true);
-    const starterDraft = createStarterResume();
-    const resumeWithId: Resume = {
-      ...starterDraft,
-      _id: `guest-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setResume(resumeWithId);
-    loadedIdRef.current = resumeWithId._id;
-    setIsDirty(false);
-    setSavedAt(null);
-    setBooting(false);
-  }, [user]);
-
-  // Logged-in user load effect - uses server API
-  useEffect(() => {
-    if (!user) return;
-    // Skip if the ?id we want is already loaded
-    if (idParam && loadedIdRef.current === idParam) return;
+    if (loading) return; // Wait until AuthContext finishes checking session
 
     let cancelled = false;
+
+    // ── Guest Mode (not logged in) ───────────────────────────────────
+    if (!user) {
+      if (loadedIdRef.current && loadedIdRef.current.startsWith('guest-')) {
+        // Guest draft already loaded in memory
+        return;
+      }
+      setBooting(true);
+      const starter = createStarterResume(null);
+      const guestResume: Resume = {
+        ...starter,
+        _id: `guest-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setResume(guestResume);
+      loadedIdRef.current = guestResume._id;
+      setIsDirty(false);
+      setSavedAt(null);
+      setBooting(false);
+      return;
+    }
+
+    // ── Logged-in User ───────────────────────────────────────────────
+    // If the exact requested resume is already in state, do nothing
+    if (idParam && loadedIdRef.current === idParam && resume && resume._id === idParam) {
+      return;
+    }
+
     setBooting(true);
 
     const load = async () => {
       try {
+        let activeResume: Resume | null = null;
+
         if (idParam) {
-          // Load a specific saved resume by its id directly — no guessing
+          // Explicit ?id in URL — fetch this specific document
           const result = await resumeApi.get(idParam);
           if (cancelled) return;
-          if (!result.data) throw new Error('Resume not found');
-          setResume(safeResume(result.data));
-          loadedIdRef.current = idParam;
-        } else {
-          // No id in URL — open the first existing resume, or create a new starter
-          const list = await resumeApi.list();
-          if (cancelled) return;
-          const first = list.data?.[0];
-          if (first) {
-            setResume(safeResume(first));
-            loadedIdRef.current = first._id;
-            router.replace(`/resume-builder?id=${first._id}`);
-          } else {
-            // No resumes exist yet — create a fresh starter
-            const created = await resumeApi.create(createStarterResume());
-            if (cancelled) return;
-            if (!created.data) throw new Error('Could not create resume');
-            setResume(safeResume(created.data));
-            loadedIdRef.current = created.data._id;
-            router.replace(`/resume-builder?id=${created.data._id}`);
+          if (result.data) {
+            activeResume = result.data;
           }
         }
-        setIsDirty(false);
-        setSavedAt(null);
-      } catch {
-        if (!cancelled) toast.error('Could not load your resume. Please try again.');
+
+        // If no ?id provided or id was invalid, look up existing resumes
+        if (!activeResume) {
+          const list = await resumeApi.list();
+          if (cancelled) return;
+          if (list.data && list.data.length > 0) {
+            activeResume = list.data[0];
+          } else {
+            // First time user — create initial resume pre-populated with user details
+            const starter = createStarterResume(user);
+            const created = await resumeApi.create(starter);
+            if (cancelled) return;
+            if (created.data) {
+              activeResume = created.data;
+            }
+          }
+        }
+
+        if (cancelled) return;
+
+        if (activeResume) {
+          const sanitized = safeResume(activeResume, user);
+          setResume(sanitized);
+          loadedIdRef.current = sanitized._id;
+          setIsDirty(false);
+          setSavedAt(null);
+
+          // Keep browser URL synchronized without triggering a page reload/unmount cycle
+          if (typeof window !== 'undefined' && window.location.search !== `?id=${sanitized._id}`) {
+            const newUrl = `${window.location.pathname}?id=${sanitized._id}`;
+            window.history.replaceState(null, '', newUrl);
+          }
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error('[ResumeBuilder] Failed to load resume:', err);
+          toast.error('Could not load your resume. Please try again.');
+        }
       } finally {
-        if (!cancelled) setBooting(false);
+        if (!cancelled) {
+          setBooting(false);
+        }
       }
     };
 
     void load();
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, idParam]);
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, user, idParam]);
 
   // Task 3: debounced autosave — fires 2s after last edit when isDirty (logged-in only)
   const saveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -315,41 +384,218 @@ export function ResumeBuilder() {
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [downloading, setDownloading] = useState<'free' | 'coins' | 'razorpay' | 'watermark' | null>(null);
 
-  // Print without watermark: temporarily hide overlay, print, restore
-  const printClean = () => {
-    document.documentElement.classList.add('printing-clean');
-    window.print();
-    // restore after print dialog closes (listen for afterprint or fallback timeout)
-    const restore = () => {
-      document.documentElement.classList.remove('printing-clean');
-      window.removeEventListener('afterprint', restore);
-    };
-    window.addEventListener('afterprint', restore);
-    setTimeout(restore, 3000); // fallback
+  // Generate a real PDF file (not just print dialog) using html-to-image + jspdf.
+  // Captures EXCLUSIVELY the in-DOM .resume-page document at 2x resolution,
+  // without any preview wrapper, toasts, modals, or scale artifacts.
+  const generateResumePDF = async (fileName: string, includeWatermark: boolean) => {
+    const page = document.querySelector('.resume-page') as HTMLElement | null;
+    const previewWrap = document.querySelector('.resume-preview-wrap') as HTMLElement | null;
+    if (!page) {
+      toast.error('Resume document not found.');
+      return false;
+    }
+
+    const toastId = toast.loading(includeWatermark ? 'Generating watermarked PDF...' : 'Generating watermark-free PDF...');
+
+    // Save scroll position of the preview wrapper so capture starts at top
+    const prevScrollTop = previewWrap ? previewWrap.scrollTop : 0;
+    if (previewWrap) previewWrap.scrollTop = 0;
+
+    // Save original styles to restore after capture
+    const prevTransform = page.style.transform;
+    const prevOrigin = page.style.transformOrigin;
+    const prevShadow = page.style.boxShadow;
+
+    // Watermark nodes inside the resume
+    const previewWatermark = page.querySelector('.resume-preview-watermark') as HTMLElement | null;
+    const centerWatermark = page.querySelector('.resume-pdf-watermark-overlay') as HTMLElement | null;
+    const footerWatermark = page.querySelector('.resume-watermark') as HTMLElement | null;
+
+    const prevPwDisplay = previewWatermark?.style.display;
+    const prevCwDisplay = centerWatermark?.style.display;
+    const prevFwDisplay = footerWatermark?.style.display;
+
+    // Watermark configuration:
+    // If includeWatermark === true: show bold center diagonal watermark + footer
+    // If includeWatermark === false: hide ALL watermarks completely
+    if (previewWatermark) previewWatermark.style.display = 'none';
+
+    if (includeWatermark) {
+      if (centerWatermark) centerWatermark.style.display = 'flex';
+      if (footerWatermark) footerWatermark.style.display = 'block';
+    } else {
+      if (centerWatermark) centerWatermark.style.display = 'none';
+      if (footerWatermark) footerWatermark.style.display = 'none';
+    }
+
+    // Reset transform so toCanvas captures full-res 794px A4 dimensions without scale blur
+    page.style.transform = 'none';
+    page.style.boxShadow = 'none';
+
+    try {
+      // Small pause for layout reflow
+      await new Promise((resolve) => setTimeout(resolve, 80));
+
+      const canvas = await toCanvas(page, {
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+      });
+
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageW = pdf.internal.pageSize.getWidth(); // 210mm
+      const pageH = pdf.internal.pageSize.getHeight(); // 297mm
+
+      const pxPerMm = canvas.width / pageW;
+      const pageCanvasH = Math.floor(pageH * pxPerMm);
+
+      const totalH = canvas.height;
+      let rendered = 0;
+      let isFirstPage = true;
+
+      while (rendered < totalH) {
+        const sliceH = Math.min(pageCanvasH, totalH - rendered);
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = sliceH;
+        const ctx = sliceCanvas.getContext('2d');
+        if (!ctx) break;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+        ctx.drawImage(canvas, 0, rendered, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+
+        const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.98);
+        const sliceMm = sliceH / pxPerMm;
+
+        if (!isFirstPage) pdf.addPage();
+        pdf.addImage(sliceData, 'JPEG', 0, 0, pageW, sliceMm);
+        isFirstPage = false;
+        rendered += sliceH;
+      }
+
+      pdf.save(fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`);
+      toast.dismiss(toastId);
+      return true;
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      toast.dismiss(toastId);
+      toast.error('Could not generate PDF file.');
+      return false;
+    } finally {
+      // Always restore original styles and scroll position
+      page.style.transform = prevTransform;
+      page.style.transformOrigin = prevOrigin;
+      page.style.boxShadow = prevShadow;
+      if (previewWatermark) previewWatermark.style.display = prevPwDisplay ?? '';
+      if (centerWatermark) centerWatermark.style.display = prevCwDisplay ?? '';
+      if (footerWatermark) footerWatermark.style.display = prevFwDisplay ?? '';
+      if (previewWrap) previewWrap.scrollTop = prevScrollTop;
+    }
   };
 
   const handleDownload = async (method: 'free' | 'coins' | 'razorpay' | 'watermark') => {
     if (method === 'watermark') {
-      window.print();
       setShowDownloadModal(false);
-      return;
-    }
-    if (method === 'razorpay') {
-      toast.info('Razorpay payment coming soon! Use QCoins or buy a pack.');
+      if (!resume) return;
+      const success = await generateResumePDF(`${safeName(resume.title)}-watermarked.pdf`, true);
+      if (success) toast.success('Watermarked PDF downloaded.');
       return;
     }
     if (!resume) return;
     setDownloading(method);
     try {
-      const res = await walletApi.spendDownload(resume._id, method);
+      const isSuperAdmin = user?.role === 'super-admin';
+      const spendMethod = isSuperAdmin ? 'free' : (method === 'razorpay' ? 'pass' : method);
+      const res = await walletApi.spendDownload(resume._id, spendMethod);
       if (res.success && res.data) {
-        updateUser({ ...user!, qcoins: res.data.qcoins, freeDownloadsLeft: res.data.freeDownloadsLeft });
+        if (!isSuperAdmin) {
+          updateUser({
+            ...user!,
+            qcoins: res.data.qcoins,
+            freeDownloadsLeft: res.data.freeDownloadsLeft,
+            downloadPasses: res.data.downloadPasses,
+          });
+        }
         setShowDownloadModal(false);
-        toast.success(method === 'free' ? 'Free download used — printing now!' : '200 QCoins spent — printing now!');
-        setTimeout(printClean, 300);
+        const success = await generateResumePDF(`${safeName(resume.title)}.pdf`, false);
+        if (success) {
+          toast.success(isSuperAdmin ? 'Clean PDF downloaded (Super Admin unlimited).' : 'Watermark-free PDF downloaded.');
+        }
       }
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Download failed';
+      toast.error(msg);
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const payPass = async () => {
+    if (!user || !resume || downloading !== null) return;
+    setDownloading('razorpay');
+    try {
+      const loaded = await loadRazorpayScript();
+      if (!loaded) {
+        toast.error('Could not load the payment gateway. Check your connection and try again.');
+        return;
+      }
+
+      const res = await walletApi.createResumePassOrder();
+      if (!res.success || !res.data) {
+        toast.error(res.message ?? 'Could not start checkout');
+        return;
+      }
+      const order = res.data;
+
+      const checkout = new window.Razorpay!({
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'InvertisPrep',
+        description: 'Resume PDF pass — 1 watermark-free download',
+        image: '/invlogo.png',
+        order_id: order.orderId,
+        prefill: { name: user.name, email: user.email, contact: user.phoneNumber ?? '' },
+        theme: { color: '#0f172a' },
+        handler: (response) => {
+          void (async () => {
+            try {
+              const verifyRes = await walletApi.verifyTopup(response);
+              if (verifyRes.success && verifyRes.data) {
+                // Pass credited server-side; now atomically spend it for this download
+                const spendRes = await walletApi.spendDownload(resume._id, 'pass');
+                const updatedBalance = spendRes.success && spendRes.data ? spendRes.data : verifyRes.data;
+                updateUser({
+                  ...user,
+                  qcoins: updatedBalance.qcoins,
+                  freeDownloadsLeft: updatedBalance.freeDownloadsLeft,
+                  downloadPasses: updatedBalance.downloadPasses,
+                });
+                setShowDownloadModal(false);
+                toast.success('Payment verified — watermark-free PDF ready!');
+                const success = await generateResumePDF(`${safeName(resume.title)}.pdf`, false);
+                if (success) toast.success('Resume PDF downloaded.');
+              } else {
+                toast.error(verifyRes.message ?? 'Payment succeeded but verification failed — contact support.');
+              }
+            } catch {
+              toast.error('Payment succeeded but verification failed — contact support.');
+            }
+          })();
+        },
+        modal: {
+          ondismiss: () => toast.info('Checkout closed — you were not charged'),
+        },
+      });
+
+      checkout.on('payment.failed', (resp) => {
+        toast.error(resp.error?.description ?? 'Payment failed. You were not charged.');
+      });
+
+      checkout.open();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message ?? 'Something went wrong. Please try again.';
       toast.error(msg);
     } finally {
       setDownloading(null);
@@ -400,17 +646,18 @@ export function ResumeBuilder() {
   };
 
   return (
-    <div className="bg-slate-100 min-h-screen resume-builder-shell">
-      <div className="mx-auto max-w-[1600px] px-3 py-4 sm:px-5 sm:py-6">
-        <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white px-4 py-3 shadow-sm">
-          <div>
-            <h1 className="font-bold text-slate-900">ATS Resume Builder</h1>
-            <p className="text-xs text-slate-500">Clean, single-column content designed for easy ATS parsing.</p>
+    <div className="bg-slate-100 h-screen flex flex-col overflow-hidden resume-builder-shell">
+      {/* Pinned Top Bar — fixed at top, never scrolls */}
+      <header className="no-print shrink-0 border-b border-slate-200 bg-white px-3 py-2 sm:px-5 sm:py-2.5 shadow-2xs z-30">
+        <div className="mx-auto flex max-w-[1920px] items-center justify-between gap-2 sm:gap-3">
+          <div className="min-w-0">
+            <h1 className="text-sm sm:text-base font-bold text-slate-900 leading-tight truncate">ATS Resume Builder</h1>
+            <p className="hidden sm:block text-[11px] text-slate-500">Clean single-column layout designed for ATS readability</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <SaveStatus />
             <Link
-              className="resume-tool"
+              className="resume-tool hidden md:inline-flex"
               href="/resumes"
               onClick={(e) => {
                 if (!user && isDirty) {
@@ -420,34 +667,55 @@ export function ResumeBuilder() {
                 }
               }}
             >
-              <LayoutDashboard size={16}/> My resumes
+              <LayoutDashboard size={15}/> My resumes
             </Link>
-            <button className="resume-tool" onClick={() => importRef.current?.click()}><FileUp size={16}/> Import</button>
-            <button className="resume-tool" onClick={exportJson}><Download size={16}/> Export</button>
+            <button className="resume-tool hidden sm:inline-flex" onClick={() => importRef.current?.click()} title="Import JSON"><FileUp size={15}/> Import</button>
+            <button className="resume-tool hidden sm:inline-flex" onClick={exportJson} title="Export JSON"><Download size={15}/> Export</button>
             <button className="resume-tool" onClick={() => {
               if (!user) {
                 setShowSavePrompt(true);
               } else {
                 setShowDownloadModal(true);
               }
-            }}><Printer size={16}/> PDF</button>            <button className="resume-tool-primary" disabled={saving} onClick={() => save(resume, false)}>
-              {saving ? <Loader2 className="animate-spin" size={16}/> : <Save size={16}/>} Save
+            }}><Printer size={15}/> <span className="hidden xs:inline">PDF</span></button>
+            <button className="resume-tool-primary" disabled={saving} onClick={() => save(resume, false)}>
+              {saving ? <Loader2 className="animate-spin" size={15}/> : <Save size={15}/>} <span className="hidden xs:inline">Save</span>
             </button>
             <input ref={importRef} className="hidden" type="file" accept="application/json,.json" onChange={importJson} />
           </div>
         </div>
-        <div className="grid gap-5 xl:grid-cols-[minmax(390px,0.82fr)_minmax(620px,1.18fr)]">
-          <ResumeEditor resume={resume} update={update} updatePersonal={updatePersonal} />
-          <ResumePreview resume={resume} />
-        </div>
-      </div>
+      </header>
+
+      {/* 3-Panel Resizable Workspace — fills remaining height, each column scrolls independently */}
+      <main className="flex-1 min-h-0 overflow-hidden p-1.5 sm:p-2">
+        <ResizablePanels
+          left={
+            <AIPanel
+              resume={resume}
+              update={update}
+              updatePersonal={updatePersonal}
+            />
+          }
+          center={
+            <ResumeEditor
+              resume={resume}
+              update={update}
+              updatePersonal={updatePersonal}
+            />
+          }
+          right={<ResumePreview resume={resume} />}
+        />
+      </main>
       <DownloadModal
         open={showDownloadModal}
         onClose={() => setShowDownloadModal(false)}
         qcoins={user?.qcoins ?? 0}
         freeDownloadsLeft={user?.freeDownloadsLeft ?? 0}
+        downloadPasses={user?.downloadPasses ?? 0}
+        isSuperAdmin={user?.role === 'super-admin'}
         downloading={downloading}
         onDownload={handleDownload}
+        onPayPass={payPass}
       />
       <SavePromptModal
         open={showSavePrompt}
@@ -470,17 +738,21 @@ export function ResumeBuilder() {
 
 // ─── DownloadModal ─────────────────────────────────────────────────────────────
 function DownloadModal({
-  open, onClose, qcoins, freeDownloadsLeft, downloading, onDownload,
+  open, onClose, qcoins, freeDownloadsLeft, downloadPasses, isSuperAdmin, downloading, onDownload, onPayPass,
 }: {
   open: boolean;
   onClose: () => void;
   qcoins: number;
   freeDownloadsLeft: number;
+  downloadPasses: number;
+  isSuperAdmin?: boolean;
   downloading: 'free' | 'coins' | 'razorpay' | 'watermark' | null;
   onDownload: (method: 'free' | 'coins' | 'razorpay' | 'watermark') => void;
+  onPayPass: () => void;
 }) {
-  const canFree  = freeDownloadsLeft > 0;
+  const canFree  = isSuperAdmin || freeDownloadsLeft > 0;
   const canCoins = qcoins >= 200;
+  const hasPass  = downloadPasses > 0;
 
   const OptionButton = ({
     method, icon, title, subtitle, badge, disabled, accent,
@@ -549,45 +821,97 @@ function DownloadModal({
           </DialogDescription>
         </DialogHeader>
 
-        {/* balance pill */}
-        <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs">
-          <Coins className="h-4 w-4 text-indigo-500" />
-          <span className="font-semibold text-slate-700">{qcoins.toLocaleString('en-IN')} QCoins</span>
-          <span className="mx-1 text-slate-300">·</span>
-          <Gift className="h-4 w-4 text-emerald-500" />
-          <span className="font-semibold text-slate-700">{freeDownloadsLeft} free download{freeDownloadsLeft !== 1 ? 's' : ''} left</span>
-          <Link href="/wallet" className="ml-auto flex items-center gap-1 text-indigo-600 hover:underline font-medium">
-            <Wallet className="h-3 w-3" /> Top up
-          </Link>
-        </div>
+        {/* balance pill / super admin badge */}
+        {isSuperAdmin ? (
+          <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-800 font-medium">
+            <Shield className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>Super Admin Access — Unlimited watermark-free downloads unlocked.</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs">
+            <Coins className="h-4 w-4 text-indigo-500" />
+            <span className="font-semibold text-slate-700">{qcoins.toLocaleString('en-IN')} QCoins</span>
+            <span className="mx-1 text-slate-300">·</span>
+            <Gift className="h-4 w-4 text-emerald-500" />
+            <span className="font-semibold text-slate-700">{freeDownloadsLeft} free download{freeDownloadsLeft !== 1 ? 's' : ''} left</span>
+            {downloadPasses > 0 && (
+              <>
+                <span className="mx-1 text-slate-300">·</span>
+                <CreditCard className="h-4 w-4 text-purple-500" />
+                <span className="font-semibold text-slate-700">{downloadPasses} pass{downloadPasses !== 1 ? 'es' : ''}</span>
+              </>
+            )}
+            <Link href="/wallet" className="ml-auto flex items-center gap-1 text-indigo-600 hover:underline font-medium">
+              <Wallet className="h-3 w-3" /> Top up
+            </Link>
+          </div>
+        )}
 
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Watermark-free</p>
 
         <div className="space-y-2">
-          <OptionButton
-            method="free"
-            icon={<Gift className="h-5 w-5" />}
-            title={`Use free trial ${canFree ? `(${freeDownloadsLeft} remaining)` : '(none left)'}`}
-            subtitle="Download a clean, watermark-free PDF — no coins needed."
-            badge={canFree ? 'FREE' : undefined}
-            disabled={!canFree}
-            accent="emerald"
-          />
-          <OptionButton
-            method="coins"
-            icon={<Coins className="h-5 w-5" />}
-            title={`Spend 200 QCoins ${!canCoins ? `(need ${200 - qcoins} more)` : ''}`}
-            subtitle={`You have ${qcoins.toLocaleString('en-IN')} QCoins. Each watermark-free download costs 200 QC.`}
-            disabled={!canCoins}
-            accent="indigo"
-          />
-          <OptionButton
-            method="razorpay"
-            icon={<CreditCard className="h-5 w-5" />}
-            title="Pay ₹19.99"
-            subtitle={<span>Razorpay coming soon. <span className="line-through text-slate-400">₹99.99</span> <span className="font-bold text-rose-500">₹19.99</span> — Limited offer!</span>}
-            accent="purple"
-          />
+          {isSuperAdmin ? (
+            <OptionButton
+              method="free"
+              icon={<Gift className="h-5 w-5" />}
+              title="Download Watermark-Free PDF"
+              subtitle="Unlimited Super Admin privilege — high resolution A4 PDF with no watermark."
+              badge="UNLIMITED"
+              accent="emerald"
+            />
+          ) : (
+            <>
+              <OptionButton
+                method="free"
+                icon={<Gift className="h-5 w-5" />}
+                title={`Use free trial ${canFree ? `(${freeDownloadsLeft} remaining)` : '(none left)'}`}
+                subtitle="Download a clean, watermark-free PDF — no coins needed."
+                badge={canFree ? 'FREE' : undefined}
+                disabled={!canFree}
+                accent="emerald"
+              />
+              <OptionButton
+                method="coins"
+                icon={<Coins className="h-5 w-5" />}
+                title={`Spend 200 QCoins ${!canCoins ? `(need ${200 - qcoins} more)` : ''}`}
+                subtitle={`You have ${qcoins.toLocaleString('en-IN')} QCoins. Each watermark-free download costs 200 QC.`}
+                disabled={!canCoins}
+                accent="indigo"
+              />
+              {hasPass ? (
+                <OptionButton
+                  method="razorpay"
+                  icon={<CreditCard className="h-5 w-5" />}
+                  title={`Use paid pass (${downloadPasses} left)`}
+                  subtitle="You already bought a ₹19.99 pass — this download is watermark-free."
+                  accent="purple"
+                />
+              ) : (
+                <button
+                  onClick={onPayPass}
+                  disabled={downloading !== null}
+                  className="group relative flex w-full items-center gap-4 rounded-xl border-2 p-4 text-left transition-all duration-150 border-purple-200 bg-purple-50/50 hover:border-purple-400 hover:bg-purple-50 hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-100 text-purple-600">
+                    <CreditCard className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-slate-900 text-sm">Pay ₹19.99</p>
+                      <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700">BEST VALUE</span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      <span className="line-through text-slate-400">₹99.99</span>{' '}
+                      <span className="font-bold text-rose-500">₹19.99</span> — one watermark-free download via UPI · cards · netbanking.
+                    </p>
+                  </div>
+                  {downloading === null && (
+                    <Download className="h-4 w-4 shrink-0 text-slate-300 transition group-hover:text-slate-500" />
+                  )}
+                </button>
+              )}
+            </>
+          )}
         </div>
 
         <div className="relative my-1 flex items-center gap-3">
@@ -615,6 +939,94 @@ function DownloadModal({
 // Shared editor input styling — shadcn Input plus a clean indigo focus ring
 const inputClass = 'bg-white focus-visible:border-indigo-400 focus-visible:ring-indigo-100';
 const textareaClass = 'w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100';
+
+function RephraseButton({
+  text,
+  field,
+  onRephrased,
+}: {
+  text: string;
+  field: string;
+  onRephrased: (newText: string) => void;
+}) {
+  const { user } = useAuth();
+  const canUseAI = hasPermission(user, 'ai.resume');
+  const [loading, setLoading] = useState(false);
+  const [lastUndo, setLastUndo] = useState<string | null>(null);
+
+  const handleClick = async () => {
+    if (!canUseAI) {
+      toast.info('AI Rephrase requires an authorized role. You can edit directly in the text box.');
+      return;
+    }
+    if (!text || !text.trim()) {
+      toast.error('Write some text first to rephrase.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await aiApi.rephrase(text, field);
+      if (res.success && res.data?.text) {
+        setLastUndo(text);
+        onRephrased(res.data.text);
+        toast.success('Text rephrased! Click Undo if you prefer the original.');
+      } else {
+        toast.error(res.message ?? 'Could not rephrase text.');
+      }
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        'AI rephrase failed.';
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUndo = () => {
+    if (lastUndo !== null) {
+      onRephrased(lastUndo);
+      setLastUndo(null);
+      toast.info('Restored original text');
+    }
+  };
+
+  return (
+    <div className="inline-flex items-center gap-1.5">
+      {lastUndo !== null && (
+        <button
+          type="button"
+          onClick={handleUndo}
+          className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-200 transition"
+          title="Restore original text"
+        >
+          <RotateCcw size={10} /> Undo
+        </button>
+      )}
+      <button
+        type="button"
+        disabled={loading}
+        onClick={handleClick}
+        className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold transition shadow-2xs ${
+          canUseAI
+            ? 'border-indigo-200/80 bg-indigo-50/70 text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300'
+            : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100'
+        }`}
+        title={canUseAI ? "Rephrase professionally with AI" : "AI Rephrase requires an authorized role"}
+      >
+        {loading ? (
+          <Loader2 size={11} className="animate-spin text-indigo-600" />
+        ) : canUseAI ? (
+          <Sparkles size={11} className="text-indigo-500" />
+        ) : (
+          <Lock size={10} className="text-slate-400" />
+        )}
+        <span>Rephrase</span>
+      </button>
+    </div>
+  );
+}
 
 function ResumeEditor({ resume, update, updatePersonal }: { resume: Resume; update: (patch: Partial<Resume>) => void; updatePersonal: (patch: Partial<Resume['personal']>) => void }) {
   const setArray = <K extends 'education' | 'experience' | 'projects' | 'skillGroups' | 'achievements' | 'languages' | 'certifications'>(key: K, value: Resume[K]) => update({ [key]: value } as Partial<Resume>);
@@ -648,7 +1060,18 @@ function ResumeEditor({ resume, update, updatePersonal }: { resume: Resume; upda
           <RemoveButton onClick={() => updatePersonal({ links: resume.personal.links.filter((_, i) => i !== index) })} />
         </div>)}
       </EditorSection>
-      <EditorSection title="Summary"><textarea className={`${textareaClass} min-h-28`} value={resume.summary} onChange={(e) => update({ summary: e.target.value })} placeholder="Write a concise, achievement-focused professional summary." /></EditorSection>
+      <EditorSection
+        title="Summary"
+        actionExtra={
+          <RephraseButton
+            text={resume.summary}
+            field="summary"
+            onRephrased={(newText) => update({ summary: newText })}
+          />
+        }
+      >
+        <textarea className={`${textareaClass} min-h-28`} value={resume.summary} onChange={(e) => update({ summary: e.target.value })} placeholder="Write a concise, achievement-focused professional summary." />
+      </EditorSection>
       <EditorSection title="Education" action={() => setArray('education', [emptyEducation(), ...resume.education])}>
         {resume.education.map((item, index) => <div key={item._id || index} className="editor-card"><div className="grid gap-2 sm:grid-cols-2">
           <EditorInput compact placeholder="University / school" value={item.institution} onChange={(institution) => setArray('education', resume.education.map((entry, i) => i === index ? { ...entry, institution } : entry))} />
@@ -673,7 +1096,17 @@ function ResumeEditor({ resume, update, updatePersonal }: { resume: Resume; upda
   </aside>;
 }
 
-function EditorSection({ title, children, action }: { title: string; children: React.ReactNode; action?: () => void }) {
+function EditorSection({
+  title,
+  children,
+  action,
+  actionExtra,
+}: {
+  title: string;
+  children: React.ReactNode;
+  action?: () => void;
+  actionExtra?: React.ReactNode;
+}) {
   return (
     <section className="mb-6">
       <div className="mb-2.5 flex items-center justify-between">
@@ -681,11 +1114,14 @@ function EditorSection({ title, children, action }: { title: string; children: R
           <span className="h-3.5 w-1 rounded-full bg-gradient-to-b from-indigo-500 to-violet-500" />
           {title}
         </h2>
-        {action && (
-          <Button type="button" onClick={action} variant="outline" size="sm" className="h-7 gap-1 border-slate-200 px-2 text-xs font-semibold text-slate-600 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600">
-            <Plus size={14} /> Add
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {actionExtra}
+          {action && (
+            <Button type="button" onClick={action} variant="outline" size="sm" className="h-7 gap-1 border-slate-200 px-2 text-xs font-semibold text-slate-600 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600">
+              <Plus size={14} /> Add
+            </Button>
+          )}
+        </div>
       </div>
       {children}
     </section>
@@ -715,60 +1151,223 @@ function TagEditor({ values, onChange }: { values: string[]; onChange: (values: 
 }
 
 function ExperienceEditor({ item, onChange, onRemove }: { item: ResumeExperience; onChange: (item: ResumeExperience) => void; onRemove: () => void }) {
-  return <div className="editor-card"><div className="grid gap-2 sm:grid-cols-2"><EditorInput compact placeholder="Company" value={item.company} onChange={(company) => onChange({ ...item, company })} /><EditorInput compact placeholder="Role" value={item.role} onChange={(role) => onChange({ ...item, role })} /><EditorInput compact type="month" value={item.startDate} onChange={(startDate) => onChange({ ...item, startDate })} /><EditorInput compact type="month" value={item.endDate} onChange={(endDate) => onChange({ ...item, endDate })} /></div><textarea className={`${textareaClass} mt-2 min-h-20`} value={item.description} placeholder="Company or role description (optional)" onChange={(e) => onChange({ ...item, description: e.target.value })} /><p className="mt-2 text-xs font-semibold text-slate-600">Achievements — one item per line</p><textarea className={`${textareaClass} mt-1 min-h-24`} value={item.achievements.join('\n')} onChange={(e) => onChange({ ...item, achievements: e.target.value.split('\n') })} /><RemoveButton onClick={onRemove} /></div>;
+  return (
+    <div className="editor-card">
+      <div className="grid gap-2 sm:grid-cols-2">
+        <EditorInput compact placeholder="Company" value={item.company} onChange={(company) => onChange({ ...item, company })} />
+        <EditorInput compact placeholder="Role" value={item.role} onChange={(role) => onChange({ ...item, role })} />
+        <EditorInput compact type="month" value={item.startDate} onChange={(startDate) => onChange({ ...item, startDate })} />
+        <EditorInput compact type="month" value={item.endDate} onChange={(endDate) => onChange({ ...item, endDate })} />
+      </div>
+      <div className="mt-2.5 flex items-center justify-between">
+        <span className="text-[11px] font-semibold text-slate-500">Role description</span>
+        <RephraseButton
+          text={item.description}
+          field="description"
+          onRephrased={(newText) => onChange({ ...item, description: newText })}
+        />
+      </div>
+      <textarea
+        className={`${textareaClass} mt-1 min-h-20`}
+        value={item.description}
+        placeholder="Company or role description (optional)"
+        onChange={(e) => onChange({ ...item, description: e.target.value })}
+      />
+      <div className="mt-2.5 flex items-center justify-between">
+        <p className="text-xs font-semibold text-slate-600">Achievements — one item per line</p>
+        <RephraseButton
+          text={item.achievements.join('\n')}
+          field="achievement"
+          onRephrased={(newText) => onChange({ ...item, achievements: newText.split('\n') })}
+        />
+      </div>
+      <textarea
+        className={`${textareaClass} mt-1 min-h-24`}
+        value={item.achievements.join('\n')}
+        onChange={(e) => onChange({ ...item, achievements: e.target.value.split('\n') })}
+      />
+      <RemoveButton onClick={onRemove} />
+    </div>
+  );
 }
 
 function ProjectEditor({ item, onChange, onRemove }: { item: ResumeProject; onChange: (item: ResumeProject) => void; onRemove: () => void }) {
-  return <div className="editor-card"><div className="grid gap-2 sm:grid-cols-2"><EditorInput compact placeholder="Project name" value={item.name} onChange={(name) => onChange({ ...item, name })} /><EditorInput compact placeholder="Project URL" value={item.url} onChange={(url) => onChange({ ...item, url })} /><EditorInput compact type="month" value={item.startDate} onChange={(startDate) => onChange({ ...item, startDate })} /><EditorInput compact type="month" value={item.endDate} onChange={(endDate) => onChange({ ...item, endDate })} /></div><textarea className={`${textareaClass} mt-2 min-h-20`} value={item.description} placeholder="Project description" onChange={(e) => onChange({ ...item, description: e.target.value })} /><p className="mt-2 text-xs font-semibold text-slate-600">Achievements — one item per line</p><textarea className={`${textareaClass} mt-1 min-h-24`} value={item.achievements.join('\n')} onChange={(e) => onChange({ ...item, achievements: e.target.value.split('\n') })} /><RemoveButton onClick={onRemove} /></div>;
+  return (
+    <div className="editor-card">
+      <div className="grid gap-2 sm:grid-cols-2">
+        <EditorInput compact placeholder="Project name" value={item.name} onChange={(name) => onChange({ ...item, name })} />
+        <EditorInput compact placeholder="Project URL" value={item.url} onChange={(url) => onChange({ ...item, url })} />
+        <EditorInput compact type="month" value={item.startDate} onChange={(startDate) => onChange({ ...item, startDate })} />
+        <EditorInput compact type="month" value={item.endDate} onChange={(endDate) => onChange({ ...item, endDate })} />
+      </div>
+      <div className="mt-2.5 flex items-center justify-between">
+        <span className="text-[11px] font-semibold text-slate-500">Project description</span>
+        <RephraseButton
+          text={item.description}
+          field="description"
+          onRephrased={(newText) => onChange({ ...item, description: newText })}
+        />
+      </div>
+      <textarea
+        className={`${textareaClass} mt-1 min-h-20`}
+        value={item.description}
+        placeholder="Project description"
+        onChange={(e) => onChange({ ...item, description: e.target.value })}
+      />
+      <div className="mt-2.5 flex items-center justify-between">
+        <p className="text-xs font-semibold text-slate-600">Achievements — one item per line</p>
+        <RephraseButton
+          text={item.achievements.join('\n')}
+          field="achievement"
+          onRephrased={(newText) => onChange({ ...item, achievements: newText.split('\n') })}
+        />
+      </div>
+      <textarea
+        className={`${textareaClass} mt-1 min-h-24`}
+        value={item.achievements.join('\n')}
+        onChange={(e) => onChange({ ...item, achievements: e.target.value.split('\n') })}
+      />
+      <RemoveButton onClick={onRemove} />
+    </div>
+  );
 }
 
 function ResumePreview({ resume }: { resume: Resume }) {
   const p = resume.personal;
-  const hasLeft = resume.summary || resume.education.length || resume.skillGroups.some((group) => group.items.some(Boolean)) || resume.achievements.some(Boolean) || resume.languages.some(Boolean) || resume.certifications.some(Boolean);
+  const hasLeft =
+    resume.summary ||
+    resume.education.length ||
+    resume.skillGroups.some((group) => group.items.some(Boolean)) ||
+    resume.achievements.some(Boolean) ||
+    resume.languages.some(Boolean) ||
+    resume.certifications.some(Boolean);
 
-  // Enough repeated tiles to fill the diagonal overlay at any scroll position
   const watermarkTiles = Array.from({ length: 60 });
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const articleRef = useRef<HTMLElement>(null);
+  const [scale, setScale] = useState(0.7);
+  const [docHeight, setDocHeight] = useState(1122);
+
+  // Auto-fit scale to container width so horizontal scrolling is NEVER needed
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const updateScale = () => {
+      // 794px is standard 8.27in at 96 DPI. Available width leaves 24px padding.
+      const available = container.clientWidth - 24;
+      if (available > 100) {
+        const s = Math.min(1.0, Math.max(0.35, available / 794));
+        setScale(Number(s.toFixed(3)));
+      }
+    };
+
+    updateScale();
+    const ro = new ResizeObserver(updateScale);
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, []);
+
+  // Track article height so wrapper height matches the scaled document exactly
+  useEffect(() => {
+    const art = articleRef.current;
+    if (!art) return;
+    const updateH = () => {
+      if (art.offsetHeight > 0) setDocHeight(art.offsetHeight);
+    };
+    updateH();
+    const ro = new ResizeObserver(updateH);
+    ro.observe(art);
+    return () => ro.disconnect();
+  }, [resume]);
+
+  const scaledWidth = Math.round(794 * scale);
+  const scaledHeight = Math.round(docHeight * scale);
+
   return (
-    <section className="resume-preview-wrap relative overflow-auto rounded-xl bg-slate-200 p-3 shadow-inner sm:p-5 select-none">
+    <section
+      ref={containerRef}
+      className="resume-preview-wrap relative h-full w-full overflow-y-auto overflow-x-hidden rounded-xl bg-slate-200/90 p-3 select-none flex flex-col items-center"
+    >
       {/* Print-only centred watermark */}
       <div className="resume-print-watermark" aria-hidden="true">INVERTISPREP</div>
 
-      <article
-        className="resume-page mx-auto bg-white text-black shadow-xl"
-        onCopy={(e) => e.preventDefault()}
-        onCut={(e) => e.preventDefault()}
+      {/* Sizing frame: occupies exactly the scaled footprint so the parent never scrolls horizontally */}
+      <div
+        style={{
+          width: `${scaledWidth}px`,
+          height: `${scaledHeight}px`,
+          position: 'relative',
+        }}
+        className="shrink-0 transition-[width,height] duration-75"
       >
-        {/* Diagonal watermark grid — inside the page so it covers all content when scrolling */}
-        <div className="resume-preview-watermark" aria-hidden="true">
-          <div className="resume-preview-watermark-inner">
-            {watermarkTiles.map((_, i) => (
-              <span key={i}>INVERTISPREP</span>
-            ))}
+        <article
+          ref={articleRef}
+          className="resume-page bg-white text-black shadow-xl"
+          style={{
+            width: '794px',
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+          }}
+          onCopy={(e) => e.preventDefault()}
+          onCut={(e) => e.preventDefault()}
+        >
+          {/* Diagonal watermark grid — inside the page so it covers all content when scrolling */}
+          <div className="resume-preview-watermark" aria-hidden="true">
+            <div className="resume-preview-watermark-inner">
+              {watermarkTiles.map((_, i) => (
+                <span key={i}>INVERTISPREP</span>
+              ))}
+            </div>
           </div>
-        </div>
-    <header className="border-b border-slate-300 pb-3 text-center">
-      <h1 className="text-[22px] font-bold uppercase tracking-wide">{p.name || 'Your Name'}</h1>
-      {p.headline && <p className="mt-0.5 text-[15px]">{p.headline}</p>}
-      <div className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px]">{p.phone && <span>{p.phone}</span>}{p.email && <span>{p.email}</span>}{p.location && <span>{p.location}</span>}</div>
-      {p.links.some((link) => link.url) && <div className="mt-1.5 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[10px]">{p.links.filter((link) => link.url).map((link, i) => <span key={link._id || i}>{link.label ? `${link.label}: ` : ''}{link.url.replace(/^https?:\/\//, '')}</span>)}</div>}
-    </header>
-    <div className={hasLeft && (resume.experience.length || resume.projects.length) ? 'grid grid-cols-[31%_1fr] gap-7 pt-4' : 'pt-4'}>
-      {hasLeft && <aside>
-        {resume.summary && <PreviewSection title="Summary"><p>{resume.summary}</p></PreviewSection>}
-        {resume.education.length > 0 && <PreviewSection title="Education">{resume.education.map((item, i) => <div className="mb-3" key={item._id || i}><p className="font-bold">{item.institution}</p><p>{item.degree}</p><DateLine start={item.startDate} end={item.endDate}/></div>)}</PreviewSection>}
-        {resume.skillGroups.filter((group) => group.items.some(Boolean)).map((group, i) => <PreviewSection key={group._id || i} title={group.title}><p>{group.items.filter(Boolean).join(', ')}</p></PreviewSection>)}
-        {resume.achievements.some(Boolean) && <PreviewSection title="Achievements"><ul>{resume.achievements.filter(Boolean).map((item, i) => <li key={i}>• {item}</li>)}</ul></PreviewSection>}
-        {resume.languages.some(Boolean) && <PreviewSection title="Languages"><p>{resume.languages.filter(Boolean).join(', ')}</p></PreviewSection>}
-        {resume.certifications.some(Boolean) && <PreviewSection title="Certifications"><ul>{resume.certifications.filter(Boolean).map((item, i) => <li key={i}>• {item}</li>)}</ul></PreviewSection>}
-      </aside>}
-      {(resume.experience.length || resume.projects.length) ? <main>
-        {resume.experience.length > 0 && <PreviewSection title="Work Experience">{resume.experience.map((item, i) => <ExperiencePreview key={item._id || i} item={item}/>)}</PreviewSection>}
-        {resume.projects.length > 0 && <PreviewSection title="Projects">{resume.projects.map((item, i) => <div className="mb-4" key={item._id || i}><div className="flex justify-between gap-3"><p className="font-bold">{item.name}</p><DateLine start={item.startDate} end={item.endDate}/></div>{item.url && <p className="text-[10px]">{item.url}</p>}{item.description && <p className="mt-1">{item.description}</p>}<AchievementList items={item.achievements}/></div>)}</PreviewSection>}
-      </main> : null}
-    </div>
-    <footer className="resume-watermark">Made with www.invertisprep.in</footer>
-      </article>
+
+          {/* Central Watermark Overlay — captured cleanly when downloading with watermark */}
+          <div
+            className="resume-pdf-watermark-overlay pointer-events-none select-none absolute inset-0 z-20 flex items-center justify-center overflow-hidden"
+            style={{ display: 'none' }}
+            aria-hidden="true"
+          >
+            <span
+              style={{
+                transform: 'rotate(-35deg)',
+                fontSize: '68pt',
+                fontWeight: 900,
+                color: 'rgba(99, 102, 241, 0.16)',
+                letterSpacing: '0.14em',
+                fontFamily: 'Inter, system-ui, sans-serif',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              INVERTISPREP
+            </span>
+          </div>
+          <header className="border-b border-slate-300 pb-3 text-center">
+            <h1 className="text-[22px] font-bold uppercase tracking-wide">{p.name || 'Your Name'}</h1>
+            {p.headline && <p className="mt-0.5 text-[15px]">{p.headline}</p>}
+            <div className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px]">{p.phone && <span>{p.phone}</span>}{p.email && <span>{p.email}</span>}{p.location && <span>{p.location}</span>}</div>
+            {p.links.some((link) => link.url) && <div className="mt-1.5 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[10px]">{p.links.filter((link) => link.url).map((link, i) => <span key={link._id || i}>{link.label ? `${link.label}: ` : ''}{link.url.replace(/^https?:\/\//, '')}</span>)}</div>}
+          </header>
+          <div className={hasLeft && (resume.experience.length || resume.projects.length) ? 'grid grid-cols-[31%_1fr] gap-7 pt-4' : 'pt-4'}>
+            {hasLeft && <aside>
+              {resume.summary && <PreviewSection title="Summary"><p>{resume.summary}</p></PreviewSection>}
+              {resume.education.length > 0 && <PreviewSection title="Education">{resume.education.map((item, i) => <div className="mb-3" key={item._id || i}><p className="font-bold">{item.institution}</p><p>{item.degree}</p><DateLine start={item.startDate} end={item.endDate}/></div>)}</PreviewSection>}
+              {resume.skillGroups.filter((group) => group.items.some(Boolean)).map((group, i) => <PreviewSection key={group._id || i} title={group.title}><p>{group.items.filter(Boolean).join(', ')}</p></PreviewSection>)}
+              {resume.achievements.some(Boolean) && <PreviewSection title="Achievements"><ul>{resume.achievements.filter(Boolean).map((item, i) => <li key={i}>• {item}</li>)}</ul></PreviewSection>}
+              {resume.languages.some(Boolean) && <PreviewSection title="Languages"><p>{resume.languages.filter(Boolean).join(', ')}</p></PreviewSection>}
+              {resume.certifications.some(Boolean) && <PreviewSection title="Certifications"><ul>{resume.certifications.filter(Boolean).map((item, i) => <li key={i}>• {item}</li>)}</ul></PreviewSection>}
+            </aside>}
+            {(resume.experience.length || resume.projects.length) ? <main>
+              {resume.experience.length > 0 && <PreviewSection title="Work Experience">{resume.experience.map((item, i) => <ExperiencePreview key={item._id || i} item={item}/>)}</PreviewSection>}
+              {resume.projects.length > 0 && <PreviewSection title="Projects">{resume.projects.map((item, i) => <div className="mb-4" key={item._id || i}><div className="flex justify-between gap-3"><p className="font-bold">{item.name}</p><DateLine start={item.startDate} end={item.endDate}/></div>{item.url && <p className="text-[10px]">{item.url}</p>}{item.description && <p className="mt-1">{item.description}</p>}<AchievementList items={item.achievements}/></div>)}</PreviewSection>}
+            </main> : null}
+          </div>
+          <footer className="resume-watermark">Made with www.invertisprep.in</footer>
+        </article>
+      </div>
     </section>
   );
 }

@@ -185,6 +185,28 @@
   display: none;
 }
 
+/* ─── Resume Builder 3-Panel Resizable Layout ───────────────────────────── */
+.resizable-panels-root.is-resizing {
+  cursor: col-resize !important;
+}
+.resizable-panels-root.is-resizing * {
+  user-select: none !important;
+  pointer-events: none !important;
+}
+.resizable-panels-root.is-resizing .panel-divider {
+  pointer-events: auto !important;
+}
+
+.panel-divider {
+  user-select: none;
+  touch-action: none;
+}
+.panel-divider:hover > div,
+.panel-divider.is-active > div {
+  background-color: #6366f1 !important;
+  width: 3px !important;
+}
+
 @media print {
   body { 
     background: white !important; 
@@ -193,9 +215,17 @@
     print-color-adjust: exact !important;
   }
   
-  /* Hide non-printable elements */
-  .no-print, nav, footer, .resume-editor { 
-    display: none !important; 
+  /* Hide non-printable elements. Sonner's toaster is position:fixed
+     with a 999999999 z-index, so without this its toasts print on
+     top of the resume. Same for the Radix download-dialog overlay. */
+  .no-print, nav, footer, .resume-editor,
+  [data-sonner-toaster],
+  [data-radix-dialog-overlay],
+  [data-radix-dialog-content],
+  .panel-left-container,
+  .panel-divider,
+  .resizable-panels-root > .panel-left-container {
+    display: none !important;
   }
 
   /* Support for Resume Builder */
