@@ -16,7 +16,7 @@ const teamMembers = [
   {
     name: "Ahqaf Ali",
     role: "Founder & Lead",
-    image: "/team/member1.jpg",
+    image: "/team/founder.jpg",
     linkedin: "https://www.linkedin.com/in/ahqaf-ali/",
     github: "https://github.com/AhqafCoder",
     description: "Ahqaf Ali is the Founder and Lead at InvertisPrep. He directs the platform's vision, system architecture, and coordinates technical execution to provide high-quality learning resources for students.",
