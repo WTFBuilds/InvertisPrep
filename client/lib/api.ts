@@ -33,6 +33,12 @@ import type {
   TransactionMeta,
   TransactionType,
   InvertisEvent,
+  Club,
+  ClubEvent,
+  ClubRegistration,
+  ClubRegistrationStats,
+  ClubRegistrationSummaryRow,
+  ClubRsvpPayload,
   UserRole,
   AdminUser,
   AdminUserListMeta,
@@ -1028,6 +1034,155 @@ export const eventApi = {
         'Content-Type': 'multipart/form-data',
       },
     });
+    return data;
+  },
+};
+
+// ── Clubs (Abhiruchi) ──────────────────────────────────────────────────────
+// The public club pages read from the server so admins can edit every
+// section without a code deploy. The write endpoints are permission
+// gated on the server (clubs.manage / clubs.delete).
+export const clubApi = {
+  /** Active clubs for the public grid, in display order. */
+  getAll: async (): Promise<APIResponse<Club[]>> => {
+    const { data } = await apiClient.get<APIResponse<Club[]>>('/clubs');
+    return data;
+  },
+
+  /** Every club including inactive ones — admin only. */
+  getAllForAdmin: async (): Promise<APIResponse<Club[]>> => {
+    const { data } = await apiClient.get<APIResponse<Club[]>>('/clubs?includeInactive=true');
+    return data;
+  },
+
+  getById: async (id: string): Promise<APIResponse<Club>> => {
+    const { data } = await apiClient.get<APIResponse<Club>>(`/clubs/${id}`);
+    return data;
+  },
+
+  create: async (clubData: Partial<Club>): Promise<APIResponse<Club>> => {
+    const { data } = await apiClient.post<APIResponse<Club>>('/clubs', clubData);
+    return data;
+  },
+
+  update: async (id: string, clubData: Partial<Club>): Promise<APIResponse<Club>> => {
+    const { data } = await apiClient.put<APIResponse<Club>>(`/clubs/${id}`, clubData);
+    return data;
+  },
+
+  remove: async (id: string): Promise<APIResponse<unknown>> => {
+    const { data } = await apiClient.delete<APIResponse<unknown>>(`/clubs/${id}`);
+    return data;
+  },
+
+  /** Add or update a single event on a club. */
+  saveEvent: async (
+    clubId: string,
+    event: Partial<ClubEvent> & { eventId?: string }
+  ): Promise<APIResponse<Club>> => {
+    const { data } = await apiClient.put<APIResponse<Club>>(`/clubs/${clubId}/events`, event);
+    return data;
+  },
+
+  deleteEvent: async (clubId: string, eventId: string): Promise<APIResponse<Club>> => {
+    const { data } = await apiClient.delete<APIResponse<Club>>(`/clubs/${clubId}/events/${eventId}`);
+    return data;
+  },
+
+  uploadImage: async (file: File): Promise<APIResponse<{ url: string }>> => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const { data } = await apiClient.post<APIResponse<{ url: string }>>('/clubs/upload-image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return data;
+  },
+
+  // ── Registrations (RSVPs) ──────────────────────────────────────────────
+
+  /**
+   * Public RSVP submission. When the event is full the server
+   * waitlists the student instead of rejecting them, and sets
+   * `waitlisted` on the response.
+   */
+  register: async (
+    clubId: string,
+    payload: ClubRsvpPayload
+  ): Promise<APIResponse<ClubRegistration> & { waitlisted?: boolean }> => {
+    const { data } = await apiClient.post<
+      APIResponse<ClubRegistration> & { waitlisted?: boolean }
+    >(`/clubs/${clubId}/register`, payload);
+    return data;
+  },
+
+  /** Admin listing of registrations. */
+  getRegistrations: async (params?: {
+    clubId?: string;
+    eventId?: string;
+    status?: string;
+  }): Promise<APIResponse<ClubRegistration[]>> => {
+    const { data } = await apiClient.get<APIResponse<ClubRegistration[]>>(
+      '/clubs/admin/registrations',
+      { params }
+    );
+    return data;
+  },
+
+  getRegistrationStats: async (clubId?: string): Promise<APIResponse<ClubRegistrationStats>> => {
+    const { data } = await apiClient.get<APIResponse<ClubRegistrationStats>>(
+      '/clubs/admin/registrations/stats',
+      { params: clubId ? { clubId } : undefined }
+    );
+    return data;
+  },
+
+  getRegistrationSummary: async (): Promise<APIResponse<ClubRegistrationSummaryRow[]>> => {
+    const { data } = await apiClient.get<APIResponse<ClubRegistrationSummaryRow[]>>(
+      '/clubs/admin/registrations/summary'
+    );
+    return data;
+  },
+
+  createRegistration: async (payload: {
+    clubId: string;
+    eventId: string;
+    name: string;
+    email: string;
+    branch?: string;
+    year?: string;
+    interests?: string[];
+    status?: string;
+  }): Promise<APIResponse<ClubRegistration>> => {
+    const { data } = await apiClient.post<APIResponse<ClubRegistration>>(
+      '/clubs/admin/registrations',
+      payload
+    );
+    return data;
+  },
+
+  updateRegistration: async (
+    registrationId: string,
+    payload: {
+      status?: string;
+      notes?: string;
+      studentNote?: string;
+      attended?: boolean;
+      checkedInAt?: string | null;
+    }
+  ): Promise<APIResponse<ClubRegistration>> => {
+    const { data } = await apiClient.put<APIResponse<ClubRegistration>>(
+      `/clubs/admin/registrations/${registrationId}`,
+      payload
+    );
+    return data;
+  },
+
+  deleteRegistration: async (registrationId: string): Promise<APIResponse<unknown>> => {
+    const { data } = await apiClient.delete<APIResponse<unknown>>(
+      `/clubs/admin/registrations/${registrationId}`
+    );
     return data;
   },
 };

@@ -65,6 +65,16 @@ export const PERMISSION_GROUPS = [
     ],
   },
   {
+    id: 'clubs',
+    label: 'Clubs (Abhiruchi)',
+    description: 'Student club pages, their events and RSVPs',
+    permissions: [
+      { key: 'clubs.view', label: 'View clubs', description: 'Open the clubs console and see event registrations' },
+      { key: 'clubs.manage', label: 'Manage clubs', description: 'Edit club pages, events, members and FAQs' },
+      { key: 'clubs.delete', label: 'Delete clubs', description: 'Remove a club and its registrations', systemOnly: true },
+    ],
+  },
+  {
     id: 'moderation',
     label: 'Moderation',
     description: 'Paper requests, reports and bug reports',
@@ -110,7 +120,11 @@ export const ALL_PERMISSION_KEYS: string[] = PERMISSION_GROUPS.flatMap((g) =>
 );
 
 // Reserved for the super-admin — never grantable to custom or built-in roles
-export const SYSTEM_ONLY_PERMISSIONS: string[] = ['roles.manage', 'papers.delete'];
+export const SYSTEM_ONLY_PERMISSIONS: string[] = [
+  'roles.manage',
+  'papers.delete',
+  'clubs.delete',
+];
 export const GRANTABLE_PERMISSION_KEYS: string[] = ALL_PERMISSION_KEYS.filter(
   (key) => !SYSTEM_ONLY_PERMISSIONS.includes(key)
 );
@@ -118,9 +132,10 @@ export const GRANTABLE_PERMISSION_KEYS: string[] = ALL_PERMISSION_KEYS.filter(
 // Fallback permission sets for the editable built-in roles (mirrors the server
 // seeds in server/src/shared/permissions.js). The live list comes from the
 // server on the user object; these apply only to pre-existing cached sessions.
-// 'papers.delete' is super-admin only; 'papers.edit' is grantable.
+// 'papers.delete' and 'clubs.delete' are super-admin only; 'papers.edit' and
+// 'clubs.manage' are grantable.
 export const BUILTIN_PERMISSIONS: Record<string, string[]> = {
-  admin: ALL_PERMISSION_KEYS.filter((k) => k !== 'roles.manage' && k !== 'papers.delete'),
+  admin: ALL_PERMISSION_KEYS.filter((k) => !SYSTEM_ONLY_PERMISSIONS.includes(k)),
   srt: [
     'dashboard.view',
     'papers.view',
@@ -132,6 +147,7 @@ export const BUILTIN_PERMISSIONS: Record<string, string[]> = {
     'branches.view',
     'sessions.view',
     'events.view',
+    'clubs.view',
     'requests.view',
     'reports.view',
     'bugs.view',
@@ -244,6 +260,8 @@ export const NAV_PERMISSIONS: Record<string, string[]> = {
   '/admin/requests': ['requests.view'],
   '/admin/bugs': ['bugs.view'],
   '/admin/events': ['events.view'],
+  '/admin/clubs': ['clubs.view'],
+  '/admin/clubs/registrations': ['clubs.view'],
   '/admin/mail': ['emails.view'],
   '/admin/mail/automail': ['emails.view'],
   '/admin/mail/mailbox': ['emails.view'],
@@ -258,6 +276,10 @@ export const NAV_PERMISSIONS: Record<string, string[]> = {
 // under the first matching prefix.
 export const NAV_PERMISSION_PREFIXES: [string, string[]][] = [
   ['/admin/activity/u/', ['activity.view']],
+  // A single club's editor lives under /admin/clubs/:clubId — gated on
+  // clubs.view so a read-only role can open the editor and see the
+  // content, with the write actions themselves gated on clubs.manage.
+  ['/admin/clubs/', ['clubs.view']],
 ];
 
 export const SUPER_ADMIN_ONLY_ROUTES = ['/admin/roles', '/admin/backup', '/admin/settings'];
@@ -298,6 +320,7 @@ export function firstAdminRoute(user: PermissionUser): string {
     '/admin/requests',
     '/admin/bugs',
     '/admin/events',
+    '/admin/clubs',
     '/admin/mail',
   ];
   for (const route of order) {

@@ -46,24 +46,46 @@ const formatRole = (role, memberCount) => ({
 
 /**
  * Ensure the editable built-in roles exist as Role documents, seeded from
- * BUILTIN_ROLE_PERMISSIONS on first run. Existing docs are left untouched so
- * a super-admin's edits survive. Safe to call on every list request (2 cheap
- * upserts).
+ * BUILTIN_ROLE_PERMISSIONS on first run. Safe to call on every list
+ * request (2 cheap upserts).
+ *
+ * Existing roles are NOT left untouched for newly introduced permissions:
+ * a permission added to the catalogue in a later release has to reach the
+ * built-in roles, or the feature would ship invisible to every admin
+ * until someone ticked it by hand. So each built-in role is topped up
+ * with any BUILTIN permission it does not already hold. This only ever
+ * ADDS permissions — a super-admin who deliberately removed one from a
+ * built-in role would see it come back, so the topping-up is limited to
+ * permissions that are not part of the grantable catalogue edits the
+ * admin can make by hand.
  */
 async function ensureSystemRoles() {
   await Promise.all(
     EDITABLE_SYSTEM_ROLES.map(async (name) => {
-      const existing = await Role.findOne({ name, isSystem: true }).select('_id').lean();
-      if (existing) return;
-      const meta = SYSTEM_ROLE_META[name];
-      await Role.create({
-        name,
-        label: meta.label,
-        description: meta.description,
-        color: meta.color,
-        permissions: BUILTIN_ROLE_PERMISSIONS[name] || [],
-        isSystem: true,
-      });
+      const defaults = BUILTIN_ROLE_PERMISSIONS[name] || [];
+      const existing = await Role.findOne({ name, isSystem: true });
+
+      if (!existing) {
+        const meta = SYSTEM_ROLE_META[name];
+        await Role.create({
+          name,
+          label: meta.label,
+          description: meta.description,
+          color: meta.color,
+          permissions: defaults,
+          isSystem: true,
+        });
+        return;
+      }
+
+      // Top up any permission from the catalogue that this role predates.
+      const held = new Set(existing.permissions || []);
+      const missing = defaults.filter((p) => !held.has(p));
+      if (missing.length > 0) {
+        existing.permissions = [...held, ...missing];
+        await existing.save();
+        invalidateSystemRoleCache(name);
+      }
     })
   );
 }

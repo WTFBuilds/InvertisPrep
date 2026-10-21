@@ -151,6 +151,44 @@ const sections = [
       </p>
     ),
   },
+  {
+    id: 'advertising',
+    title: 'Advertising and Third-Party Services',
+    children: (
+      <>
+        <p className="mb-4">
+          InvertisPrep may display advertisements to support the operation and maintenance of the platform. We use Google AdSense and other third-party advertising services to serve ads. These advertising partners may collect and use information about your visits to this and other websites (not including personally identifiable information such as your name, address, email, or phone number) to provide advertisements about goods and services of interest to you.
+        </p>
+        <p className="mb-4">
+          <strong>Google AdSense:</strong> Google, as a third-party vendor, uses cookies to serve ads on our site. Google's use of the DART cookie enables it to serve ads to our users based on their visit to our site and other sites on the Internet. You may opt out of the use of the DART cookie by visiting the <a href="https://policies.google.com/technologies/ads" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google ad and content network privacy policy</a>.
+        </p>
+        <p className="mb-4">
+          <strong>Cookies and Tracking Technologies:</strong> We and our advertising partners may use cookies, web beacons, and similar tracking technologies to:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-700 mb-4">
+          <li>Collect information about your browsing activities on our site</li>
+          <li>Serve personalized advertisements based on your interests</li>
+          <li>Measure and analyze the effectiveness of advertising campaigns</li>
+          <li>Prevent fraud and invalid click activity</li>
+        </ul>
+        <p className="mb-4">
+          <strong>Opt-Out Options:</strong> You can opt out of personalized advertising by:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-700 mb-4">
+          <li>Visiting <a href="https://adssettings.google.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google Ads Settings</a> to manage your ad preferences</li>
+          <li>Visiting <a href="https://www.aboutads.info/choices/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Network Advertising Initiative Opt-Out Page</a></li>
+          <li>Visiting <a href="https://optout.aboutads.info/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Digital Advertising Alliance Opt-Out Page</a></li>
+          <li>Enabling "Do Not Track" in your browser settings (though this may not prevent all tracking)</li>
+        </ul>
+        <p className="mb-4">
+          <strong>Data Sharing with Advertisers:</strong> We do not share personally identifiable information (such as your name, email, or contact details) with advertisers. We may share aggregated, non-personally identifiable information with third-party advertisers and ad networks for the purpose of serving relevant ads and measuring ad performance.
+        </p>
+        <p>
+          By using InvertisPrep, you consent to the collection and use of your non-personally identifiable information by third-party advertising partners as described above. If you do not wish to have this information used for the purpose of serving you targeted ads, you may opt out using the links provided above.
+        </p>
+      </>
+    ),
+  },
 ];
 
 export default function TermsOfServicePage() {
