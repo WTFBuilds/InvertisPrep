@@ -60,6 +60,15 @@ export const adminNavItems = [
   { title: "Bug Reports", url: "/admin/bugs", icon: Bug },
   { title: "Events", url: "/admin/events", icon: CalendarDays },
   {
+    title: "Clubs",
+    url: "/admin/clubs",
+    icon: Users,
+    items: [
+      { title: "Club Pages", url: "/admin/clubs" },
+      { title: "RSVPs", url: "/admin/clubs/registrations" },
+    ],
+  },
+  {
     title: "Mail",
     url: "/admin/mail",
     icon: Mail,

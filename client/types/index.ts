@@ -476,6 +476,192 @@ export interface InvertisEvent {
   updatedAt?: string;
 }
 
+// ── Clubs (Abhiruchi) ────────────────────────────────────────────────────
+// Mirrors the Club model in server/src/models/Club.js. Every section of
+// the public club page is a field here, so the whole page is editable
+// from the admin console.
+
+export interface ClubStat {
+  label: string;
+  value: string;
+}
+
+export interface ClubActivity {
+  title: string;
+  description: string;
+  cadence?: string;
+}
+
+export interface ClubWing {
+  name: string;
+  description: string;
+}
+
+export interface ClubMember {
+  role: string;
+  name: string;
+  branch?: string;
+  note?: string;
+}
+
+export type ClubAchievementKind = 'Award' | 'Milestone' | 'Record' | 'Recognition';
+
+export interface ClubAchievement {
+  title: string;
+  detail?: string;
+  year?: string;
+  kind?: ClubAchievementKind;
+}
+
+export interface ClubTestimonial {
+  quote: string;
+  name: string;
+  detail?: string;
+}
+
+export interface ClubFaq {
+  question: string;
+  answer: string;
+}
+
+export interface ClubLogistic {
+  label: string;
+  value: string;
+}
+
+export interface ClubJoinStep {
+  step?: string;
+  title: string;
+  description: string;
+}
+
+export interface ClubEvent {
+  _id?: string;
+  title: string;
+  description?: string;
+  month: string;
+  day: string;
+  time?: string;
+  venue?: string;
+  category?: string;
+  agenda?: string[];
+  seats?: number;
+  seatsLeft?: number;
+  audience?: string;
+  rsvpDeadline?: string;
+  perks?: string[];
+  registrationOpen?: boolean;
+  isPublished?: boolean;
+}
+
+export interface Club {
+  _id?: string;
+  id: string;
+  name: string;
+  tagline: string;
+  shortDescription?: string;
+  longDescription?: string;
+  mission?: string;
+  vision?: string;
+  coordinator?: string;
+  coordinatorRole?: string;
+  coordinatorNote?: string;
+  img?: string;
+  color?: string;
+  colorLight?: string;
+  colorDark?: string;
+  gradient?: string;
+  icon?: string;
+  highlights?: string[];
+  stats?: ClubStat[];
+  activities?: ClubActivity[];
+  wings?: ClubWing[];
+  team?: ClubMember[];
+  achievements?: ClubAchievement[];
+  testimonials?: ClubTestimonial[];
+  faqs?: ClubFaq[];
+  logistics?: ClubLogistic[];
+  joinProcess?: ClubJoinStep[];
+  events?: ClubEvent[];
+  displayOrder?: number;
+  isActive?: boolean;
+  adminNote?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
+ * The booking state. Attendance is deliberately separate — see the
+ * `attended` flag on ClubRegistration.
+ */
+export type ClubRegistrationStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'waitlist'
+  | 'cancelled';
+
+export interface ClubRegistration {
+  _id: string;
+  clubId: string;
+  eventId: string;
+  eventTitle?: string;
+  eventDate?: string;
+  eventTime?: string;
+  eventVenue?: string;
+  name: string;
+  email: string;
+  branch?: string;
+  year?: string;
+  interests?: string[];
+  /** A note the student left with their booking. */
+  studentNote?: string;
+  /** An admin's note about this registration. */
+  notes?: string;
+  source?: 'student' | 'admin';
+  bookingMethod?: 'online' | 'manual';
+  /** How many seats this booking takes (a group booking may take more). */
+  seats?: number;
+  status: ClubRegistrationStatus;
+  /** Whether the student actually showed up — tracked independently. */
+  attended?: boolean;
+  attendedAt?: string | null;
+  confirmedAt?: string | null;
+  cancelledAt?: string | null;
+  /** Who cancelled: 'student' or 'admin'. */
+  cancelledBy?: string;
+  checkedInAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ClubRegistrationStats {
+  total: number;
+  pending: number;
+  confirmed: number;
+  waitlist: number;
+  cancelled: number;
+  attended: number;
+}
+
+export interface ClubRegistrationSummaryRow {
+  clubId: string;
+  name: string;
+  isActive: boolean;
+  events: number;
+  registrations: number;
+}
+
+export interface ClubRsvpPayload {
+  eventId: string;
+  name: string;
+  email: string;
+  branch?: string;
+  year?: string;
+  interests?: string[];
+  studentNote?: string;
+  seats?: number;
+}
+
 // Admin user management types
 export interface AdminUser {
   id: string;
