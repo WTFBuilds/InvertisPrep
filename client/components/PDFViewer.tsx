@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Spotlight } from '@/components/ui/spotlight';
 import { pdfApi } from '@/lib/api';
 import { pyqApi } from '@/lib/api';
+import { useScreenshotGuard } from '@/hooks/useScreenshotGuard';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -30,6 +31,12 @@ export default function PDFViewer({ file, id, type }: PDFViewerProps) {
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Best-effort screenshot deterrent: blurs the document while the window is
+  // unfocused/hidden or during a capture attempt (held through the
+  // post-release selection window). Cannot block the OS camera; see
+  // the hook for the full explanation. Never hard-locks the UI.
+  const { shielded, reason } = useScreenshotGuard(true);
 
   // Handle responsiveness
   const onResize = useCallback((entries: ResizeObserverEntry[]) => {
@@ -70,12 +77,16 @@ export default function PDFViewer({ file, id, type }: PDFViewerProps) {
     console.error('PDF load error:', error);
   }
 
-  // Prevent right-click and common shortcuts
+  // Block the shortcuts that would exfiltrate the document: print (Ctrl/Cmd+P),
+  // save (Ctrl/Cmd+S) and view-source (Ctrl/Cmd+U). Scoped to this component's
+  // mount and skipped while typing, so it never interferes elsewhere.
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => e.preventDefault();
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Disable Ctrl+P, Ctrl+S, Ctrl+U
-      if (e.ctrlKey && (e.key === 'p' || e.key === 's' || e.key === 'u')) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const mod = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
+      if (mod && (key === 'p' || key === 's' || key === 'u')) {
         e.preventDefault();
       }
     };
@@ -141,6 +152,25 @@ export default function PDFViewer({ file, id, type }: PDFViewerProps) {
 
   return (
     <div className="flex flex-col items-center bg-slate-900 min-h-screen select-text relative" ref={containerRef}>
+      {/* Focus / screenshot shield. Covers the whole viewer (z above the
+          toolbar) while the window is unfocused, hidden, or a capture
+          combo was recently used — so an area-selection screenshot sees
+          nothing, even though the crosshair stays active after the keys
+          are released. */}
+      {shielded && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-slate-950/95 backdrop-blur-xl"
+          aria-hidden="true"
+        >
+          <ShieldCheck className="h-10 w-10 text-indigo-400" />
+          <p className="text-sm font-semibold text-slate-200">Document protected</p>
+          <p className="max-w-xs text-center text-xs text-slate-400">
+            {reason === 'capture'
+              ? 'Screenshot detected — this paper stays hidden while a capture may be in progress.'
+              : 'This paper is hidden while the window is inactive.'}
+          </p>
+        </div>
+      )}
       {/* Toolbar - Sticky and Adaptive */}
       <div className="sticky top-0 z-20 w-full bg-slate-900/80 backdrop-blur-md border-b border-white/10 shadow-xl">
         <div className="relative overflow-hidden">
@@ -270,7 +300,7 @@ export default function PDFViewer({ file, id, type }: PDFViewerProps) {
               'radial-gradient(900px 500px at 50% 0%, rgba(99,102,241,0.08) 0%, transparent 60%), radial-gradient(700px 420px at 15% 100%, rgba(139,92,246,0.06) 0%, transparent 55%), radial-gradient(700px 420px at 85% 100%, rgba(56,189,248,0.05) 0%, transparent 55%)',
           }}
         />
-        <div className="relative shadow-2xl border border-slate-700 rounded-sm sm:rounded-lg overflow-hidden bg-white h-fit">
+        <div className="protected-doc relative shadow-2xl border border-slate-700 rounded-sm sm:rounded-lg overflow-hidden bg-white h-fit">
           <Document
             file={fileUrl}
             onLoadSuccess={onDocumentLoadSuccess}

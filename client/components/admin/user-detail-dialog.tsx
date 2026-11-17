@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { adminUserApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { BUILTIN_ROLE_META, ROLE_COLORS, hasPermission } from '@/lib/permissions';
 import type { AdminUserDetail } from '@/types';
 import {
   Dialog,
@@ -11,13 +12,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ViewableAvatar } from '@/components/admin/viewable-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DeleteUserDialog } from '@/components/admin/delete-user-dialog';
 import {
+  Activity as ActivityIcon,
   AlertCircle,
   ArrowDownLeft,
   ArrowUpRight,
@@ -64,22 +66,19 @@ const formatDateTime = (value?: string | null) => {
   });
 };
 
-const roleBadge = (role: string) => {
-  switch (role) {
-    case 'super-admin':
-      return <Badge className="bg-slate-900 text-white">Super Admin</Badge>;
-    case 'admin':
-      return <Badge variant="indigo">Admin</Badge>;
-    case 'srt':
-      return <Badge className="bg-teal-600 text-white">SRT</Badge>;
-    default:
-      return <Badge variant="outline">Student</Badge>;
+const roleBadge = (role: string, roleLabel?: string | null, roleColor?: string | null) => {
+  if (role === 'staff') {
+    const style = ROLE_COLORS[roleColor || 'violet'] || ROLE_COLORS.violet;
+    return <Badge className={style.badge}>{roleLabel || 'Custom Role'}</Badge>;
   }
+  const meta = BUILTIN_ROLE_META[role] || BUILTIN_ROLE_META.student;
+  return <Badge className={meta.badge}>{meta.label}</Badge>;
 };
 
 export function UserDetailDialog({ userId, open, onOpenChange, onDeleted }: UserDetailDialogProps) {
   const { user: currentUser } = useAuth();
   const isSuperAdmin = currentUser?.role === 'super-admin';
+  const canViewActivity = hasPermission(currentUser, 'activity.view');
   const [detail, setDetail] = useState<AdminUserDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,14 +112,6 @@ export function UserDetailDialog({ userId, open, onOpenChange, onDeleted }: User
       cancelled = true;
     };
   }, [open, userId]);
-
-  const initials = (name: string) =>
-    name
-      .split(' ')
-      .map((p) => p[0])
-      .slice(0, 2)
-      .join('')
-      .toUpperCase();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -163,18 +154,16 @@ export function UserDetailDialog({ userId, open, onOpenChange, onDeleted }: User
             {/* Profile header */}
             <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
-                <Avatar className="h-14 w-14">
-                  {detail.user.picture && (
-                    <AvatarImage src={detail.user.picture} alt={detail.user.name} />
-                  )}
-                  <AvatarFallback className="bg-indigo-100 text-indigo-700">
-                    {initials(detail.user.name)}
-                  </AvatarFallback>
-                </Avatar>
+                <ViewableAvatar
+                  src={detail.user.picture}
+                  name={detail.user.name}
+                  className="h-14 w-14"
+                  fallbackClassName="bg-indigo-100 text-lg font-bold text-indigo-700"
+                />
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-lg font-black text-slate-900">{detail.user.name}</span>
-                    {roleBadge(detail.user.role)}
+                    {roleBadge(detail.user.role, detail.user.roleLabel, detail.user.roleColor)}
                   </div>
                   <p className="text-sm text-slate-500">{detail.user.email}</p>
                   <p className="text-xs text-slate-400">
@@ -192,6 +181,16 @@ export function UserDetailDialog({ userId, open, onOpenChange, onDeleted }: User
                 >
                   {detail.user.isActive ? 'Active' : 'Banned'}
                 </Badge>
+                {canViewActivity && (
+                  <a
+                    href={`/admin/activity/u/${detail.user.id}`}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 transition-colors hover:border-indigo-300 hover:text-indigo-600"
+                    onClick={() => onOpenChange(false)}
+                  >
+                    <ActivityIcon className="h-3.5 w-3.5" />
+                    Activity trail
+                  </a>
+                )}
                 {isSuperAdmin &&
                   detail.user.id !== currentUser?.id &&
                   detail.user.role !== 'super-admin' && (

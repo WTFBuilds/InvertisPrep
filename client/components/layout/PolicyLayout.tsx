@@ -203,7 +203,7 @@ export function PolicyLayout({
                 Contact Us
               </h3>
               <div className="text-gray-600 text-sm space-y-2">
-                <p><strong>Email:</strong> invertisprep@gmail.com</p>
+                <p><strong>Email:</strong> support@invertisprep.in</p>
                 <p><strong>Address:</strong> Invertis University, Bareilly, Uttar Pradesh, India</p>
               </div>
             </div>

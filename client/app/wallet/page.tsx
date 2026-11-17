@@ -17,8 +17,32 @@ import { ShinyButton } from '@/components/ui/shiny-button';
 import {
   Coins, Zap, Star, Flame, TrendingUp, TrendingDown, Gift,
   RefreshCw, ChevronDown, Wallet, ArrowUpRight,
-  Download, Shield, Clock, Check,
+  Download, Shield, Clock, Check, Lock,
 } from 'lucide-react';
+import type { RazorpayCheckoutSuccess, RazorpayCheckoutError } from '@/types';
+
+// ─── Razorpay Checkout ───────────────────────────────────────────────────────
+// checkout.js is loaded on demand from Razorpay's CDN and cached on window.
+let razorpayScriptPromise: Promise<boolean> | null = null;
+
+const loadRazorpayScript = (): Promise<boolean> => {
+  if (typeof window === 'undefined') return Promise.resolve(false);
+  if (window.Razorpay) return Promise.resolve(true);
+  if (!razorpayScriptPromise) {
+    razorpayScriptPromise = new Promise<boolean>((resolve) => {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => {
+        razorpayScriptPromise = null; // allow retry on next click
+        resolve(false);
+      };
+      document.body.appendChild(script);
+    });
+  }
+  return razorpayScriptPromise;
+};
 
 // ─── pack definitions (mirrors server PACKS) ────────────────────────────────
 const PACK_META: Record<TopUpPackId, {
@@ -216,25 +240,78 @@ export default function WalletPage() {
     void loadTxs(next, txTab, true);
   };
 
-  // ── buy a pack ────────────────────────────────────────────────────────────
+  // ── buy a pack: Razorpay Checkout → server-side signature verify ─────────
+  const creditWallet = (coins: number, free: number) => {
+    setQcoins(coins);
+    setFreeLeft(free);
+    if (user) updateUser({ ...user, qcoins: coins, freeDownloadsLeft: free });
+  };
+
+  const refreshTxList = () => {
+    setTxPage(1);
+    void loadTxs(1, txTab);
+  };
+
   const handleBuy = async (packId: TopUpPackId) => {
     if (!user || buyingPack !== null) return;
     setBuyingPack(packId);
     try {
-      const res = await walletApi.topup(packId);
-      if (res.success && res.data) {
-        const { qcoins: newCoins, freeDownloadsLeft: newFree } = res.data;
-        setQcoins(newCoins);
-        setFreeLeft(newFree);
-        updateUser({ ...user, qcoins: newCoins, freeDownloadsLeft: newFree });
-        toast.success(`${PACK_META[packId].coins} QCoins added to your wallet!`);
-        // refresh transaction list
-        setTxPage(1);
-        void loadTxs(1, txTab);
+      const loaded = await loadRazorpayScript();
+      if (!loaded) {
+        toast.error('Could not load the payment gateway. Check your connection and try again.');
+        return;
       }
+
+      const res = await walletApi.createTopupOrder(packId);
+      if (!res.success || !res.data) {
+        toast.error(res.message ?? 'Could not start checkout');
+        return;
+      }
+      const order = res.data;
+
+      const checkout = new window.Razorpay!({
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'InvertisPrep',
+        description: `${order.pack.label} pack — ${order.pack.coins.toLocaleString('en-IN')} QCoins`,
+        image: '/invlogo.png',
+        order_id: order.orderId,
+        prefill: { name: user.name, email: user.email, contact: user.phoneNumber ?? '' },
+        theme: { color: '#0f172a' },
+        handler: (response) => {
+          // Payment succeeded at Razorpay — the server must verify the
+          // signature before coins are credited.
+          void (async () => {
+            try {
+              const verifyRes = await walletApi.verifyTopup(response);
+              if (verifyRes.success && verifyRes.data) {
+                creditWallet(verifyRes.data.qcoins, verifyRes.data.freeDownloadsLeft);
+                if (!verifyRes.data.alreadyProcessed) {
+                  toast.success(`${order.pack.coins.toLocaleString('en-IN')} QCoins added to your wallet!`);
+                  refreshTxList();
+                }
+              } else {
+                toast.error(verifyRes.message ?? 'Payment succeeded but verification failed — contact support if QCoins are missing.');
+              }
+            } catch {
+              toast.error('Payment succeeded but verification failed — contact support if QCoins are missing.');
+            }
+          })();
+        },
+        modal: {
+          ondismiss: () => toast.info('Checkout closed — you were not charged'),
+        },
+      });
+
+      checkout.on('payment.failed', (resp) => {
+        toast.error(resp.error?.description ?? 'Payment failed. No QCoins were added.');
+      });
+
+      checkout.open();
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })
-        ?.response?.data?.message ?? 'Purchase failed';
+        ?.response?.data?.message ?? 'Something went wrong. Please try again.';
       toast.error(msg);
     } finally {
       setBuyingPack(null);
@@ -380,7 +457,7 @@ export default function WalletPage() {
                   >
                     {buyingPack === packId ? (
                       <span className="flex items-center gap-1.5">
-                        <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Adding…
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Processing…
                       </span>
                     ) : (
                       `Buy ${meta.label}`
@@ -458,8 +535,10 @@ export default function WalletPage() {
         </div>
 
         {/* ── footer note ── */}
-        <p className="mt-6 text-center text-xs text-slate-400">
-          QCoins are non-refundable. Razorpay payment integration coming soon.
+        <p className="mt-6 flex items-center justify-center gap-1.5 text-center text-xs text-slate-400">
+          <Lock className="h-3 w-3" />
+          Payments are processed securely via Razorpay (UPI · Cards · NetBanking). QCoins are
+          non-refundable.
         </p>
       </div>
     </div>

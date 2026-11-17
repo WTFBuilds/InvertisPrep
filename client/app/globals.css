@@ -185,6 +185,28 @@
   display: none;
 }
 
+/* ─── Resume Builder 3-Panel Resizable Layout ───────────────────────────── */
+.resizable-panels-root.is-resizing {
+  cursor: col-resize !important;
+}
+.resizable-panels-root.is-resizing * {
+  user-select: none !important;
+  pointer-events: none !important;
+}
+.resizable-panels-root.is-resizing .panel-divider {
+  pointer-events: auto !important;
+}
+
+.panel-divider {
+  user-select: none;
+  touch-action: none;
+}
+.panel-divider:hover > div,
+.panel-divider.is-active > div {
+  background-color: #6366f1 !important;
+  width: 3px !important;
+}
+
 @media print {
   body { 
     background: white !important; 
@@ -193,9 +215,17 @@
     print-color-adjust: exact !important;
   }
   
-  /* Hide non-printable elements */
-  .no-print, nav, footer, .resume-editor { 
-    display: none !important; 
+  /* Hide non-printable elements. Sonner's toaster is position:fixed
+     with a 999999999 z-index, so without this its toasts print on
+     top of the resume. Same for the Radix download-dialog overlay. */
+  .no-print, nav, footer, .resume-editor,
+  [data-sonner-toaster],
+  [data-radix-dialog-overlay],
+  [data-radix-dialog-content],
+  .panel-left-container,
+  .panel-divider,
+  .resizable-panels-root > .panel-left-container {
+    display: none !important;
   }
 
   /* Support for Resume Builder */
@@ -274,6 +304,41 @@ html.printing-clean .resume-print-watermark {
   to { opacity: 1; transform: translateY(0); }
 }
 .pdf-page-anim { animation: pdf-page-in 0.2s ease-out; }
+
+/* Protected PDF viewer -----------------------------------------------------
+   The paper canvas is marked .protected-doc. Printing produces a blank sheet
+   instead of the document, and text selection / drag on it is disabled so the
+   content can't be trivially copied out. Focus/visibility shielding is handled
+   in the viewer component. */
+.protected-doc {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.protected-doc .react-pdf__Page__textContent {
+  /* keep the text layer present for a11y/selection highlight but inert */
+  pointer-events: none;
+  user-select: none;
+}
+.protected-doc canvas {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+@media print {
+  .protected-doc,
+  .protected-doc * {
+    visibility: hidden !important;
+  }
+  .protected-doc::after {
+    content: "This document cannot be printed.";
+    visibility: visible !important;
+    display: block;
+    padding: 24px;
+    font-size: 14px;
+    color: #0f172a;
+  }
+}
 
 @media (max-width: 700px) {
   .resume-page { width: 8.27in; }

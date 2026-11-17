@@ -3,7 +3,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { authApi, resumeApi } from '@/lib/api';
-import { isSafeReturnPath } from '@/lib/canonical';
+import { isSafeReturnPath, isAuthPage } from '@/lib/canonical';
+import { firstAdminRoute } from '@/lib/permissions';
 import { optimizeAvatar } from '@/lib/avatar';
 import type { User, LoginCredentials } from '@/types';
 
@@ -54,9 +55,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   // Remember the last page a logged-out visitor was on, so the login page can
-  // send them back there after signing in. /login itself is never recorded.
+  // send them back there after signing in. Auth pages are never recorded — a
+  // logged-in user sent back to a login page causes redirect loops.
   useEffect(() => {
-    if (!loading && !user && pathname && pathname !== '/login') {
+    if (!loading && !user && pathname && !isAuthPage(pathname)) {
       try {
         sessionStorage.setItem('returnTo', pathname);
       } catch {
@@ -76,15 +78,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const parsed = JSON.parse(storedUser);
           setUser(parsed);
           preloadAvatar(parsed.picture);
-          // Optionally verify token with backend
+          // Revalidate against the backend. A failure here must NOT sign the
+          // user out unless the backend actually rejected the token — a 404,
+          // 429 rate-limit, 5xx or network blip must leave the session intact
+          // (the axios interceptor already handles any 401 via the refresh
+          // flow). Only 401/403 after the interceptor gives up clears state.
           const response = await authApi.getCurrentUser();
           if (response.success && response.user) {
             setUser(response.user);
             localStorage.setItem('user', JSON.stringify(response.user));
           }
         } catch (error) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          const status = (error as { response?: { status?: number } })?.response?.status;
+          if (status === 401 || status === 403) {
+            // Token genuinely rejected (and refresh failed) → clear session.
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+          }
+          // Any other error: keep the stored session and continue optimistically.
         }
       }
       setLoading(false);
@@ -102,9 +113,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('user', JSON.stringify(response.user));
         setUser(response.user);
 
-        // Redirect based on role
-        if (response.user.role === 'admin' || response.user.role === 'super-admin') {
-          router.push('/admin/dashboard');
+        // Redirect based on role — staff accounts (admins, super admins, SRT
+        // and custom-role holders) go to their first accessible admin page.
+        // A marketing role, for instance, lands on /admin/marketing rather
+        // than the dashboard it can't open.
+        if (
+          response.user.role === 'admin' ||
+          response.user.role === 'super-admin' ||
+          response.user.role === 'srt' ||
+          response.user.role === 'staff'
+        ) {
+          router.push(firstAdminRoute(response.user));
         } else {
           router.push(redirectTo || '/');
         }

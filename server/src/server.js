@@ -11,7 +11,7 @@ import fs from 'fs';
 import { connectDB } from './config/database.js';
 import { configureCloudinary } from './config/cloudinary.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
-import { apiLimiter, authLimiter, uploadLimiter, pdfLimiter, readLimiter, writeLimiter } from './middleware/rateLimit.js';
+import { apiLimiter, uploadLimiter, pdfLimiter, readLimiter, writeLimiter } from './middleware/rateLimit.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -25,11 +25,22 @@ import pdfRoutes from './routes/pdf.js';
 import pdfProxyRoutes from './routes/pdfProxy.js';
 import resumeRoutes from './routes/resumes.js';
 import walletRoutes from './routes/wallet.js';
+import aiRoutes from './routes/ai.js';
 import bugRoutes from './routes/bugs.js';
 import leaderboardRoutes from './routes/leaderboard.js';
 import eventRoutes from './routes/events.js';
+import clubRoutes from './routes/clubs.js';
 import adminUserRoutes from './routes/adminUsers.js';
+import roleRoutes from './routes/roles.js';
 import sponsorRoutes from './routes/sponsors.js';
+import paperRequestRoutes from './routes/paperRequests.js';
+import adminMailRoutes from './routes/adminMail.js';
+import activityRoutes from './routes/activity.js';
+import adminActivityRoutes from './routes/adminActivity.js';
+import adminMarketingRoutes from './routes/adminMarketing.js';
+import adminBackupRoutes from './routes/adminBackup.js';
+import settingsRoutes from './routes/settings.js';
+import adminSettingsRoutes from './routes/adminSettings.js';
 
 // Initialize Express app
 const app = express();
@@ -99,13 +110,18 @@ const initApp = async () => {
   app.use('/api/branches', readLimiter);
   app.use('/api/sessions', readLimiter);
   app.use('/api/syllabus', readLimiter);
-  app.use('/api/syllabus', readLimiter);
   app.use('/api/sponsors', readLimiter);
   app.use('/api/users', readLimiter);
   app.use('/api/leaderboard', readLimiter);
+  app.use('/api/settings', readLimiter);
 
   // Resume drafts can include a deliberately small base64 profile photo.
-  app.use(express.json({ limit: bodyLimit }));
+  // verify: stash the raw body so the Razorpay webhook can check its
+  // HMAC signature against the exact bytes Razorpay signed.
+  app.use(express.json({
+    limit: bodyLimit,
+    verify: (req, _res, buf) => { req.rawBody = buf; },
+  }));
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
 
@@ -115,22 +131,37 @@ const initApp = async () => {
   });
 
 // API Routes
-app.use('/api/auth', authLimiter, authRoutes);
+// NOTE: no authLimiter mount here — /auth/me and /auth/refresh fire on every
+// app load and must never be throttled by the strict login budget. The
+// credential routes (login/register/check-email/google-login) apply
+// authLimiter individually in routes/auth.js.
+app.use('/api/auth', authRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/branches', branchRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/syllabus', syllabusRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/paper-requests', paperRequestRoutes);
 app.use('/api/pdf', pdfLimiter, pdfRoutes);
 app.use('/api/pdf-proxy', pdfProxyRoutes);
 app.use('/api/resumes', resumeRoutes);
 app.use('/api/wallet', walletRoutes);
+app.use('/api/ai', aiRoutes);
 app.use('/api/bugs', bugRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/events', eventRoutes);
+app.use('/api/clubs', clubRoutes);
 app.use('/api/admin/users', adminUserRoutes);
+app.use('/api/admin/roles', roleRoutes);
+app.use('/api/admin/mail', adminMailRoutes);
+app.use('/api/admin/activity', adminActivityRoutes);
+app.use('/api/admin/marketing', adminMarketingRoutes);
+app.use('/api/admin/backup', adminBackupRoutes);
+app.use('/api/activity', activityRoutes);
 app.use('/api/sponsors', sponsorRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/admin/settings', adminSettingsRoutes);
 
   // Apply write limiter to mutation-heavy routes
   app.use('/api/departments', writeLimiter);
@@ -141,7 +172,10 @@ app.use('/api/sponsors', sponsorRoutes);
   app.use('/api/resumes', writeLimiter);
   app.use('/api/wallet', writeLimiter);
   app.use('/api/bugs', writeLimiter);
+  app.use('/api/clubs', writeLimiter);
   app.use('/api/admin/users', writeLimiter);
+  app.use('/api/admin/roles', writeLimiter);
+  app.use('/api/admin/settings', writeLimiter);
   app.use('/api/sponsors', writeLimiter);
 
   // Error handling

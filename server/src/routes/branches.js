@@ -5,7 +5,7 @@ import {
   updateBranch,
   deleteBranch,
 } from '../controllers/branchController.js';
-import { authenticateJWT, isAdmin } from '../middleware/auth.js';
+import { authenticateJWT, requirePermission } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -13,8 +13,8 @@ const router = Router();
 router.get('/', getAllBranches);
 
 // Admin routes
-router.post('/', authenticateJWT, isAdmin, createBranch);
-router.put('/:id', authenticateJWT, isAdmin, updateBranch);
-router.delete('/:id', authenticateJWT, isAdmin, deleteBranch);
+router.post('/', authenticateJWT, requirePermission('branches.manage'), createBranch);
+router.put('/:id', authenticateJWT, requirePermission('branches.manage'), updateBranch);
+router.delete('/:id', authenticateJWT, requirePermission('branches.manage'), deleteBranch);
 
 export default router;

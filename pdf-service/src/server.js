@@ -32,6 +32,13 @@ import './models/User.js';
 const app = express();
 const PORT = env.PORT;
 
+// Trust the first proxy hop when deployed behind a reverse proxy (Vercel, nginx, etc.)
+// TRUST_PROXY=1 enables it. Keep 0 in local dev so client IPs are real.
+const trustProxy = Number(process.env.TRUST_PROXY) || 0;
+if (trustProxy > 0) {
+  app.set('trust proxy', trustProxy);
+}
+
 const initApp = async () => {
   await connectDB();
 

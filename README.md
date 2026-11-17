@@ -193,7 +193,7 @@ InvertisPrep/
 │       ├── routes/              # auth, departments, pdf (syllabus view), pdfProxy, …
 │       ├── services/            # authService (Redis sessions), googleAuthService
 │       ├── middleware/          # auth (JWT + roles), upload, rateLimit, errorHandler
-│       └── utils/               # seedSuperAdmin, cache, points, badges
+│       └── utils/               # cache, points, badges
 │
 ├── pdf-service/                 # PDF/PYQ microservice (:5002)
 │   └── src/
@@ -369,8 +369,9 @@ Redis user cache first, and falls back to the main server's internal endpoint
 `isAdmin` (admin/super-admin — edit & delete) → `isSuperAdmin`.
 
 ### Super-admin bootstrap
-`npm run seed` in `server/` creates `superadmin@invertis.edu.in` / `super123`.
-**Change this password in production.**
+The super admin (`superadmin@invertis.edu.in`) is provisioned directly in the
+database. There is no seeding script in the repo — create or update the account
+itself (set the bcrypt hash on the `User` document, `role: 'super-admin'`).
 
 ---
 
@@ -514,7 +515,7 @@ cd shared && npm install
 
 # main server
 cd ../server && cp .env.example .env   # fill values
-npm install && npm run seed && npm run dev      # :5000
+npm install && npm run dev                      # :5000
 
 # pdf service
 cd ../pdf-service && cp .env.example .env       # fill values
@@ -545,7 +546,7 @@ cd ../client && npm install && npm run dev      # :3000
 | Location | Script | Command |
 |---|---|---|
 | client | `dev` / `build` / `start` / `lint` | `next dev` / `next build` / `next start` / `eslint` |
-| server | `dev` / `start` / `seed` | `node --watch src/server.js` / `node src/server.js` / seed super-admin |
+| server | `dev` / `start` | `node --watch src/server.js` / `node src/server.js` |
 | pdf-service | `dev` / `start` | `node --watch src/server.js` / `node src/server.js` |
 
 ---
@@ -592,7 +593,6 @@ auto-refresh flow keeps the session alive using the refresh cookie.
 ## Known Issues & Security Notes
 
 - 🟠 **Rotate any secrets that ever touched git history** (see [Security](#security)).
-- 🟠 **Hardcoded super-admin password** in `seedSuperAdmin.js` (`super123`) — change before production.
 - 🟡 Watermarked PDF bytes are still inspectable via DevTools — the watermark deters sharing, doesn't prevent it.
 - 🟡 Rate limiting is in-memory (per instance); use a Redis store before horizontal scaling.
 - 🟡 Points awarded on PYQ verification are logged in the pdf-service but not synced to the main server's points system yet (webhook TODO).

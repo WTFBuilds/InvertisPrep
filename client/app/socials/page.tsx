@@ -41,7 +41,7 @@ const staggerContainer: Variants = {
 
 export default function SocialsPage() {
   const [copied, setCopied] = useState(false);
-  const emailAddress = 'invertisprep@gmail.com';
+  const emailAddress = 'support@invertisprep.in';
 
   const handleCopy = () => {
     navigator.clipboard.writeText(emailAddress);

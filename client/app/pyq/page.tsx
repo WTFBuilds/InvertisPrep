@@ -122,8 +122,8 @@ export default function PYQBrowsePage() {
         <div className="mt-12 text-center">
           <p className="text-muted-foreground">
             Can&apos;t find your department?{' '}
-            <a href="/admin/login" className="text-primary hover:underline">
-              Contact admin
+            <a href="/contact" className="text-primary hover:underline">
+              Contact us
             </a>
           </p>
         </div>

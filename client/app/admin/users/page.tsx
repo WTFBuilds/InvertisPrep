@@ -1,13 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { adminUserApi } from '@/lib/api';
+import { adminUserApi, rolesApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import type { AdminUser, UserRole, UserStats } from '@/types';
+import type { AdminRole, AdminUser, UserRole, UserStats } from '@/types';
+import { BUILTIN_ROLE_META, ROLE_COLORS } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ViewableAvatar } from '@/components/admin/viewable-avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -30,6 +31,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  Plus,
   Search,
   ShieldAlert,
   Trash2,
@@ -38,11 +40,13 @@ import {
 } from 'lucide-react';
 import { UserDetailDialog } from '@/components/admin/user-detail-dialog';
 import { DeleteUserDialog } from '@/components/admin/delete-user-dialog';
+import { CreateUserDialog } from '@/components/admin/create-user-dialog';
 
 const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: 'all', label: 'All roles' },
   { value: 'student', label: 'Students' },
   { value: 'srt', label: 'SRT' },
+  { value: 'staff', label: 'Custom roles' },
   { value: 'admin', label: 'Admins' },
   { value: 'super-admin', label: 'Super Admins' },
 ];
@@ -63,17 +67,22 @@ const SORT_OPTIONS: { value: string; label: string }[] = [
 
 const LIMIT_OPTIONS = [10, 25, 50];
 
-const roleBadge = (role: UserRole) => {
-  switch (role) {
-    case 'super-admin':
-      return <Badge className="bg-slate-900 text-white">Super Admin</Badge>;
-    case 'admin':
-      return <Badge variant="indigo">Admin</Badge>;
-    case 'srt':
-      return <Badge className="bg-teal-600 text-white">SRT</Badge>;
-    default:
-      return <Badge variant="outline">Student</Badge>;
+// Value used by the per-row role Select. Custom roles are addressed as
+// "role:<roleId>" so a single Select can cover built-ins + custom roles.
+const ROLE_SELECT_BUILTINS: { value: UserRole; label: string }[] = [
+  { value: 'student', label: 'Student' },
+  { value: 'srt', label: 'SRT' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'super-admin', label: 'Super Admin' },
+];
+
+const roleBadge = (user: Pick<AdminUser, 'role' | 'roleLabel' | 'roleColor'>) => {
+  if (user.role === 'staff') {
+    const style = ROLE_COLORS[user.roleColor || 'violet'] || ROLE_COLORS.violet;
+    return <Badge className={style.badge}>{user.roleLabel || 'Custom'}</Badge>;
   }
+  const meta = BUILTIN_ROLE_META[user.role] || BUILTIN_ROLE_META.student;
+  return <Badge className={meta.badge}>{meta.label}</Badge>;
 };
 
 const formatDate = (value?: string | null) => {
@@ -95,14 +104,6 @@ const formatDateTime = (value?: string | null) => {
   });
 };
 
-const initials = (name: string) =>
-  name
-    .split(' ')
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-
 export default function AdminUsersPage() {
   const { user: currentUser } = useAuth();
   const isSuperAdmin = currentUser?.role === 'super-admin';
@@ -110,6 +111,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [meta, setMeta] = useState({ page: 1, limit: 10, total: 0, pages: 1 });
+  const [customRoles, setCustomRoles] = useState<AdminRole[]>([]);
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -123,6 +125,9 @@ export default function AdminUsersPage() {
 
   const [detailUserId, setDetailUserId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+
+  // Create-user dialog (super-admin only)
+  const [createOpen, setCreateOpen] = useState(false);
 
   // Permanent deletion (super-admin only) — gated behind a typed-email dialog.
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
@@ -172,23 +177,57 @@ export default function AdminUsersPage() {
       .catch(() => {});
   }, []);
 
+  // Load roles once so the role pickers/selects can list them.
+  // The API returns the editable system roles (admin, srt) alongside
+  // custom ones — the dropdown renders built-ins separately, so only
+  // keep the custom (non-system) roles here.
+  const loadRoles = useCallback(() => {
+    if (!isSuperAdmin) return;
+    rolesApi
+      .list()
+      .then((res) => {
+        if (res.success && res.data) {
+          setCustomRoles(res.data.filter((r) => !r.isSystem));
+        }
+      })
+      .catch(() => {});
+  }, [isSuperAdmin]);
+
+  useEffect(() => {
+    loadRoles();
+  }, [loadRoles]);
+
   const totalPages = useMemo(() => meta.pages, [meta.pages]);
 
-  const handleRoleChange = async (id: string, newRole: UserRole) => {
-    if (!window.confirm(`Change this user's role to "${newRole}"?`)) return;
+  // Resolve the Select value for a user: custom roles use "role:<id>" so they
+  // share one dropdown with the built-ins.
+  const roleSelectValue = (u: AdminUser) =>
+    u.role === 'staff' && u.roleId ? `role:${u.roleId}` : u.role;
+
+  const handleRoleChange = async (id: string, value: string) => {
+    const isCustom = value.startsWith('role:');
+    const customRoleId = isCustom ? value.slice(5) : null;
+    const builtinRole = (isCustom ? 'staff' : value) as UserRole;
+
+    const roleName = isCustom
+      ? customRoles.find((r) => r.id === customRoleId)?.label || 'custom role'
+      : builtinRole;
+    if (!window.confirm(`Change this user's role to "${roleName}"?`)) return;
+
     setNotice(null);
     try {
-      const res = await adminUserApi.updateRole(id, newRole);
+      const res = await adminUserApi.updateRole(id, builtinRole, customRoleId);
       if (res.success) {
-        setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, role: newRole } : u)));
+        // Refresh the row from the server so roleLabel/roleColor stay accurate
+        fetchUsers();
         setNotice(res.message || 'Role updated');
-        // Refresh stats (admin counts may have changed)
         adminUserApi.stats().then((s) => s.success && s.data && setStats(s.data));
       } else {
         setError(res.message || 'Failed to update role');
       }
-    } catch {
-      setError('Failed to update role');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setError(e.response?.data?.message || 'Failed to update role');
     }
   };
 
@@ -218,11 +257,19 @@ export default function AdminUsersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-black tracking-tight text-slate-900">User Management</h1>
-        <p className="text-sm text-slate-500">
-          Search, manage roles, and moderate all InvertisPrep accounts.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-black tracking-tight text-slate-900">User Management</h1>
+          <p className="text-sm text-slate-500">
+            Search, create, manage roles, and moderate all InvertisPrep accounts.
+          </p>
+        </div>
+        {isSuperAdmin && (
+          <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            Create user
+          </Button>
+        )}
       </div>
 
       {/* Notices */}
@@ -245,11 +292,12 @@ export default function AdminUsersPage() {
       )}
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
         {[
           { label: 'Total Users', value: stats?.total, icon: Users, tint: 'bg-slate-100 text-slate-700' },
           { label: 'Active', value: stats?.active, icon: UserRound, tint: 'bg-emerald-100 text-emerald-600' },
           { label: 'Admins', value: stats?.admins, icon: ShieldAlert, tint: 'bg-indigo-100 text-indigo-600' },
+          { label: 'Custom Roles', value: stats?.staff, icon: ShieldAlert, tint: 'bg-violet-100 text-violet-600' },
           { label: 'SRT', value: stats?.srt, icon: ShieldAlert, tint: 'bg-teal-100 text-teal-600' },
           { label: 'Super Admins', value: stats?.superAdmins, icon: ShieldAlert, tint: 'bg-slate-900 text-white' },
           { label: 'Banned', value: stats?.banned, icon: ShieldAlert, tint: 'bg-rose-100 text-rose-600' },
@@ -393,12 +441,12 @@ export default function AdminUsersPage() {
                 <TableRow key={u.id} className="hover:bg-slate-50/60">
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
-                        {u.picture && <AvatarImage src={u.picture} alt={u.name} />}
-                        <AvatarFallback className="bg-indigo-100 text-indigo-700">
-                          {initials(u.name)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <ViewableAvatar
+                        src={u.picture}
+                        name={u.name}
+                        className="h-8 w-8"
+                        fallbackClassName="bg-indigo-100 text-indigo-700"
+                      />
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-slate-800">{u.name}</p>
                         <p className="truncate text-xs text-slate-400">{u.email}</p>
@@ -408,21 +456,32 @@ export default function AdminUsersPage() {
                   <TableCell>
                     {isSuperAdmin ? (
                       <Select
-                        value={u.role}
-                        onValueChange={(v) => handleRoleChange(u.id, v as UserRole)}
+                        value={roleSelectValue(u)}
+                        onValueChange={(v) => handleRoleChange(u.id, v)}
                       >
-                        <SelectTrigger size="sm" className="w-[130px]">
+                        <SelectTrigger size="sm" className="w-[140px]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="student">Student</SelectItem>
-                          <SelectItem value="srt">SRT</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="super-admin">Super Admin</SelectItem>
+                          {ROLE_SELECT_BUILTINS.map((r) => (
+                            <SelectItem key={r.value} value={r.value}>
+                              {r.label}
+                            </SelectItem>
+                          ))}
+                          {customRoles.length > 0 && (
+                            <>
+                              <div className="my-1 h-px bg-slate-100" />
+                              {customRoles.map((r) => (
+                                <SelectItem key={r.id} value={`role:${r.id}`}>
+                                  {r.label}
+                                </SelectItem>
+                              ))}
+                            </>
+                          )}
                         </SelectContent>
                       </Select>
                     ) : (
-                      roleBadge(u.role)
+                      roleBadge(u)
                     )}
                   </TableCell>
                   <TableCell className="text-sm font-semibold text-slate-700">{u.points}</TableCell>
@@ -556,6 +615,18 @@ export default function AdminUsersPage() {
         open={detailOpen}
         onOpenChange={setDetailOpen}
         onDeleted={(message) => {
+          setNotice(message);
+          fetchUsers();
+          adminUserApi.stats().then((s) => s.success && s.data && setStats(s.data));
+        }}
+      />
+
+      {/* Create user dialog (super-admin only) */}
+      <CreateUserDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        customRoles={customRoles}
+        onCreated={(message) => {
           setNotice(message);
           fetchUsers();
           adminUserApi.stats().then((s) => s.success && s.data && setStats(s.data));

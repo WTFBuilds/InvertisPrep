@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import jwt from 'jsonwebtoken';
 import {
   uploadPYQ,
   uploadPYQPublic,
@@ -11,27 +12,45 @@ import {
   updatePYQ,
   deletePYQ,
 } from '../controllers/pyqController.js';
-import { authenticateJWT, isAdmin, isStaff } from '../middleware/auth.js';
+import { authenticateJWT, requirePermission, isSuperAdmin } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 import { uploadLimiter } from '../middleware/rateLimit.js';
 
 const router = Router();
 
+// Resolve the caller when a token is present, without ever blocking the public
+// listing — search events in the activity trail need the user id. The route
+// itself stays public; guests simply aren't attributed.
+const attachOptionalUser = (req, _res, next) => {
+  try {
+    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (decoded?.id) req.user = { _id: decoded.id };
+    }
+  } catch {
+    // Anonymous or expired token — listing remains public
+  }
+  next();
+};
+
 // Specific routes (must come before parameter routes)
-router.get('/', getPYQs);
+router.get('/', attachOptionalUser, getPYQs);
 router.get('/upload-count', authenticateJWT, getDailyUploadCount);
-// Staff (admin, super-admin, SRT) can upload papers
-router.post('/upload', authenticateJWT, isStaff, uploadLimiter, upload.single('pdf'), uploadPYQ);
-router.post('/upload-public', authenticateJWT, uploadLimiter, upload.single('pdf'), uploadPYQPublic);
-// Staff can view the full paper list (admin panel + SRT review)
-router.get('/all', authenticateJWT, isStaff, getAllPYQs);
+// Paper permissions gate every upload action on this service — public uploads for regular/new users are disabled
+router.post('/upload', authenticateJWT, requirePermission('papers.upload'), uploadLimiter, upload.single('pdf'), uploadPYQ);
+router.post('/upload-public', authenticateJWT, requirePermission('papers.upload'), uploadLimiter, upload.single('pdf'), uploadPYQPublic);
+// Staff with papers.view can list the full paper set (admin panel + SRT review)
+router.get('/all', authenticateJWT, requirePermission('papers.view'), getAllPYQs);
 
 // Parameter routes
 router.post('/:id/download', authenticateJWT, trackDownload);
 router.post('/:id/view', authenticateJWT, trackView);
-// Staff (incl. SRT) can verify papers; SRT cannot edit/delete
-router.patch('/:id/verify', authenticateJWT, isStaff, verifyPYQ);
-router.put('/:id', authenticateJWT, isAdmin, updatePYQ);
-router.delete('/:id', authenticateJWT, isAdmin, deletePYQ);
+router.patch('/:id/verify', authenticateJWT, requirePermission('papers.verify'), verifyPYQ);
+// Editing paper details is a grantable permission; deleting a paper entirely
+// is super-admin only (papers.delete is a system-only key, so this also
+// inherently rejects any custom role holding it).
+router.put('/:id', authenticateJWT, requirePermission('papers.edit'), updatePYQ);
+router.delete('/:id', authenticateJWT, isSuperAdmin, deletePYQ);
 
 export default router;

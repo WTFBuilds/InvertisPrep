@@ -34,7 +34,7 @@ const sections = [
     title: 'How to Request a Refund',
     children: (
       <>
-        <p className="mb-4">To request a refund, please email us at <strong>invertisprep@gmail.com</strong> with the following information:</p>
+        <p className="mb-4">To request a refund, please email us at <strong>support@invertisprep.in</strong> with the following information:</p>
         <ul className="list-disc list-inside space-y-2 text-gray-700">
           <li>Your registered email address</li>
           <li>Order/Transaction ID (from your wallet history or payment confirmation)</li>
@@ -135,7 +135,7 @@ const sections = [
           For any refund-related questions or to submit a refund request, please contact us:
         </p>
         <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-2">
-          <p><strong>Email:</strong> <a href="mailto:invertisprep@gmail.com" className="text-indigo-600 hover:underline">invertisprep@gmail.com</a></p>
+          <p><strong>Email:</strong> <a href="mailto:support@invertisprep.in" className="text-indigo-600 hover:underline">support@invertisprep.in</a></p>
           <p><strong>Subject Line:</strong> &quot;Refund Request – [Your Email] – [Transaction ID]&quot;</p>
           <p className="text-sm text-gray-600">We aim to respond to all refund inquiries within 2 business days.</p>
         </div>

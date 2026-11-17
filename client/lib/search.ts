@@ -1,87 +1,95 @@
 /**
- * Normalizes a string for fuzzy matching:
- * - Lowercases
- * - Strips ALL non-alphanumeric characters (dots, dashes, slashes, parens, etc.)
- * - Collapses multiple spaces into one
- * - Trims whitespace
+ * Normalization + fuzzy matching helpers shared by every text search in the app.
  *
- * Example: "B.TECH (CSE)"  → "btech cse"
- *          "CS  -  2024/25" → "cs 2024 25"
- *          "Eng.  Lang"    → "eng lang"
- *          "C.S.E."        → "cse"
- *          "3rd Sem"       → "3rd sem"
+ * Two normalized forms are produced and both are used when matching, so results
+ * don't depend on how a name or code was typed:
+ *
+ *   normalizeText("B.Tech (CSE)") === "b tech cse"      (separators → one space)
+ *   normalizeCompact("B.Tech (CSE)") === "btechcse"     (all separators dropped)
+ *
+ * This makes "b. tech", "b tech" and "btech" all match each other, and the same
+ * for subject codes like "BAS301", "BAS 301" and "BAS-301".
  */
+
+/** Lowercased, with every run of non-alphanumerics collapsed to a single space. */
 export function normalizeText(text: string): string {
-  return text
+  return String(text ?? '')
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 }
 
-/**
- * Splits a query into individual words and checks that
- * EVERY word appears somewhere in the target string.
- *
- * This enables multi-word search where order doesn't matter.
- *
- * Examples:
- *   matchesQuery("Computer Science 2024", "science comp") → true
- *   matchesQuery("Mathematics", "math eng")               → false
- *   matchesQuery("CSE 3rd Sem", "cse sem")                → true
- *   matchesQuery("CS/IT Dept", "cs it")                   → true
- */
-export function matchesQuery(target: string, query: string): boolean {
-  if (!query) return true;
-  const normalizedTarget = normalizeText(target);
-  const words = normalizeText(query).split(' ').filter(Boolean);
-  return words.every((word) => normalizedTarget.includes(word));
+/** Lowercased with every non-alphanumeric character removed entirely. */
+export function normalizeCompact(text: string): string {
+  return String(text ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
 }
 
 /**
- * Scores how well a query matches a target string.
- * Higher score = better match. Used for sorting results.
- *
- * - Exact normalized match → 100
- * - Starts with query → 80
- * - Contains all words → 50 + wordCoverage bonus
- * - No match → 0
+ * Whether a target string matches a query. Word-based first (order-independent,
+ * so "systems operating" matches "Operating Systems"), then a compact fallback
+ * that ignores spaces/punctuation (so "b. tech" matches "btech", and
+ * "BAS-301" matches "BAS 301").
+ */
+export function matchesQuery(target: string, query: string): boolean {
+  if (!query || !query.trim()) return true;
+  if (!target) return false;
+
+  const words = normalizeText(query).split(' ').filter(Boolean);
+  const normalizedTarget = normalizeText(target);
+  if (words.length > 0 && words.every((w) => normalizedTarget.includes(w))) {
+    return true;
+  }
+
+  const compactQuery = normalizeCompact(query);
+  if (!compactQuery) return false;
+  return normalizeCompact(target).includes(compactQuery);
+}
+
+/**
+ * Relevance score for a target against a query (higher = better). Mirrors the
+ * matching rules in matchesQuery so sorting stays consistent with filtering.
  */
 export function matchScore(target: string, query: string): number {
-  if (!query) return 50;
+  if (!query || !query.trim()) return 50;
+  if (!target) return 0;
+
   const normalizedTarget = normalizeText(target);
   const normalizedQuery = normalizeText(query);
 
   if (normalizedTarget === normalizedQuery) return 100;
-  if (normalizedTarget.startsWith(normalizedQuery)) return 80;
+  if (normalizedQuery && normalizedTarget.startsWith(normalizedQuery)) return 80;
 
   const words = normalizedQuery.split(' ').filter(Boolean);
   const matchedWords = words.filter((w) => normalizedTarget.includes(w));
-
-  if (matchedWords.length === 0) return 0;
-  if (matchedWords.length === words.length) {
-    // All words matched — bonus for coverage
+  if (words.length > 0 && matchedWords.length === words.length) {
     return 50 + (matchedWords.length / words.length) * 30;
   }
 
-  // Partial match — proportional score
-  return (matchedWords.length / words.length) * 40;
+  // Compact fallback: "b. tech" ↔ "btech", "BAS-301" ↔ "BAS 301".
+  const compactQuery = normalizeCompact(query);
+  const compactTarget = normalizeCompact(target);
+  if (compactQuery && compactTarget.includes(compactQuery)) {
+    if (compactTarget === compactQuery) return 100;
+    if (compactTarget.startsWith(compactQuery)) return 80;
+    return 60;
+  }
+
+  if (matchedWords.length > 0) {
+    return (matchedWords.length / words.length) * 40;
+  }
+
+  return 0;
 }
 
 /**
- * Filters and optionally scores+sorts an array of items.
+ * Filters (and by default scores + sorts) an array of items against a query.
  *
- * @param items    - The array to filter
- * @param query    - The user's search string
- * @param getFields - Function that returns searchable strings for an item
- * @param sorted   - If true, sorts by match score (best first). Default true.
- *
- * Usage:
- *   const results = fuzzySearch(
- *     syllabus,
- *     searchQuery,
- *     (item) => [item.name, item.department, item.year],
- *   );
+ * @param items     - The array to filter
+ * @param query     - The user's search string
+ * @param getFields - Returns the searchable strings for an item
+ * @param sorted    - Sort best-match first (default true)
  */
 export function fuzzySearch<T>(
   items: T[],
@@ -94,7 +102,7 @@ export function fuzzySearch<T>(
   const scored = items
     .map((item) => {
       const fields = getFields(item);
-      const bestScore = Math.max(...fields.map((f) => matchScore(f, query)));
+      const bestScore = Math.max(0, ...fields.map((f) => matchScore(f, query)));
       return { item, score: bestScore };
     })
     .filter(({ score }) => score > 0);

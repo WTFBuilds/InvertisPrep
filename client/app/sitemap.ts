@@ -45,7 +45,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     entry("/quizz0", 0.8, "weekly"),
     entry("/leaderboard", 0.7, "weekly"),
     entry("/resources/syllabus", 0.7, "monthly"),
-    entry("/pyq/upload", 0.6, "monthly"),
     entry("/contact", 0.6, "monthly"),
     entry("/events", 0.6, "weekly"),
     entry("/our-team", 0.5, "yearly"),

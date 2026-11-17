@@ -1,7 +1,7 @@
 "use client"
 
 import { usePathname } from "next/navigation"
-import { LogOut } from "lucide-react"
+import { LogOut, ShieldX } from "lucide-react"
 
 import { useAuth } from "@/contexts/AuthContext"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
@@ -21,9 +21,31 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
+import { canAccessAdminRoute } from "@/lib/permissions"
 
-// SRT (Support & Resource Team) sees every admin page except User Management
-const srtHiddenItems = ["/admin/users"]
+// Rendered when a signed-in staff member opens a page their role (or a custom
+// role's permissions) doesn't cover — the sidebar already hides these links,
+// but URLs can be opened directly.
+function NoAccess({ title, onBack }: { title: string; onBack: () => void }) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
+        <ShieldX className="h-7 w-7 text-slate-400" />
+      </div>
+      <h1 className="text-xl font-black tracking-tight text-slate-900">
+        Access denied
+      </h1>
+      <p className="max-w-md text-sm text-slate-500">
+        Your role doesn&apos;t include permission for{" "}
+        <span className="font-semibold text-slate-700">{title}</span>. Ask a
+        super admin if you need it.
+      </p>
+      <Button variant="outline" size="sm" className="mt-1 font-semibold" onClick={onBack}>
+        Back to dashboard
+      </Button>
+    </div>
+  )
+}
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -34,10 +56,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return <>{children}</>;
   }
 
-  const visibleItems = adminNavItems.filter(
-    (item) => user?.role !== "srt" || !srtHiddenItems.includes(item.url)
+  const visibleItems = adminNavItems.filter((item) =>
+    canAccessAdminRoute(user, item.url)
   )
   const currentItem = visibleItems.find((item) => item.url === pathname)
+  const denied = user ? !canAccessAdminRoute(user, pathname) : false
+
   return (
     <ProtectedRoute>
       <SidebarProvider>
@@ -60,7 +84,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
                   <BreadcrumbPage>
-                    {currentItem?.title ?? "Dashboard"}
+                    {denied ? "Access denied" : (currentItem?.title ?? "Dashboard")}
                   </BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
@@ -80,7 +104,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Page Content */}
           <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6 lg:p-8">
-            {children}
+            {denied ? (
+              <NoAccess
+                title={currentItem?.title ?? pathname.replace("/admin/", "")}
+                onBack={() => window.location.assign("/admin/dashboard")}
+              />
+            ) : (
+              children
+            )}
           </div>
         </SidebarInset>
       </SidebarProvider>

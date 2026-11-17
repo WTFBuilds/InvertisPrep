@@ -66,7 +66,7 @@ const categories = [
       },
       {
         question: 'Can I request a specific paper?',
-        answer: 'Yes! If you can\'t find a paper you need, contact us through the Contact page or email us at invertisprep@gmail.com with the paper details.',
+        answer: 'Yes! If you can\'t find a paper you need, contact us through the Contact page or email us at support@invertisprep.in with the paper details.',
       },
       {
         question: 'Can I upload papers to help other students?',
@@ -90,7 +90,7 @@ const categories = [
       },
       {
         question: 'How do I delete my account?',
-        answer: 'To delete your account, email us at invertisprep@gmail.com with your request. We\'ll process the deletion and remove all your data within 48 hours.',
+        answer: 'To delete your account, email us at support@invertisprep.in with your request. We\'ll process the deletion and remove all your data within 48 hours.',
       },
       {
         question: 'Can I change my email address?',

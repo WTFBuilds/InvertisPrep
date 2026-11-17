@@ -3,6 +3,9 @@ import bcrypt from 'bcryptjs';
 import { User } from '../models/User.js';
 import { verifyGoogleToken } from '../services/googleAuthService.js';
 import { authService } from '../services/authService.js';
+import { sendWelcomeEmail, sendTemplate } from '../services/mailService.js';
+import { logActivity, touchPresence } from '../services/activityService.js';
+import { getRedis } from '../shared/redisClient.js';
 
 // Centralised user shape so every response stays consistent
 const formatUser = (user) => ({
@@ -10,6 +13,7 @@ const formatUser = (user) => ({
   email: user.email,
   name: user.name,
   role: user.role,
+  roleId: user.roleId && typeof user.roleId === 'object' ? user.roleId._id : user.roleId || null,
   picture: user.picture,
   studentId: user.studentId || '',
   phoneNumber: user.phoneNumber || '',
@@ -19,6 +23,43 @@ const formatUser = (user) => ({
   qcoins: user.qcoins ?? 0,
   freeDownloadsLeft: user.freeDownloadsLeft ?? 2,
 });
+
+/**
+ * Same shape, but resolves the caller's permission list so the client can gate
+ * the admin UI. Called on every endpoint that returns a user the client stores
+ * in localStorage — a response missing `permissions` would wipe the client's
+ * permission snapshot. Custom roles carry a roleId; the editable built-in
+ * roles (admin, srt) carry their editable permission set from the Role docs,
+ * so a super-admin's edits are reflected the next time the client loads.
+ */
+const formatUserWithRole = async (user) => {
+  const formatted = formatUser(user);
+
+  try {
+    const { Role } = await import('../models/Role.js');
+
+    if (user.role === 'staff' && formatted.roleId) {
+      const role = await Role.findById(formatted.roleId).select('name label color permissions').lean();
+      if (role) {
+        formatted.roleId = String(role._id);
+        formatted.roleMeta = { id: String(role._id), name: role.name, label: role.label, color: role.color };
+        formatted.permissions = role.permissions || [];
+      }
+      return formatted;
+    }
+
+    // Editable built-in roles — the client mirrors the server's resolution,
+    // so admins/SRT must receive their (possibly edited) permission list.
+    if (user.role === 'admin' || user.role === 'srt') {
+      const role = await Role.findOne({ name: user.role, isSystem: true }).select('permissions').lean();
+      const { BUILTIN_ROLE_PERMISSIONS } = await import('../shared/permissions.js');
+      formatted.permissions = role ? role.permissions || [] : BUILTIN_ROLE_PERMISSIONS[user.role] || [];
+    }
+  } catch (err) {
+    console.error('[Auth] Failed to resolve role permissions:', err.message);
+  }
+  return formatted;
+};
 
 
 // Cookie options for the refresh token.
@@ -61,6 +102,10 @@ export const login = async (req, res) => {
     user.lastLogin = new Date();
     await user.save();
 
+    // Activity trail + immediate presence (fire-and-forget — never blocks login)
+    logActivity({ user: user._id, type: 'login', title: 'Signed in with email', path: '/login' }, req);
+    touchPresence(user._id, { path: '/login', title: 'Sign in' }, req);
+
     // Generate tokens via authService (with Redis session)
     const { accessToken, refreshToken } = await authService.login(user, rememberMe);
 
@@ -79,7 +124,7 @@ export const login = async (req, res) => {
     res.json({
       success: true,
       token: accessToken,
-      user: formatUser(user),
+      user: await formatUserWithRole(user),
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -109,7 +154,7 @@ export const getCurrentUser = async (req, res) => {
 
     res.json({
       success: true,
-      user: formatUser(user),
+      user: await formatUserWithRole(user),
     });
   } catch (error) {
     console.error('Get current user error:', error);
@@ -164,6 +209,12 @@ export const googleLogin = async (req, res) => {
           isActive: true,
           lastLogin: new Date(),
         });
+        // Welcome email for a brand-new signup. Fire-and-forget: a mail failure
+        // must never block or fail the login response.
+        sendWelcomeEmail(user).catch((err) =>
+          console.error('[mail] welcome (google) failed:', err?.message)
+        );
+        logActivity({ user: user._id, type: 'signup', title: 'Joined via Google', path: '/login' }, req);
       } else if (!user.isActive) {
         res.status(403).json({ success: false, message: 'Your account has been disabled' });
         return;
@@ -213,10 +264,13 @@ export const googleLogin = async (req, res) => {
       req.ip
     );
 
+    logActivity({ user: user._id, type: 'login', title: 'Signed in with Google' }, req);
+    touchPresence(user._id, { title: 'Sign in' }, req);
+
     res.json({
       success: true,
       token: accessToken,
-      user: formatUser(user),
+      user: await formatUserWithRole(user),
     });
   } catch (error) {
     console.error('Google login error:', error);
@@ -235,6 +289,22 @@ export const googleLogin = async (req, res) => {
 export const logout = async (req, res) => {
   try {
     const userId = req.user?.id;
+
+    // The logout route intentionally has no auth middleware (expired sessions
+    // must still be clearable), so resolve the caller from the access token
+    // when present — purely to land the event in the activity trail.
+    let actorId = userId;
+    if (!actorId) {
+      const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+      if (token) {
+        const actor = await authService.validateAccessToken(token).catch(() => null);
+        actorId = actor?.id || actor?._id?.toString() || null;
+      }
+    }
+    if (actorId) {
+      logActivity({ user: actorId, type: 'logout', title: 'Signed out' }, req);
+    }
+
     if (userId) {
       await authService.revokeSession(userId);
       res.clearCookie('refreshToken', {
@@ -304,7 +374,7 @@ export const updateProfile = async (req, res) => {
     res.json({
       success: true,
       message: 'Profile updated successfully',
-      user: formatUser(user),
+      user: await formatUserWithRole(user),
     });
   } catch (error) {
     console.error('Update profile error:', error);
@@ -346,6 +416,116 @@ export const checkEmail = async (req, res) => {
 };
 
 /**
+ * Send a 6-digit verification code to the given email.
+ * Stores it in Redis with a 10-minute TTL and a send-cooldown (60s) to prevent
+ * abuse. The email must not already have an account.
+ */
+export const sendVerificationCode = async (req, res) => {
+  try {
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    if (!EMAIL_REGEX.test(email)) {
+      res.status(400).json({ success: false, message: 'Enter a valid email address' });
+      return;
+    }
+
+    // Reject if account already exists
+    const existing = await User.findOne({ email }).select('googleId').lean();
+    if (existing) {
+      if (existing.googleId) {
+        res.status(409).json({
+          success: false,
+          message: 'This email is already linked with Google. Please continue with Google.',
+        });
+      } else {
+        res.status(409).json({ success: false, message: 'Account already exists. Please sign in.' });
+      }
+      return;
+    }
+
+    const redis = await getRedis();
+    const cooldownKey = `email:verify:cooldown:${email}`;
+    const codeKey = `email:verify:code:${email}`;
+
+    // Rate-limit: one code per 60 seconds per email
+    const cooldown = await redis.ttl(cooldownKey);
+    if (cooldown > 0) {
+      res.status(429).json({
+        success: false,
+        message: `Please wait ${cooldown} seconds before requesting another code.`,
+      });
+      return;
+    }
+
+    // Generate 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Store code with 10-minute TTL; set cooldown for 60 seconds
+    await Promise.all([
+      redis.set(codeKey, code, { EX: 600 }), // 10 min
+      redis.set(cooldownKey, '1', { EX: 60 }), // 1 min cooldown
+    ]);
+
+    // Send the code via email (fire-and-forget; never block the response)
+    sendTemplate({
+      to: email,
+      subject: 'Your InvertisPrep verification code',
+      template: 'verificationCode',
+      vars: { code },
+      kind: 'verification',
+    }).catch((err) =>
+      console.error('[mail] verification code failed:', err?.message)
+    );
+
+    res.json({ success: true, message: 'Verification code sent' });
+  } catch (error) {
+    console.error('Send verification code error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+/**
+ * Verify the 6-digit code for the given email.
+ * On success, returns a short-lived "verification token" (JWT, 15 min) that
+ * the client must include in the subsequent /register call.
+ * The token is single-use: it's deleted from Redis on verify.
+ */
+export const verifyCode = async (req, res) => {
+  try {
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const code = typeof req.body.code === 'string' ? req.body.code.trim() : '';
+
+    if (!EMAIL_REGEX.test(email) || !/^\d{6}$/.test(code)) {
+      res.status(400).json({ success: false, message: 'Enter a valid email and 6-digit code' });
+      return;
+    }
+
+    const redis = await getRedis();
+    const codeKey = `email:verify:code:${email}`;
+    const stored = await redis.get(codeKey);
+
+    if (!stored || stored !== code) {
+      res.status(400).json({ success: false, message: 'Invalid or expired code' });
+      return;
+    }
+
+    // Code matches — consume it (single-use)
+    await redis.del(codeKey);
+
+    // Issue a short-lived verification token that the client will send with /register
+    const verifyToken = jwt.sign(
+      { email, purpose: 'email-verification' },
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' }
+    );
+
+    res.json({ success: true, verificationToken: verifyToken });
+  } catch (error) {
+    console.error('Verify code error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+/**
  * Student registration with email + password. All fields are mandatory:
  * valid email, name (2-60 chars), password (min 8 chars), 10-digit phone.
  * Responds with the same shape as login so the client session setup is
@@ -353,10 +533,36 @@ export const checkEmail = async (req, res) => {
  */
 export const register = async (req, res) => {
   try {
+    // Verify the email-verification token first
+    const verifyToken = typeof req.body.verificationToken === 'string' ? req.body.verificationToken.trim() : '';
+    if (!verifyToken) {
+      res.status(400).json({ success: false, message: 'Email verification required before registration' });
+      return;
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(verifyToken, process.env.JWT_SECRET);
+    } catch {
+      res.status(400).json({ success: false, message: 'Invalid or expired verification token' });
+      return;
+    }
+    if (decoded.purpose !== 'email-verification') {
+      res.status(400).json({ success: false, message: 'Invalid verification token' });
+      return;
+    }
+    const verifiedEmail = decoded.email;
+
     const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
     const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
     const password = typeof req.body.password === 'string' ? req.body.password : '';
     const phoneNumber = typeof req.body.phoneNumber === 'string' ? req.body.phoneNumber.trim() : '';
+
+    // Email must match the one that was verified
+    if (email !== verifiedEmail) {
+      res.status(400).json({ success: false, message: 'Email does not match verified address' });
+      return;
+    }
 
     if (!EMAIL_REGEX.test(email)) {
       res.status(400).json({ success: false, message: 'Enter a valid email address' });
@@ -410,6 +616,12 @@ export const register = async (req, res) => {
       throw dbError;
     }
 
+    // Welcome email for the new email/password signup. Fire-and-forget: a mail
+    // failure must never block or fail registration.
+    sendWelcomeEmail(user).catch((err) =>
+      console.error('[mail] welcome (register) failed:', err?.message)
+    );
+
     const { accessToken, refreshToken } = await authService.login(user);
     res.cookie('refreshToken', refreshToken, refreshCookieOptions(7 * 24 * 60 * 60 * 1000));
     await authService.updateSessionMeta(
@@ -418,10 +630,13 @@ export const register = async (req, res) => {
       req.ip
     );
 
+    logActivity({ user: user._id, type: 'signup', title: 'Created an account', path: '/login' }, req);
+    touchPresence(user._id, { path: '/login', title: 'Sign up' }, req);
+
     res.status(201).json({
       success: true,
       token: accessToken,
-      user: formatUser(user),
+      user: await formatUserWithRole(user),
     });
   } catch (error) {
     console.error('Register error:', error);

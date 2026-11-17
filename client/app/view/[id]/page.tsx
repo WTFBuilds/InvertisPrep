@@ -1,12 +1,18 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { pdfApi } from '@/lib/api';
-import PDFViewer from '@/components/PDFViewer';
+import { pdfApi, pyqApi } from '@/lib/api';
+import { InstagramFollowGate, isUnlocked } from '@/components/instagram-follow-gate';
+import { useInstagramGateSetting } from '@/hooks/useInstagramGateSetting';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, ArrowLeft, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+// pdfjs touches browser-only globals (DOMMatrix) at module scope, so the viewer
+// must never evaluate during SSR — load it client-side only.
+const PDFViewer = dynamic(() => import('@/components/PDFViewer'), { ssr: false });
 
 function LoadingScreen({ label, sub }: { label: string; sub?: string }) {
   return (
@@ -42,9 +48,28 @@ function ViewPDFContent() {
   const id = params.id as string;
   const type = (searchParams.get('type') as 'pyq' | 'syllabus') || 'pyq';
 
+  const { enabled: instagramPopupEnabled } = useInstagramGateSetting();
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Instagram follow gate — shown once per user before a PYQ paper is fetched.
+  // Syllabus documents and staff accounts skip it entirely.
+  // Also skipped if instagramPopupEnabled is toggled off in platform settings.
+  const [unlocked, setUnlocked] = useState(false);
+  const gateRequired =
+    type === 'pyq' &&
+    !!user &&
+    instagramPopupEnabled &&
+    user.role !== 'admin' &&
+    user.role !== 'super-admin' &&
+    user.role !== 'srt' &&
+    user.role !== 'staff';
+
+  // Pre-existing unlock (or no gate needed) → proceed without showing the gate.
+  useEffect(() => {
+    if (!user) return;
+    if (!gateRequired || isUnlocked(user.id)) setUnlocked(true);
+  }, [user, gateRequired]);
 
   // Authentication Check
   useEffect(() => {
@@ -59,12 +84,20 @@ function ViewPDFContent() {
     const fetchPDF = async () => {
       // Don't fetch if still checking auth or not logged in
       if (authLoading || !user) return;
+      // Hold the document until the Instagram gate is confirmed.
+      if (!unlocked) return;
 
       try {
         setLoading(true);
         const blob = await pdfApi.view(id, type);
         setPdfBlob(blob);
         setError(null);
+        // Direct-link opens must count as a paper view too (the browse list
+        // fires trackView before navigating; the 30-min dedupe window on the
+        // server means this is a no-op when both fire).
+        if (type === 'pyq') {
+          pyqApi.trackView(id).catch(() => {});
+        }
       } catch (err: any) {
         console.error('Error fetching PDF:', err);
 
@@ -98,9 +131,13 @@ function ViewPDFContent() {
     if (id) {
       fetchPDF();
     }
-  }, [id, type, authLoading, user]);
+  }, [id, type, authLoading, user, unlocked]);
 
-  if (loading) {
+  // Direct-URL access to a paper also goes through the gate; it renders as a
+  // popup over the loading backdrop (the document isn't fetched until unlock).
+  const showGate = Boolean(user && gateRequired && !unlocked);
+
+  if (loading && !showGate) {
     return (
       <LoadingScreen
         label="Preparing protected viewer…"
@@ -165,6 +202,14 @@ function ViewPDFContent() {
   return (
     <div className="min-h-screen bg-slate-900">
       {pdfBlob && <PDFViewer file={pdfBlob} id={id} type={type} />}
+      {showGate && (
+        <InstagramFollowGate
+          open
+          userId={user?.id}
+          onUnlocked={() => setUnlocked(true)}
+          onClose={() => router.back()}
+        />
+      )}
     </div>
   );
 }

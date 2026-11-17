@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { optimizeAvatar } from '@/lib/avatar';
 import {
   buildCanonicalLoginUrl,
+  isAuthPage,
   isSafeReturnPath,
   pickLoginParams,
   shouldTransitionAuthHost,
@@ -41,6 +42,25 @@ const buildLoginCallbackUrl = (): string => {
   const qs = search.toString();
   return `/login${qs ? `?${qs}` : ''}`;
 };
+
+// A Google ID token is valid for ~1 hour, but NextAuth stores it inside its
+// session JWT (a 7-day cookie) and never refreshes it. The login page replays
+// that cached token to the backend on mount, so once it ages past an hour the
+// backend rejects it with 401 "Invalid or expired Google token". Decode the
+// token's own `exp` here so a stale copy is discarded instead of replayed.
+function isIdTokenExpired(idToken: string): boolean {
+  try {
+    const payload = idToken.split('.')[1];
+    if (!payload) return true;
+    const b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const json = JSON.parse(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4)));
+    if (typeof json?.exp !== 'number') return true;
+    // 60s of slack absorbs clock skew between this device and Google.
+    return json.exp * 1000 <= Date.now() + 60_000;
+  } catch {
+    return true;
+  }
+}
 
 // Warm the browser cache for the avatar URL so the navbar shows the user's
 // picture instantly after redirect instead of fetching it on the next page.
@@ -72,14 +92,17 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Student email flow: email → password (existing account) | register (new account)
-  const [step, setStep] = useState<'email' | 'password' | 'register'>('email');
+  // Student email flow: email → verify (send/enter code) → password (existing account) | register (new account)
+  const [step, setStep] = useState<'email' | 'verify' | 'password' | 'register'>('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationToken, setVerificationToken] = useState('');
   const [isWebViewAuthFlow, setIsWebViewAuthFlow] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -92,15 +115,16 @@ export default function LoginPage() {
 
   // Where to send the user after a successful login: an explicit ?returnUrl=
   // wins; otherwise the last page they were on while logged out (captured by
-  // AuthContext in sessionStorage); homepage as the final fallback.
+  // AuthContext in sessionStorage); homepage as the final fallback. Auth pages
+  // are never valid destinations — they cause redirect loops.
   const resolveReturnUrl = (): string => {
     if (typeof window === 'undefined') return '/';
     const params = new URLSearchParams(window.location.search);
     const url = params.get('returnUrl');
-    if (url && url.startsWith('/') && !url.startsWith('/login')) return url;
+    if (isSafeReturnPath(url) && !isAuthPage(url)) return url;
     try {
       const stored = sessionStorage.getItem('returnTo');
-      if (stored && stored.startsWith('/') && !stored.startsWith('/login')) return stored;
+      if (isSafeReturnPath(stored) && !isAuthPage(stored)) return stored;
     } catch {
       // sessionStorage unavailable
     }
@@ -110,13 +134,15 @@ export default function LoginPage() {
   // Once the auth state resolves, a logged-in user has no business sitting on
   // the login page — this covers returning to /login after signing in (back
   // button, bookmark) and any case where a completed login didn't navigate.
+  // The `loading` gate keeps this effect out of the way of an in-progress
+  // form sign-in, whose own handler decides the destination.
   // (resolveReturnUrl is intentionally not a dependency: it reads window
   // state fresh on every call.)
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading && !loading && user) {
       router.replace(resolveReturnUrl());
     }
-  }, [authLoading, user, router]);
+  }, [authLoading, loading, user, router]);
 
   // Handle URL parameters safely on mount
   useEffect(() => {
@@ -141,13 +167,23 @@ export default function LoginPage() {
         const res = await fetch('/api/auth/session');
         const session = await res.json();
 
-        if (session?.idToken) {
+        // Only a FRESH token is worth sending. If the cached one has expired
+        // (an old NextAuth session), drop the session rather than replaying a
+        // dead token — the user can start a clean sign-in instead of seeing a
+        // 401 that repeats on every visit.
+        const idToken =
+          session?.idToken && !isIdTokenExpired(session.idToken) ? session.idToken : '';
+        if (session?.idToken && !idToken) {
+          await signOut({ redirect: false });
+        }
+
+        if (idToken) {
           setLoading(true);
           setError('');
 
           // Send the ID token to our backend
           const response = await api.post('/auth/google-login', {
-            token: session.idToken
+            token: idToken
           });
 
           if (response.data?.success && response.data?.token) {
@@ -213,6 +249,9 @@ export default function LoginPage() {
               router.push(resolveReturnUrl());
             }
           } else {
+            // Server rejected the token — clear the NextAuth session so the
+            // same dead token isn't re-sent on the next /login visit.
+            await signOut({ redirect: false });
             setError(response.data?.message || 'Failed to authenticate with server');
             setLoading(false);
           }
@@ -227,6 +266,9 @@ export default function LoginPage() {
           }
         }
       } catch (error: any) {
+        // Never leave a bad cached token behind — clearing the NextAuth session
+        // prevents an endless 401 loop on subsequent visits.
+        await signOut({ redirect: false }).catch(() => {});
         console.error('Google callback error:', error);
         const serverMessage = error?.response?.data?.message || error?.response?.data?.details || error?.message;
         setError(serverMessage ? `Google sign-in error: ${serverMessage}` : 'An error occurred while finishing Google sign-in.');
@@ -299,8 +341,27 @@ export default function LoginPage() {
         return;
       }
 
-      // Existing password account → sign-in step; new email → registration.
-      setStep(res.data.exists ? 'password' : 'register');
+      if (res.data.exists) {
+        // Existing account → password step
+        setStep('password');
+      } else {
+        // New email → send verification code first
+        setLoading(true);
+        try {
+          const { data: codeRes } = await api.post('/auth/send-verification-code', { email: normalized });
+          if (codeRes.success) {
+            setCodeSent(true);
+            setStep('verify');
+          } else {
+            setError(codeRes.message || 'Failed to send verification code');
+            setLoading(false);
+          }
+        } catch (codeErr: any) {
+          const serverMessage = codeErr?.response?.data?.message || codeErr?.message;
+          setError(serverMessage || 'Something went wrong. Please try again.');
+          setLoading(false);
+        }
+      }
     } catch (err: any) {
       const serverMessage = err?.response?.data?.message || err?.message;
       setError(serverMessage || 'Something went wrong. Please try again.');
@@ -329,7 +390,39 @@ export default function LoginPage() {
     }
   };
 
-  // Step 2b: brand-new email — create the account, then enter the app directly.
+  // Step 2b (new): verify the 6-digit code sent to the email
+  const handleVerifyCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const digits = verificationCode.replace(/\D/g, '');
+    if (!/^\d{6}$/.test(digits)) {
+      setError('Enter the 6-digit code');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+    try {
+      const { data: res } = await api.post('/auth/verify-code', {
+        email: email.trim().toLowerCase(),
+        code: digits,
+      });
+
+      if (res?.success && res?.verificationToken) {
+        setVerificationToken(res.verificationToken);
+        // Proceed to registration form
+        setStep('register');
+      } else {
+        setError(res?.message || 'Invalid or expired code');
+      }
+    } catch (err: any) {
+      const serverMessage = err?.response?.data?.message || err?.message;
+      setError(serverMessage || 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 2c: brand-new email — create the account, then enter the app directly.
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const normalized = email.trim().toLowerCase();
@@ -356,6 +449,7 @@ export default function LoginPage() {
         name: fullName.trim(),
         password,
         phoneNumber: digits,
+        verificationToken,
       });
 
       if (res?.success && res?.token && res?.user) {
@@ -728,6 +822,55 @@ export default function LoginPage() {
                     Login as Team
                   </button>
                 </div>
+
+                {Footer}
+              </motion.div>
+            )}
+
+            {/* Step: verify (new email - enter 6-digit code) */}
+            {step === 'verify' && (
+              <motion.div key="step-verify" {...stepMotion} style={{ width: "100%", maxWidth: 360, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+                <button
+                  onClick={backToEmail}
+                  style={{ background: "none", border: "none", color: "#64748b", fontSize: "0.8rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, alignSelf: "flex-start", marginBottom: "0.5rem", fontFamily: "inherit" }}
+                >
+                  <ArrowLeft size={13} /> Back
+                </button>
+                <h1 style={{ fontSize: "1.35rem", fontWeight: 700, marginBottom: "0.25rem", color: "#0f172a", letterSpacing: "-0.025em" }}>Check your email</h1>
+                <p style={{ fontSize: "0.85rem", color: "#475569", marginBottom: "1.25rem", lineHeight: 1.5 }}>
+                  We sent a 6-digit code to <span style={{ fontWeight: 600, color: "#0f172a" }}>{email}</span>.
+                </p>
+
+                <form onSubmit={handleVerifyCodeSubmit} style={{ width: "100%", display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+                  <input
+                    className="login-input"
+                    type="text"
+                    placeholder="123456"
+                    value={verificationCode}
+                    onChange={e => setVerificationCode(e.target.value.replace(/[^\d]/g, '').slice(0, 6))}
+                    required
+                    autoFocus
+                    disabled={loading}
+                    inputMode="numeric"
+                    pattern="\d{6}"
+                    minLength={6}
+                    maxLength={6}
+                    style={{ textAlign: "center", letterSpacing: "0.5em", fontSize: "1.2rem", fontWeight: 600 }}
+                  />
+                  <button type="submit" className="login-button-primary" disabled={loading}>
+                    {loading ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                        <Loader2 size={14} className="animate-spin" /> Verifying...
+                      </span>
+                    ) : (
+                      'Verify & Continue'
+                    )}
+                  </button>
+                </form>
+
+                <p style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.5rem" }}>
+                  Didn&apos;t get it? <button type="button" onClick={handleEmailContinue} disabled={loading} style={{ background: "none", border: "none", color: "#6366f1", fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}>Resend code</button>
+                </p>
 
                 {Footer}
               </motion.div>

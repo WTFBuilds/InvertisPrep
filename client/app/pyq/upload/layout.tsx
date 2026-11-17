@@ -12,6 +12,7 @@ export const metadata: Metadata = buildMetadata({
     "share previous year papers",
   ],
   path: "/pyq/upload",
+  robotsIndex: false,
 });
 
 export default function PyqUploadLayout({ children }: { children: React.ReactNode }) {

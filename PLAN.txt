@@ -48,14 +48,10 @@ EMAIL/PASSWORD AUTHENTICATION:
 - JWT tokens for session management
 - Three user roles: student, admin, super-admin
 
-ADMIN CREDENTIALS (to be seeded):
-┌─────────────────────────────────┬──────────────┬──────────────┐
-│ Email                           │ Password     │ Role         │
-├─────────────────────────────────┼──────────────┼──────────────┤
-│ admin@invertis.edu.in          │ admin123     │ admin        │
-│ superadmin@invertis.edu.in     │ super123     │ super-admin  │
-│ test@invertis.edu.in           │ test123      │ student      │
-└─────────────────────────────────┴──────────────┴──────────────┘
+ADMIN CREDENTIALS:
+
+Accounts are provisioned directly in the database (no seeding script in the
+repo). Super admin: superadmin@invertis.edu.in (role: super-admin).
 
 DATABASE SCHEMA
 ================================================================================
