@@ -1,5 +1,6 @@
 import { Event } from '../models/Event.js';
 import { uploadImage } from '../services/cloudinaryService.js';
+import { sanitizeEventHtml } from '../utils/sanitizeHtml.js';
 
 // Pre-seed data fallback
 const SEED_EVENTS = [
@@ -8,6 +9,7 @@ const SEED_EVENTS = [
     title: 'Invertia 2026',
     category: 'Annual Fest',
     date: 'Oct 14 - 16, 2026',
+    startDate: new Date('2026-10-14'),
     time: '10:00 AM onwards',
     venue: 'Main Ground & Seminar Hall 1',
     organizer: 'Invertis Cultural Committee',
@@ -30,8 +32,9 @@ const SEED_EVENTS = [
   {
     id: 'nirmiti-2026',
     title: 'Nirmiti 2026',
-    category: 'academic',
+    category: 'technical',
     date: 'Nov 05 - 06, 2026',
+    startDate: new Date('2026-11-05'),
     time: '09:00 AM - 05:00 PM',
     venue: 'Block B Labs & Auditorium',
     organizer: 'Department of Fashion Designing & Entrepreneurship',
@@ -56,6 +59,7 @@ const SEED_EVENTS = [
     title: 'Spardha 2026',
     category: 'sports',
     date: 'Dec 03 - 05, 2026',
+    startDate: new Date('2026-12-03'),
     time: '09:00 AM onwards',
     venue: 'University Sports Complex',
     organizer: 'Invertis Sports Council',
@@ -79,6 +83,7 @@ const SEED_EVENTS = [
     title: 'Convocation Ceremony 2026',
     category: 'academic',
     date: 'Sep 28, 2026',
+    startDate: new Date('2026-09-28'),
     time: '10:00 AM - 02:00 PM',
     venue: 'Abhiraj Auditorium',
     organizer: 'Office of the Registrar',
@@ -103,6 +108,7 @@ const SEED_EVENTS = [
     title: 'TEDx Invertis University',
     category: 'academic',
     date: 'Nov 19 - 21, 2026',
+    startDate: new Date('2026-11-19'),
     time: '11:00 AM - 03:30 PM',
     venue: 'Main Auditorium',
     organizer: 'Invertis University',
@@ -127,6 +133,7 @@ const SEED_EVENTS = [
     title: 'Corporate Connect 2026',
     category: 'academic',
     date: 'Oct 22, 2026',
+    startDate: new Date('2026-10-22'),
     time: '10:30 AM - 04:30 PM',
     venue: 'Seminar Hall 2',
     organizer: 'Invertis Placement Cell',
@@ -150,6 +157,7 @@ const SEED_EVENTS = [
     title: 'Pioneer Management Fest',
     category: 'academic',
     date: 'Nov 18 - 19, 2026',
+    startDate: new Date('2026-11-18'),
     time: '09:30 AM - 05:00 PM',
     venue: 'Block C Seminar Rooms',
     organizer: 'Invertis Department of Management',
@@ -185,11 +193,60 @@ const checkAndSeedEvents = async () => {
   }
 };
 
-// Get all events
+// Normalize a slug the same way the admin form does, so a hand-typed
+// API call can never create "My Event!!" style ids.
+const normalizeSlug = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
+
+const parseStartDate = (value) => {
+  if (!value) return undefined;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+};
+
+// Pick only the fields an admin is allowed to write — req.body is never
+// spread straight into the query.
+const pickEventFields = (body) => {
+  const data = {};
+  if (body.title !== undefined) data.title = String(body.title).trim();
+  if (body.category !== undefined) data.category = String(body.category).trim();
+  if (body.date !== undefined) data.date = String(body.date).trim();
+  if (body.time !== undefined) data.time = String(body.time).trim();
+  if (body.venue !== undefined) data.venue = String(body.venue).trim();
+  if (body.organizer !== undefined) data.organizer = String(body.organizer).trim();
+  if (body.description !== undefined) data.description = String(body.description).trim();
+  if (body.longDescription !== undefined) data.longDescription = String(body.longDescription);
+  if (body.content !== undefined) data.content = sanitizeEventHtml(body.content);
+  if (body.image !== undefined) data.image = String(body.image).trim();
+  if (body.featured !== undefined) data.featured = !!body.featured;
+  if (body.registrationOpen !== undefined) data.registrationOpen = !!body.registrationOpen;
+  if (body.registrationUrl !== undefined) data.registrationUrl = String(body.registrationUrl).trim();
+  if (body.timeline !== undefined) data.timeline = Array.isArray(body.timeline) ? body.timeline.map(String) : [];
+  if (body.rules !== undefined) data.rules = Array.isArray(body.rules) ? body.rules.map(String) : [];
+  if (body.status !== undefined) {
+    data.status = body.status === 'draft' ? 'draft' : 'published';
+  }
+  if (body.startDate !== undefined) {
+    if (!body.startDate) {
+      data.startDate = null; // explicit clear
+    } else {
+      const parsed = parseStartDate(body.startDate);
+      if (parsed) data.startDate = parsed;
+    }
+  }
+  return data;
+};
+
+// Get published events (public events page). Uses $ne 'draft' rather than
+// == 'published' because legacy documents predate the status field.
 export const getEvents = async (req, res) => {
   try {
     await checkAndSeedEvents();
-    const events = await Event.find({}).sort({ createdAt: -1 });
+    const events = await Event.find({ status: { $ne: 'draft' } }).sort({ createdAt: -1 });
     res.json({ success: true, count: events.length, data: events });
   } catch (error) {
     console.error('Get events error:', error);
@@ -197,11 +254,22 @@ export const getEvents = async (req, res) => {
   }
 };
 
-// Get single event by id/slug
+// Get every event including drafts (admin console — events.view)
+export const getAllEventsAdmin = async (req, res) => {
+  try {
+    const events = await Event.find({}).sort({ updatedAt: -1 });
+    res.json({ success: true, count: events.length, data: events });
+  } catch (error) {
+    console.error('Get all events (admin) error:', error);
+    res.status(500).json({ success: false, message: 'Server error retrieving events' });
+  }
+};
+
+// Get single published event by id/slug (public detail page)
 export const getEventById = async (req, res) => {
   try {
     const { id } = req.params;
-    const event = await Event.findOne({ id });
+    const event = await Event.findOne({ id, status: { $ne: 'draft' } });
     if (!event) {
       res.status(404).json({ success: false, message: 'Event not found' });
       return;
@@ -216,49 +284,29 @@ export const getEventById = async (req, res) => {
 // Create a new event
 export const createEvent = async (req, res) => {
   try {
-    const {
-      id,
-      title,
-      category,
-      date,
-      time,
-      venue,
-      organizer,
-      description,
-      longDescription,
-      image,
-      featured,
-      registrationOpen,
-      timeline,
-      rules,
-    } = req.body;
+    const data = pickEventFields(req.body);
 
-    if (!id || !title || !category || !date || !time || !venue || !organizer || !description || !longDescription || !image) {
+    const slug = normalizeSlug(req.body.id);
+    if (!slug || !data.title || !data.category || !data.date || !data.time || !data.venue || !data.organizer || !data.description || !data.image) {
       res.status(400).json({ success: false, message: 'All main fields are required.' });
       return;
     }
+    if (!data.longDescription && !data.content) {
+      res.status(400).json({ success: false, message: 'Add detailed content for the event page.' });
+      return;
+    }
 
-    const exists = await Event.findOne({ id });
+    const exists = await Event.findOne({ id: slug });
     if (exists) {
-      res.status(400).json({ success: false, message: `An event with slug/ID "${id}" already exists.` });
+      res.status(400).json({ success: false, message: `An event with slug/ID "${slug}" already exists.` });
       return;
     }
 
     const event = await Event.create({
-      id,
-      title,
-      category,
-      date,
-      time,
-      venue,
-      organizer,
-      description,
-      longDescription,
-      image,
-      featured: !!featured,
-      registrationOpen: registrationOpen !== false,
-      timeline: timeline || [],
-      rules: rules || [],
+      ...data,
+      longDescription: data.longDescription || '',
+      content: data.content || '',
+      id: slug,
     });
 
     res.status(201).json({ success: true, data: event });
@@ -268,13 +316,17 @@ export const createEvent = async (req, res) => {
   }
 };
 
-// Update event details
+// Update event details (slug itself is immutable — URLs would break)
 export const updateEvent = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    // pickEventFields never includes the slug, so it is immutable here
+    const data = pickEventFields(req.body);
 
-    const event = await Event.findOneAndUpdate({ id }, updateData, { new: true, runValidators: true });
+    const event = await Event.findOneAndUpdate({ id }, data, {
+      new: true,
+      runValidators: true,
+    });
     if (!event) {
       res.status(404).json({ success: false, message: 'Event not found' });
       return;
@@ -303,7 +355,7 @@ export const deleteEvent = async (req, res) => {
   }
 };
 
-// Upload an event poster image (Admin only)
+// Upload an event poster or in-content image (Admin only)
 export const uploadEventImage = async (req, res) => {
   try {
     if (!req.file) {

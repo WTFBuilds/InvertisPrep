@@ -23,6 +23,7 @@ import {
   Activity,
   Megaphone,
   Settings,
+  Briefcase,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -55,6 +56,7 @@ export const adminNavItems = [
   { title: "Upload PYQ", url: "/admin/upload", icon: Upload },
   { title: "Manage Papers", url: "/admin/papers", icon: FileText },
   { title: "Syllabus", url: "/admin/syllabus", icon: BookOpen },
+  { title: "Career Applications", url: "/admin/careers/applications", icon: Briefcase },
   { title: "Reports", url: "/admin/reports", icon: Flag },
   { title: "Paper Requests", url: "/admin/requests", icon: FileQuestion },
   { title: "Bug Reports", url: "/admin/bugs", icon: Bug },

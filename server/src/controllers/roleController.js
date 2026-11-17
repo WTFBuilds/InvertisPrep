@@ -59,7 +59,7 @@ const formatRole = (role, memberCount) => ({
  * permissions that are not part of the grantable catalogue edits the
  * admin can make by hand.
  */
-async function ensureSystemRoles() {
+export async function ensureSystemRoles() {
   await Promise.all(
     EDITABLE_SYSTEM_ROLES.map(async (name) => {
       const defaults = BUILTIN_ROLE_PERMISSIONS[name] || [];

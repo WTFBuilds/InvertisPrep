@@ -462,14 +462,22 @@ export interface InvertisEvent {
   title: string;
   category: string;
   date: string;
+  /** Real sortable first-day date (ISO string). Optional for legacy rows. */
+  startDate?: string;
   time: string;
   venue: string;
   organizer: string;
   description: string;
   longDescription: string;
+  /** Rich HTML body from the admin editor; falls back to longDescription. */
+  content?: string;
   image: string;
   featured?: boolean;
+  /** 'draft' events are hidden from the public site (admin-only). */
+  status?: 'draft' | 'published';
   registrationOpen: boolean;
+  /** External registration link (Google Form, club page, ...). */
+  registrationUrl?: string;
   timeline: string[];
   rules: string[];
   createdAt?: string;
@@ -1079,9 +1087,154 @@ export interface SupportMessage {
 // ── Platform Settings & Feature Toggles ──────────────────────────────────────
 export interface PublicSettings {
   instagramPopupEnabled: boolean;
+  welcomeEmailEnabled: boolean;
+  paperRequestAckEnabled: boolean;
+  paperRequestFulfilledEnabled: boolean;
+  careerApplicationAckEnabled: boolean;
 }
 
 export interface PlatformSettings {
   instagramPopupEnabled: boolean;
+  // Email feature toggles
+  welcomeEmailEnabled: boolean;
+  paperRequestAckEnabled: boolean;
+  paperRequestFulfilledEnabled: boolean;
+  careerApplicationAckEnabled: boolean;
+}
+
+// ── Career Applications ────────────────────────────────────────────────────────
+export type CareerApplicationStatus = 'pending' | 'under_review' | 'shortlisted' | 'rejected' | 'hired';
+
+export type CareerDomain = 
+  | 'Canva designer'
+  | 'Video Editor'
+  | 'Support and Resource Team (SRT)'
+  | 'Developers'
+  | 'Content writer'
+  | 'Technical support'
+  | 'Social media manager'
+  | 'Marketing';
+
+export type CareerSemester = '1st' | '2nd' | '3rd' | '4th' | '5th' | '6th' | '7th' | '8th';
+
+export type CareerLocation = 'Bareilly' | 'Rampur' | 'Shahjahanpur' | 'Other';
+
+export type CareerProficiency = 
+  | 'Beginner (Learning the basics)'
+  | 'Intermediate (Have some hands-on experience)'
+  | 'Advanced (Confident and have done projects)';
+
+export type CareerHeardFrom = 
+  | 'Friend / Classmate'
+  | 'Social Media (Instagram / WhatsApp)'
+  | 'Invertis Confession'
+  | 'InvertisPrep Website'
+  | 'Other';
+
+export type CareerAvailability = 
+  | 'Yes, fully available'
+  | 'Available with minor scheduling constraints'
+  | 'Not sure yet';
+
+export interface CareerApplication {
+  _id: string;
+  fullName: string;
+  email: string;
+  whatsappNumber: string;
+  departmentBranch: string;
+  currentSemester: CareerSemester;
+  currentLocation: CareerLocation;
+  customLocation?: string;
+  appliedDomain: CareerDomain;
+  hybridComfortable: boolean;
+  interestReason: string;
+  skills: string;
+  proficiencyLevel: CareerProficiency;
+  hasProjects: boolean;
+  projectDescription?: string;
+  resumeLink: string;
+  portfolioLink?: string;
+  heardFrom: CareerHeardFrom;
+  customHeardFrom?: string;
+  availability: CareerAvailability;
+  additionalNotes?: string;
+  status: CareerApplicationStatus;
+  submittedBy?: {
+    id: string;
+    name: string;
+    email: string;
+    picture?: string | null;
+    studentId?: string;
+  };
+  reviewedBy?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  reviewedAt?: string;
+  reviewNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CareerApplicationInput {
+  // Section 1
+  fullName: string;
+  email: string;
+  whatsappNumber: string;
+  departmentBranch: string;
+  currentSemester: CareerSemester;
+  currentLocation: CareerLocation;
+  customLocation?: string;
+  // Section 2
+  appliedDomain: CareerDomain;
+  hybridComfortable: boolean;
+  interestReason: string;
+  // Section 3
+  skills: string;
+  proficiencyLevel: CareerProficiency;
+  hasProjects: boolean;
+  projectDescription?: string;
+  // Section 4
+  resumeLink: string;
+  portfolioLink?: string;
+  // Section 5
+  heardFrom: CareerHeardFrom;
+  customHeardFrom?: string;
+  availability: CareerAvailability;
+  additionalNotes?: string;
+}
+
+export interface CareerApplicationListParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: CareerApplicationStatus;
+  domain?: CareerDomain;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface CareerApplicationUpdate {
+  status?: CareerApplicationStatus;
+  reviewNotes?: string;
+}
+
+export interface CareerApplicationStats {
+  byStatus: Record<CareerApplicationStatus, number>;
+  byDomain: Record<string, number>;
+  recentWeek: number;
+  total: number;
+}
+
+/** Light shape of the signed-in user's own submissions (GET /careers/applications/me) */
+export interface CareerApplicationStatusSummary {
+  _id: string;
+  status: CareerApplicationStatus;
+  appliedDomain: CareerDomain;
+  createdAt: string;
+  reviewedAt?: string;
 }
 

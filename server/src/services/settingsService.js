@@ -81,3 +81,21 @@ export const DEFAULT_PAPER_REQUEST_FULFILLED_TEMPLATE = {
   footer: '— Team InvertisPrep',
   email: 'support@invertisprep.in',
 };
+
+export const DEFAULT_CAREER_ACK_TEMPLATE = {
+  bannerUrl: '',
+  heading: 'We got your application, {{name}} ✔️',
+  intro: 'Thanks for applying to join the InvertisPrep team.',
+  sections: [
+    { type: 'heading', text: 'What you applied for', fontSize: 18, align: 'left' },
+    { type: 'paragraph', text: 'Role: {{role}}' },
+    { type: 'paragraph', text: 'Submitted: {{submittedAt}}' },
+    {
+      type: 'paragraph',
+      text: 'Our team reviews every application personally. We\u2019ll let you know the outcome via email soon — no need to follow up in the meantime.',
+    },
+    { type: 'paragraph', text: 'You can track your application status anytime from your profile menu on the site.' },
+  ],
+  footer: '— Team InvertisPrep',
+  email: 'support@invertisprep.in',
+};

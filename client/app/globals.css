@@ -343,3 +343,83 @@ html.printing-clean .resume-print-watermark {
 @media (max-width: 700px) {
   .resume-page { width: 8.27in; }
 }
+
+/* ── Event rich content (.prose-editor) ──
+   Shared by the admin event editor (write + preview) and the public
+   event detail page, which both render the same admin-authored HTML. */
+.prose-editor:empty::before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  pointer-events: none;
+}
+.prose-editor h2 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 1.25rem 0 0.5rem;
+  letter-spacing: -0.01em;
+}
+.prose-editor h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 1rem 0 0.4rem;
+}
+.prose-editor p {
+  margin: 0.5rem 0;
+}
+.prose-editor ul,
+.prose-editor ol {
+  margin: 0.5rem 0 0.5rem 1.25rem;
+}
+.prose-editor ul {
+  list-style: disc;
+}
+.prose-editor ol {
+  list-style: decimal;
+}
+.prose-editor li {
+  margin: 0.25rem 0;
+}
+.prose-editor blockquote {
+  border-left: 3px solid #6366f1;
+  background: #f8fafc;
+  padding: 0.5rem 1rem;
+  margin: 0.75rem 0;
+  border-radius: 0 0.75rem 0.75rem 0;
+  color: #475569;
+}
+.prose-editor a {
+  color: #4f46e5;
+  text-decoration: underline;
+}
+.prose-editor img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  margin: 0.75rem 0;
+  border: 1px solid #e2e8f0;
+}
+.prose-editor strong {
+  color: #0f172a;
+}
+
+/* Careers page — subtle entrance rise (staggered via animation-delay) */
+@keyframes ip-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.ip-rise {
+  animation: ip-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ip-rise {
+    animation: none;
+  }
+}

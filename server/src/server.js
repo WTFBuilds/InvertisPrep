@@ -12,6 +12,7 @@ import { connectDB } from './config/database.js';
 import { configureCloudinary } from './config/cloudinary.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { apiLimiter, uploadLimiter, pdfLimiter, readLimiter, writeLimiter } from './middleware/rateLimit.js';
+import { ensureSystemRoles } from './controllers/roleController.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -41,6 +42,7 @@ import adminMarketingRoutes from './routes/adminMarketing.js';
 import adminBackupRoutes from './routes/adminBackup.js';
 import settingsRoutes from './routes/settings.js';
 import adminSettingsRoutes from './routes/adminSettings.js';
+import careerRoutes from './routes/careers.js';
 
 // Initialize Express app
 const app = express();
@@ -73,6 +75,15 @@ if (trustProxy > 0) {
 
 const initApp = async () => {
   await connectDB();
+
+  // Top up editable built-in roles with any catalogue permission their
+  // document predates, so features added in later releases (e.g. careers)
+  // are visible to admins without a manual Roles-page visit.
+  try {
+    await ensureSystemRoles();
+  } catch (err) {
+    console.error('[Startup] ensureSystemRoles failed:', err.message);
+  }
 
   // Configure Cloudinary
   configureCloudinary();
@@ -162,6 +173,7 @@ app.use('/api/activity', activityRoutes);
 app.use('/api/sponsors', sponsorRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/admin/settings', adminSettingsRoutes);
+app.use('/api/careers', careerRoutes);
 
   // Apply write limiter to mutation-heavy routes
   app.use('/api/departments', writeLimiter);

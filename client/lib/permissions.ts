@@ -113,6 +113,15 @@ export const PERMISSION_GROUPS = [
       { key: 'ai.resume', label: 'Resume Builder AI', description: 'Use AI JD-fill, inline rephrase and section enhancement in resume builder' },
     ],
   },
+  {
+    id: 'careers',
+    label: 'Careers',
+    description: 'Career applications and recruitment management',
+    permissions: [
+      { key: 'careers.view', label: 'View applications', description: 'Browse career applications and stats' },
+      { key: 'careers.manage', label: 'Manage applications', description: 'Update status, add review notes, delete applications' },
+    ],
+  },
 ] as const;
 
 export const ALL_PERMISSION_KEYS: string[] = PERMISSION_GROUPS.flatMap((g) =>
@@ -270,6 +279,7 @@ export const NAV_PERMISSIONS: Record<string, string[]> = {
   '/admin/mail/notifications': ['emails.view'],
   '/admin/activity': ['activity.view'],
   '/admin/marketing': ['marketing.view'],
+  '/admin/careers/applications': ['careers.view'],
 };
 
 // Prefix-gated dynamic routes (e.g. /admin/activity/u/:id) — a pathname falls
@@ -280,6 +290,7 @@ export const NAV_PERMISSION_PREFIXES: [string, string[]][] = [
   // clubs.view so a read-only role can open the editor and see the
   // content, with the write actions themselves gated on clubs.manage.
   ['/admin/clubs/', ['clubs.view']],
+  ['/admin/careers/', ['careers.view']],
 ];
 
 export const SUPER_ADMIN_ONLY_ROUTES = ['/admin/roles', '/admin/backup', '/admin/settings'];

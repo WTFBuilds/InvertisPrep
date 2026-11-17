@@ -64,6 +64,10 @@ export const PERMISSIONS = {
   'activity.view': 'View the activity monitor: live users, event feed and per-user trails',
   'marketing.view': 'View marketing insights: growth, engagement and the leads list',
 
+  // Careers
+  'careers.view': 'View career applications and stats',
+  'careers.manage': 'Update application status, add review notes, delete applications',
+
   // Resume builder AI
   'ai.resume': 'Use AI resume tools (job-description fill, rephrase, enhance)',
 };

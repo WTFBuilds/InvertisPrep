@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { InstagramGateControl } from '@/components/admin/instagram-gate-control';
+import { InstagramGateControl, EmailSettingsControls } from '@/components/admin/instagram-gate-control';
 import { Settings, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -39,12 +39,12 @@ export default function AdminSettingsPage() {
           </h1>
         </div>
         <p className="text-sm text-slate-500">
-          Manage platform-wide feature flags, verification gates, and student interaction controls.
+          Manage platform-wide feature flags, verification gates, email notifications, and student interaction controls.
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 max-w-4xl">
-        <InstagramGateControl />
+        <EmailSettingsControls />
       </div>
     </div>
   );

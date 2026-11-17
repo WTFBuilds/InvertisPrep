@@ -53,10 +53,28 @@ import {
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { supportApi } from '@/lib/api';
+import { supportApi, careerApi } from '@/lib/api';
+import type { CareerApplicationStatus, CareerApplicationStatusSummary } from '@/types';
 import { buildLoginHref } from '@/lib/canonical';
 
 // ============================================================
+// Status chip styling for the user's career application entry in the dropdown
+const CAREER_STATUS_STYLES: Record<CareerApplicationStatus, string> = {
+  pending: 'bg-yellow-100 text-yellow-800',
+  under_review: 'bg-blue-100 text-blue-800',
+  shortlisted: 'bg-purple-100 text-purple-800',
+  rejected: 'bg-red-100 text-red-700',
+  hired: 'bg-emerald-100 text-emerald-800',
+};
+
+const CAREER_STATUS_LABELS: Record<CareerApplicationStatus, string> = {
+  pending: 'Pending',
+  under_review: 'Under review',
+  shortlisted: 'Shortlisted',
+  rejected: 'Not selected',
+  hired: 'Hired',
+};
+
 // Social links — update these two URLs to your real profiles
 // ============================================================
 const SOCIAL_LINKS = {
@@ -268,6 +286,7 @@ export default function Navbar() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [isHiddenByFooter, setIsHiddenByFooter] = useState(false);
   const [unreadReplies, setUnreadReplies] = useState(0);
+  const [careerApplication, setCareerApplication] = useState<CareerApplicationStatusSummary | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navRef = useRef<HTMLElement>(null);
 
@@ -287,6 +306,30 @@ export default function Navbar() {
       clearInterval(interval);
     };
   }, [user]);
+
+  // Latest career application of the signed-in user → status chip in the
+  // dropdown. Refetched on route change too, so submitting the form updates
+  // the chip without a manual refresh.
+  useEffect(() => {
+    if (!user) {
+      setCareerApplication(null);
+      return;
+    }
+    let cancelled = false;
+    careerApi
+      .getMine()
+      .then((res) => {
+        if (!cancelled && res.success && Array.isArray(res.data) && res.data.length > 0) {
+          setCareerApplication(res.data[0]);
+        } else if (!cancelled) {
+          setCareerApplication(null);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user, pathname]);
 
   // Carry the current location into the login page so the user can be
   // returned here (on the canonical domain) after authentication.
@@ -373,7 +416,7 @@ export default function Navbar() {
   const careerLinks: MenuLink[] = [
     { title: 'ATS Score Checker', href: '/ats-score', description: 'Check how your resume scores against ATS filters.', icon: <Target />, badge: 'new' },
     { title: 'Resume Builder', href: '/resume-builder', description: 'Create, manage and export ATS-friendly resumes.', icon: <FileCheck2 />, badge: 'new' },
-    { title: 'Career Hub', href: '/coming-soon/career', description: 'Internships, jobs & hackathons for students.', icon: <Briefcase />, badge: 'soon' },
+    { title: 'Careers', href: '/careers', description: 'View open roles & apply to join our team.', icon: <Briefcase />, badge: 'new' },
   ];
 
   const communityLinks: MenuLink[] = [
@@ -492,6 +535,7 @@ export default function Navbar() {
               >
                 <MobileMenu
                   user={user}
+                  careerApplication={careerApplication}
                   academicLinks={academicLinks}
                   careerLinks={careerLinks}
                   communityLinks={communityLinks}
@@ -558,6 +602,19 @@ export default function Navbar() {
                       <User className="mr-2 h-4 w-4 text-slate-500" /> Profile
                     </Link>
                   </DropdownMenuItem>
+                  {careerApplication && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/careers" className="w-full cursor-pointer">
+                        <Briefcase className="mr-2 h-4 w-4 text-slate-500" />
+                        <span className="flex-1">Career application</span>
+                        <span
+                          className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold ${CAREER_STATUS_STYLES[careerApplication.status]}`}
+                        >
+                          {CAREER_STATUS_LABELS[careerApplication.status]}
+                        </span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild>
                     <Link href="/my-requests" className="w-full cursor-pointer">
                       <Bug className="mr-2 h-4 w-4 text-slate-500" />
@@ -630,6 +687,7 @@ type MobileMenuProps = {
   communityLinks: MenuLink[];
   supportLinks: MenuLink[];
   legalLinks: { title: string; href: string; icon: React.ReactNode }[];
+  careerApplication?: CareerApplicationStatusSummary | null;
   getInitials: (n: string) => string;
   formatDisplayName: () => string;
   onNavigate: () => void;
@@ -681,6 +739,7 @@ function MobileLinkRow({ link, onNavigate }: { link: MenuLink; onNavigate: () =>
 
 function MobileMenu({
   user,
+  careerApplication,
   academicLinks,
   careerLinks,
   communityLinks,
@@ -806,6 +865,22 @@ function MobileMenu({
                 </span>
               )}
             </Link>
+
+            {careerApplication && (
+              <Link
+                href="/careers"
+                onClick={onNavigate}
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-zinc-100 hover:text-zinc-900 group"
+              >
+                <Briefcase className="size-4 text-zinc-400 group-hover:text-zinc-800 transition-colors" />
+                <span className="flex-1">Career application</span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${CAREER_STATUS_STYLES[careerApplication.status]}`}
+                >
+                  {CAREER_STATUS_LABELS[careerApplication.status]}
+                </span>
+              </Link>
+            )}
 
             {canEnterAdmin(user) ? (
               <Link

@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import nodemailer from 'nodemailer';
 import {
+  DEFAULT_CAREER_ACK_TEMPLATE,
   DEFAULT_PAPER_REQUEST_ACK_TEMPLATE,
   DEFAULT_PAPER_REQUEST_FULFILLED_TEMPLATE,
 } from './settingsService.js';
@@ -317,17 +318,26 @@ export const setWelcomeEmailEnabled = async (enabled) => {
 // EmailNotify, cached briefly. Fires from paperRequestController at request
 // creation and at triage-fulfill. Never throws / never blocks the request flow.
 
+// Email notification settings cache (uses settingsService)
 const NOTIFY_TTL_MS = 60 * 1000;
 const notifyCache = new Map(); // key -> { enabled, expires }
-const notifyDefault = { requestAck: true, requestFulfilled: true };
+const notifyDefault = { requestAck: true, requestFulfilled: true, careerAck: true, welcomeEmail: true };
 
 const isNotifyEnabled = async (key) => {
   const hit = notifyCache.get(key);
   if (hit && hit.expires > Date.now()) return hit.enabled;
   try {
-    const { EmailNotify } = await import('../models/EmailNotify.js');
-    const doc = await EmailNotify.findOne({ key }).lean();
-    const enabled = doc ? doc.enabled !== false : notifyDefault[key] !== false;
+    // Use settingsService for centralized toggle management
+    const { getSetting } = await import('./settingsService.js');
+    // Map old keys to new settings keys
+    const settingsKeyMap = {
+      requestAck: 'paperRequestAckEnabled',
+      requestFulfilled: 'paperRequestFulfilledEnabled',
+      careerAck: 'careerApplicationAckEnabled',
+      welcomeEmail: 'welcomeEmailEnabled',
+    };
+    const settingsKey = settingsKeyMap[key] || key;
+    const enabled = await getSetting(settingsKey, notifyDefault[key] !== false);
     notifyCache.set(key, { enabled, expires: Date.now() + NOTIFY_TTL_MS });
     return enabled;
   } catch {
@@ -336,23 +346,61 @@ const isNotifyEnabled = async (key) => {
 };
 
 export const setNotifyEnabled = async (key, enabled) => {
-  const { EmailNotify } = await import('../models/EmailNotify.js');
-  await EmailNotify.findOneAndUpdate(
-    { key },
-    { $set: { enabled: Boolean(enabled) } },
-    { upsert: true, new: true }
-  );
+  // This is kept for backward compatibility but now delegates to settingsService
+  const { setSetting } = await import('./settingsService.js');
+  const settingsKeyMap = {
+    requestAck: 'paperRequestAckEnabled',
+    requestFulfilled: 'paperRequestFulfilledEnabled',
+    careerAck: 'careerApplicationAckEnabled',
+    welcomeEmail: 'welcomeEmailEnabled',
+  };
+  const settingsKey = settingsKeyMap[key] || key;
+  await setSetting(settingsKey, Boolean(enabled));
   notifyCache.set(key, { enabled: Boolean(enabled), expires: Date.now() + NOTIFY_TTL_MS });
   return Boolean(enabled);
 };
 
 export const getNotifySettings = async () => {
-  const [requestAck, requestFulfilled] = await Promise.all([
+  const [requestAck, requestFulfilled, careerAck, welcomeEmail] = await Promise.all([
     isNotifyEnabled('requestAck'),
     isNotifyEnabled('requestFulfilled'),
+    isNotifyEnabled('careerAck'),
+    isNotifyEnabled('welcomeEmail'),
   ]);
-  return { requestAck, requestFulfilled };
+  return { requestAck, requestFulfilled, careerAck, welcomeEmail };
 };
+
+// Acknowledgement email the moment a career application lands — confirms we
+// got it and that the team will follow up by email. Uses the admin-edited
+// template when saved.
+export const sendCareerApplicationAck = (user, application) => {
+  if (!user?.email || !application) return Promise.resolve({ sent: false, error: 'no_email' });
+  return isNotifyEnabled('careerAck').then(async (enabled) => {
+    if (!enabled) return { sent: false, error: 'disabled' };
+    const tpl = await loadEditableTemplate(
+      'careerAckTemplate',
+      DEFAULT_CAREER_ACK_TEMPLATE
+    );
+    return sendTemplate({
+      to: user.email,
+      subject: 'We got your application ✔️',
+      template: 'careerApplicationAck',
+      tpl,
+      vars: careerVars(user, application),
+      kind: 'administrative',
+      userId: user._id || user.id || null,
+    });
+  });
+};
+
+// Shared placeholder values for the career-application emails.
+const careerVars = (user, application) => ({
+  name: user.name?.trim() || application.fullName || 'there',
+  role: application.appliedDomain || 'General application',
+  submittedAt: application.createdAt
+    ? new Date(application.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+    : '',
+});
 
 // Acknowledgement email when a student requests a paper — confirms we got it
 // and that the team is looking. Uses the admin-edited template when saved.

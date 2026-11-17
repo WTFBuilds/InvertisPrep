@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { EditPaperDialog } from '@/components/admin/edit-paper-dialog';
+import { ViewableAvatar } from '@/components/admin/viewable-avatar';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
@@ -250,9 +251,10 @@ export default function PapersPage() {
   };
 
   const getUploadedBy = (paper: PYQPaper) => {
-    if (typeof paper.uploadedBy === 'string') return 'Unknown';
-    if (!paper.uploadedBy) return 'Unknown'; // handle null/missing
-    return (paper.uploadedBy as User).email;
+    if (typeof paper.uploadedBy === 'string') return { email: 'Unknown', name: 'Unknown', picture: null };
+    if (!paper.uploadedBy) return { email: 'Unknown', name: 'Unknown', picture: null }; // handle null/missing
+    const u = paper.uploadedBy as User;
+    return { email: u.email, name: u.name, picture: u.picture };
   };
 
   return (
@@ -432,7 +434,25 @@ export default function PapersPage() {
                     </div>
                     <div className="col-span-2">
                       <p className="text-muted-foreground">Uploaded By</p>
-                      <p className="font-medium">{getUploadedBy(paper)}</p>
+                      {(() => {
+                        const uploader = getUploadedBy(paper);
+                        return (
+                          <div className="flex items-center gap-2">
+                            <ViewableAvatar
+                              src={uploader.picture}
+                              name={uploader.name}
+                              alt={uploader.name}
+                              plain
+                              className="h-8 w-8"
+                              fallbackClassName="bg-muted"
+                            />
+                            <div>
+                              <p className="font-medium">{uploader.name}</p>
+                              <p className="text-xs text-muted-foreground">{uploader.email}</p>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div className="col-span-2">
                       <p className="text-muted-foreground">File Name</p>
